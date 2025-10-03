@@ -70,9 +70,6 @@ services:
     # Do not expose directly; Traefik will route HTTPS to it
     env_file:
       - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/vistasign
-      - REDIS_URL=redis://redis:6379
     depends_on:
       db:
         condition: service_healthy
@@ -98,6 +95,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     # Do not expose directly; Traefik will route HTTPS to it
+    env_file:
+      - .env
     environment:
       - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}/api
     depends_on:
