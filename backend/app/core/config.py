@@ -33,18 +33,14 @@ class Settings(BaseSettings):
     INVITE_ONLY: bool = True
     
     # CORS
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://localhost:3000"]
+    ALLOWED_ORIGINS: str = "http://localhost:3000,https://localhost:3000"
     
-    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @field_validator('ALLOWED_ORIGINS', mode='after')
     @classmethod
     def parse_allowed_origins(cls, v):
         """Parse ALLOWED_ORIGINS from environment variable"""
         if isinstance(v, str):
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError:
-                # If not JSON, split by comma
-                return [origin.strip() for origin in v.split(',')]
+            return [origin.strip() for origin in v.split(',')]
         return v
     
     # File Storage
