@@ -131,6 +131,16 @@ async def register(
                     detail="Invalid or expired invite"
                 )
 
+        # Determine user role from invite
+        user_role = UserRole.USER  # default
+        if settings.INVITE_ONLY and register_data.invite_code:
+            result = await db.execute(
+                select(Invite).where(Invite.code == register_data.invite_code)
+            )
+            invite = result.scalar_one_or_none()
+            if invite and invite.role == "admin":
+                user_role = UserRole.ADMIN
+
         # Create new user
         user = User(
             email=register_data.email,
@@ -140,6 +150,7 @@ async def register(
             phone=register_data.phone,
             company=register_data.company,
             job_title=register_data.job_title,
+            role=user_role,
             is_verified=False,
             is_active=True
         )

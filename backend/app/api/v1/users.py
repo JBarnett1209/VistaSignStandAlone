@@ -71,6 +71,7 @@ async def create_invite(
     email: Optional[str] = Body(default=None),
     max_uses: int = Body(default=1, ge=1),
     expires_in_days: Optional[int] = Body(default=14, ge=1, le=365),
+    role: str = Body(default="user"),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -86,12 +87,20 @@ async def create_invite(
     if expires_in_days is not None:
         expires_at = datetime.utcnow() + timedelta(days=expires_in_days)
 
+    # Validate role
+    if role not in ["user", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'user' or 'admin'"
+        )
+
     invite = Invite(
         code=code,
         invited_email=email,
         max_uses=max_uses,
         expires_at=expires_at,
-        created_by=me.id
+        created_by=me.id,
+        role=role
     )
     db.add(invite)
     await db.commit()
@@ -117,7 +126,7 @@ async def create_invite(
         except Exception:
             # Do not fail the API if email sending fails
             pass
-    return {"code": invite.code, "expires_at": invite.expires_at, "max_uses": invite.max_uses}
+    return {"code": invite.code, "expires_at": invite.expires_at, "max_uses": invite.max_uses, "role": invite.role}
 
 
 @router.get("/invites", response_model=list[dict])
@@ -138,6 +147,7 @@ async def list_invites(
             "id": str(inv.id),
             "code": inv.code,
             "invited_email": inv.invited_email,
+            "role": inv.role,
             "expires_at": inv.expires_at,
             "max_uses": inv.max_uses,
             "uses_count": inv.uses_count,

@@ -24,6 +24,9 @@ class Invite(Base):
 
     # Optional: limit to a specific email address
     invited_email = Column(String(255), nullable=True, index=True)
+    
+    # Role to assign when invite is used
+    role = Column(String(20), nullable=False, default="user")
 
     # Invite lifecycle controls
     expires_at = Column(DateTime(timezone=True), nullable=True)
