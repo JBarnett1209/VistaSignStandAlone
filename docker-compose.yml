@@ -31,21 +31,6 @@ services:
       - web
     depends_on: {}
 
-  # ACME watcher to notify Slack when certs are issued/renewed
-  acme-watcher:
-    image: python:3.11-slim
-    command: python /scripts/acme_watcher.py
-    environment:
-      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-      - ACME_PATH=/letsencrypt/acme.json
-      - WATCH_INTERVAL=15
-    volumes:
-      - traefik_letsencrypt:/letsencrypt:ro
-      - ./scripts:/scripts:ro
-    depends_on:
-      - traefik
-    networks:
-      - web
 
   # PostgreSQL Database
   db:
@@ -96,6 +81,7 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
+      - traefik_letsencrypt:/letsencrypt:ro
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     labels:
       - traefik.enable=true

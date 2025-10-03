@@ -18,6 +18,7 @@ from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.core.acme_watcher import acme_watcher_task
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +42,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("✅ Database initialized successfully")
     # Create initial admin user if configured
     await ensure_initial_admin()
+    
+    # Start ACME certificate watcher
+    asyncio.create_task(acme_watcher_task())
+    
     logger.info("🔐 Security systems activated")
     logger.info("📝 VistaSign platform ready for digital signatures")
     
