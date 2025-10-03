@@ -13,24 +13,22 @@ import {
   ListItemText,
   Divider
 } from '@mui/material';
-import {
-  Dashboard as DashboardIcon,
-  Description as DocumentsIcon,
-  Edit as SignaturesIcon,
-  Workflow as WorkflowsIcon,
-  Person as ProfileIcon,
-  Settings as SettingsIcon
-} from '@mui/icons-material';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import DescriptionIcon from '@mui/icons-material/Description';
+import EditIcon from '@mui/icons-material/Edit';
+import WorkflowIcon from '@mui/icons-material/Workflow';
+import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 240;
 
 export const Layout: React.FC = () => {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Documents', icon: <DocumentsIcon />, path: '/documents' },
-    { text: 'Signatures', icon: <SignaturesIcon />, path: '/signatures' },
-    { text: 'Workflows', icon: <WorkflowsIcon />, path: '/workflows' },
-    { text: 'Profile', icon: <ProfileIcon />, path: '/profile' },
+    { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
+    { text: 'Signatures', icon: <EditIcon />, path: '/signatures' },
+    { text: 'Workflows', icon: <WorkflowIcon />, path: '/workflows' },
+    { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
 
 export default function Signatures() {
   return (
@@ -9,7 +9,7 @@ export default function Signatures() {
         <Typography variant="h4">
           Signatures
         </Typography>
-        <Button variant="contained" startIcon={<Add />}>
+        <Button variant="contained" startIcon={<AddIcon />}>
           Create Signature
         </Button>
       </Box>

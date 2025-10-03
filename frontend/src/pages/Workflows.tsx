@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
 
 export default function Workflows() {
   return (
@@ -9,7 +9,7 @@ export default function Workflows() {
         <Typography variant="h4">
           Workflows
         </Typography>
-        <Button variant="contained" startIcon={<Add />}>
+        <Button variant="contained" startIcon={<AddIcon />}>
           Create Workflow
         </Button>
       </Box>

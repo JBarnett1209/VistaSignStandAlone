@@ -1,6 +1,6 @@
 import React from 'react';
 import { Typography, Box, Card, CardContent, Button, Grid, List, ListItem, ListItemText } from '@mui/material';
-import { Check } from '@mui/icons-material';
+import CheckIcon from '@mui/icons-material/Check';
 
 export default function Pricing() {
   const plans = [
@@ -45,7 +45,7 @@ export default function Pricing() {
                 <List>
                   {plan.features.map((feature, index) => (
                     <ListItem key={index}>
-                      <Check color="primary" sx={{ mr: 1 }} />
+                      <CheckIcon color="primary" sx={{ mr: 1 }} />
                       <ListItemText primary={feature} />
                     </ListItem>
                   ))}
