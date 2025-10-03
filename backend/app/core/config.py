@@ -46,13 +46,15 @@ class Settings(BaseSettings):
     # File Storage
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
-    ALLOWED_FILE_TYPES: List[str] = [
-        "application/pdf",
-        "image/jpeg",
-        "image/png",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ]
+    ALLOWED_FILE_TYPES: str = "application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    
+    @field_validator('ALLOWED_FILE_TYPES', mode='after')
+    @classmethod
+    def parse_allowed_file_types(cls, v):
+        """Parse ALLOWED_FILE_TYPES from environment variable"""
+        if isinstance(v, str):
+            return [file_type.strip() for file_type in v.split(',')]
+        return v
     
     # Digital Signatures
     SIGNATURE_CERT_PATH: Optional[str] = None
