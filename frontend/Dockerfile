@@ -16,6 +16,7 @@ RUN npm config set registry https://registry.npmjs.org/ && \
     (npm install --no-optional --legacy-peer-deps --verbose || \
      (echo "First install failed, retrying with different approach..." && \
       npm cache clean --force && \
+      rm -rf node_modules package-lock.json && \
       npm install --no-optional --legacy-peer-deps --verbose))
 
 # Copy source code
