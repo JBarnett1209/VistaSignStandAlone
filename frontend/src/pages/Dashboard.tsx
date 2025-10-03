@@ -2,7 +2,7 @@ import React from 'react';
 import { Typography, Box, Grid, Card, CardContent, CardActions, Button } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
-import WorkflowIcon from '@mui/icons-material/Workflow';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 
 export default function Dashboard() {
   return (
@@ -49,7 +49,7 @@ export default function Dashboard() {
         <Grid item xs={12} sm={6} md={4}>
           <Card>
             <CardContent>
-              <WorkflowIcon color="primary" sx={{ fontSize: 40, mb: 2 }} />
+              <AssignmentIcon color="primary" sx={{ fontSize: 40, mb: 2 }} />
               <Typography variant="h6" component="div">
                 Workflows
               </Typography>

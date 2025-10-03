@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../services/api';
+import api from '../services/api';
 
 interface User {
   id: string;
@@ -39,8 +39,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       // Verify token and get user info
-      api.get('/auth/me')
-        .then(response => {
+      api.get('/api/v1/auth/me')
+        .then((response: any) => {
           setUser(response.data);
         })
         .catch(() => {
