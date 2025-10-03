@@ -22,7 +22,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 240;
 
-export const Layout: React.FC = () => {
+export const Layout = () => {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
