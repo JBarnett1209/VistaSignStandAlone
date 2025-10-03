@@ -82,6 +82,11 @@ class PublicSignatureResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class PublicSigningRequest(BaseModel):
+    """Public signing request schema"""
+    access_token: str
+    access_code: Optional[str] = None
+
 class PublicSigningResponse(BaseModel):
     """Public signing page response schema"""
     document: PublicDocumentResponse
