@@ -14,6 +14,8 @@ services:
       - --certificatesresolvers.r53.acme.dnschallenge.provider=route53
       - --certificatesresolvers.r53.acme.dnschallenge.delaybeforecheck=0
       - --api.dashboard=false
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
     ports:
       - "80:80"
       - "443:443"
