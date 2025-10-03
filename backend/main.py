@@ -9,6 +9,7 @@ from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import logging
 import os
+import asyncio
 from typing import AsyncGenerator
 
 from app.core.database import init_db, get_db
