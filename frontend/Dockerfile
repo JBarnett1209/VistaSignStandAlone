@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+ENV NODE_OPTIONS=--max-old-space-size=512
+RUN npm ci || npm install
 
 # Copy source code
 COPY . .
