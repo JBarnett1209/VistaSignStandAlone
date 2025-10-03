@@ -3,8 +3,10 @@ VistaSign Configuration Settings
 """
 
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List, Optional
 import os
+import json
 from urllib.parse import unquote
 
 class Settings(BaseSettings):
@@ -32,6 +34,18 @@ class Settings(BaseSettings):
     
     # CORS
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://localhost:3000"]
+    
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        """Parse ALLOWED_ORIGINS from environment variable"""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # If not JSON, split by comma
+                return [origin.strip() for origin in v.split(',')]
+        return v
     
     # File Storage
     UPLOAD_DIR: str = "uploads"
