@@ -159,3 +159,42 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
         )
+
+async def get_current_user_optional(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[dict]:
+    """Dependency to get current authenticated user from token (optional)"""
+    if not credentials:
+        return None
+    
+    try:
+        token = credentials.credentials
+        payload = auth_handler.verify_token(token)
+        
+        if not payload or payload.get("type") != "access":
+            return None
+        
+        user_id: str = payload.get("sub")
+        if not user_id:
+            return None
+        
+        # Fetch user from database
+        from sqlalchemy import select
+        
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            return None
+        
+        return {
+            "user_id": str(user.id),
+            "email": user.email,
+            "role": user.role.value,
+            "is_verified": user.is_verified
+        }
+        
+    except Exception as e:
+        logger.warning(f"Optional auth failed: {str(e)}")
+        return None
