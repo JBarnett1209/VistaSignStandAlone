@@ -7,27 +7,25 @@ import {
   Button,
   Typography,
   Box,
-  Alert,
-  Link,
-  Grid
+  Alert
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
-const Login: React.FC = () => {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { user, login } = useAuth();
 
-  if (isAuthenticated) {
+  if (user) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
     try {
       await login(email, password);
@@ -49,22 +47,20 @@ const Login: React.FC = () => {
         }}
       >
         <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Typography component="h1" variant="h4" gutterBottom>
-              VistaSign
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              Digital Signature Platform
-            </Typography>
-          </Box>
-
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            VistaSign
+          </Typography>
+          <Typography component="h2" variant="h6" align="center" color="text.secondary" gutterBottom>
+            Sign in to your account
+          </Typography>
+          
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
+            <Alert severity="error" sx={{ mt: 2 }}>
               {error}
             </Alert>
           )}
 
-          <Box component="form" onSubmit={handleSubmit}>
+          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <TextField
               margin="normal"
               required
@@ -98,23 +94,9 @@ const Login: React.FC = () => {
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
-            <Grid container>
-              <Grid item xs>
-                <Link href="#" variant="body2">
-                  Forgot password?
-                </Link>
-              </Grid>
-              <Grid item>
-                <Link href="/register" variant="body2">
-                  Don't have an account? Sign Up
-                </Link>
-              </Grid>
-            </Grid>
           </Box>
         </Paper>
       </Box>
     </Container>
   );
-};
-
-export default Login;
+}
