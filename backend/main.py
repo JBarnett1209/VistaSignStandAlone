@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.api.v1 import auth, documents, signatures, workflows, users, public_signing, billing
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
+from app.core.admin_setup import ensure_initial_admin
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning(f"⚠️ Could not ensure signing certs: {e}")
     await init_db()
     logger.info("✅ Database initialized successfully")
+    # Create initial admin user if configured
+    await ensure_initial_admin()
     logger.info("🔐 Security systems activated")
     logger.info("📝 VistaSign platform ready for digital signatures")
     

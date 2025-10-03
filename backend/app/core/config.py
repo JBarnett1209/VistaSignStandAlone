@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
     AWS_REGION: Optional[str] = None
     ROUTE53_HOSTED_ZONE_ID: Optional[str] = None
+
+    # Initial admin user (for first-time setup)
+    INITIAL_ADMIN_EMAIL: Optional[str] = None
+    INITIAL_ADMIN_PASSWORD: Optional[str] = None
+    INITIAL_ADMIN_FIRST_NAME: str = "Admin"
+    INITIAL_ADMIN_LAST_NAME: str = "User"
     
     # Redis (for caching and sessions)
     REDIS_URL: str = "redis://localhost:6379"
