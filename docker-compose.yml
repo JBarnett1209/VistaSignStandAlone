@@ -68,11 +68,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     # Do not expose directly; Traefik will route HTTPS to it
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/vistasign
       - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=your-secret-key-change-in-production
-      - ENCRYPTION_KEY=your-encryption-key-change-in-production
     depends_on:
       db:
         condition: service_healthy
