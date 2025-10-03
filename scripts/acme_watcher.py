@@ -12,11 +12,16 @@ INTERVAL = int(os.environ.get("WATCH_INTERVAL", "15"))
 
 def post_slack(text: str):
     if not SLACK_WEBHOOK_URL:
+        print("No SLACK_WEBHOOK_URL configured")
         return
     try:
-        requests.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=10)
-    except Exception:
-        pass
+        print(f"Sending to Slack: {text}")
+        resp = requests.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=10)
+        print(f"Slack response: {resp.status_code}")
+        if resp.status_code not in (200, 204):
+            print(f"Slack error: {resp.text}")
+    except Exception as e:
+        print(f"Slack notification failed: {e}")
 
 
 def current_digest(path: str) -> str:
@@ -51,17 +56,23 @@ def summarize_acme(path: str) -> str:
 
 
 def main():
+    print(f"ACME watcher starting - monitoring {ACME_PATH}")
+    print(f"Slack webhook: {'configured' if SLACK_WEBHOOK_URL else 'NOT configured'}")
+    
     last = ""
     # Initial state
     last = current_digest(ACME_PATH)
     if last:
+        print("Initial ACME state detected")
         msg = summarize_acme(ACME_PATH)
         if msg:
             post_slack(msg)
+    
     while True:
         time.sleep(INTERVAL)
         dig = current_digest(ACME_PATH)
         if dig and dig != last:
+            print(f"ACME file changed: {dig[:8]}...")
             last = dig
             msg = summarize_acme(ACME_PATH)
             if msg:
