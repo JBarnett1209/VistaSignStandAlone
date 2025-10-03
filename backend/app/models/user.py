@@ -63,7 +63,7 @@ class User(Base):
     organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True)
     
     # Relationships
-    documents = relationship("Document", back_populates="owner")
+    documents = relationship("Document", foreign_keys="Document.owner_id", back_populates="owner")
     signatures = relationship("Signature", back_populates="signer")
     workflows = relationship("Workflow", back_populates="creator")
     workflow_participants = relationship("WorkflowParticipant", back_populates="user")
