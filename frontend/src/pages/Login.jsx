@@ -22,14 +22,14 @@ export default function Login() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
       await login(email, password);
-    } catch (err: any) {
+    } catch (err) {
       setError(err.response?.data?.detail || 'Login failed');
     } finally {
       setLoading(false);
