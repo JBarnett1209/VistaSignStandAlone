@@ -13,11 +13,7 @@ COPY package*.json ./
 ENV NODE_OPTIONS=--max-old-space-size=8192
 ENV GENERATE_SOURCEMAP=false
 RUN npm config set registry https://registry.npmjs.org/ && \
-    (npm install --no-optional --legacy-peer-deps --verbose || \
-     (echo "First install failed, retrying with different approach..." && \
-      npm cache clean --force && \
-      rm -rf node_modules package-lock.json && \
-      npm install --no-optional --legacy-peer-deps --verbose))
+    npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
