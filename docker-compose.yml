@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # Reverse proxy with automatic Let's Encrypt via Route53 DNS-01
+  traefik:
+    image: traefik:v2.10
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.r53.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.r53.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.r53.acme.dnschallenge.provider=route53
+      - --certificatesresolvers.r53.acme.dnschallenge.delaybeforecheck=0
+      - --api.dashboard=false
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - web
+    depends_on: {}
+
+  # ACME watcher to notify Slack when certs are issued/renewed
+  acme-watcher:
+    image: python:3.11-slim
+    command: python /scripts/acme_watcher.py
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - ACME_PATH=/letsencrypt/acme.json
+      - WATCH_INTERVAL=15
+    volumes:
+      - traefik_letsencrypt:/letsencrypt:ro
+      - ./scripts:/scripts:ro
+    depends_on:
+      - traefik
+    networks:
+      - web
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: vistasign
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # VistaSign Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Do not expose directly; Traefik will route HTTPS to it
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/vistasign
+      - REDIS_URL=redis://redis:6379
+      - SECRET_KEY=your-secret-key-change-in-production
+      - ENCRYPTION_KEY=your-encryption-key-change-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${SINGLE_HOSTNAME}`) && PathPrefix(`/api`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls.certresolver=r53
+      - traefik.http.services.backend.loadbalancer.server.port=8000
+    networks:
+      - web
+
+  # VistaSign Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # Do not expose directly; Traefik will route HTTPS to it
+    environment:
+      - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}/api
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=Host(`${SINGLE_HOSTNAME}`) && PathPrefix(`/`)
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.routers.frontend.tls.certresolver=r53
+      - traefik.http.services.frontend.loadbalancer.server.port=3000
+    networks:
+      - web
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  traefik_letsencrypt:
+
+networks:
+  web:
+    driver: bridge

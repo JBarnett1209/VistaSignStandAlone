@@ -1,0 +1,104 @@
+"""
+VistaSign Signature Models
+"""
+
+from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, JSON, Enum
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+import uuid
+from datetime import datetime
+from enum import Enum as PyEnum
+
+from app.core.database import Base
+
+class SignatureStatus(str, PyEnum):
+    """Signature status"""
+    PENDING = "pending"
+    SIGNED = "signed"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+class SignatureType(str, PyEnum):
+    """Signature type"""
+    ELECTRONIC = "electronic"
+    DIGITAL = "digital"
+    BIOMETRIC = "biometric"
+
+class Signature(Base):
+    """Digital signature model"""
+    __tablename__ = "signatures"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Signature information
+    signature_type = Column(Enum(SignatureType), default=SignatureType.ELECTRONIC)
+    status = Column(Enum(SignatureStatus), default=SignatureStatus.PENDING)
+    
+    # Signature data
+    signature_data = Column(Text, nullable=True)  # Base64 encoded signature
+    signature_image = Column(Text, nullable=True)  # Base64 encoded signature image
+    signature_position = Column(JSON, nullable=True)  # Position on document
+    
+    # Digital signature properties
+    certificate_data = Column(Text, nullable=True)  # Digital certificate
+    certificate_thumbprint = Column(String(64), nullable=True)
+    signature_hash = Column(String(64), nullable=True)  # Hash of the signature
+    timestamp = Column(DateTime(timezone=True), nullable=True)
+    
+    # Signing context
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(Text, nullable=True)
+    signing_reason = Column(Text, nullable=True)
+    signing_location = Column(String(255), nullable=True)
+    
+    # Relationships
+    document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False)
+    signer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("signature_templates.id"), nullable=True)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    signed_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    # Relationships
+    document = relationship("Document", back_populates="signatures")
+    signer = relationship("User", back_populates="signatures")
+    template = relationship("SignatureTemplate", back_populates="signatures")
+    
+    def __repr__(self):
+        return f"<Signature(id={self.id}, status='{self.status.value}', signer='{self.signer_id}')>"
+
+class SignatureTemplate(Base):
+    """Signature template model"""
+    __tablename__ = "signature_templates"
+    
+    # Primary key
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Template information
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    is_default = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    
+    # Template data
+    template_data = Column(JSON, nullable=False)  # Template configuration
+    signature_style = Column(String(50), default="handwritten")
+    
+    # Relationships
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    creator = relationship("User")
+    signatures = relationship("Signature", back_populates="template")
+    
+    def __repr__(self):
+        return f"<SignatureTemplate(id={self.id}, name='{self.name}')>"

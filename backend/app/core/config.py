@@ -1,0 +1,96 @@
+"""
+VistaSign Configuration Settings
+"""
+
+from pydantic_settings import BaseSettings
+from typing import List, Optional
+import os
+from urllib.parse import unquote
+
+class Settings(BaseSettings):
+    """Application settings"""
+    
+    # Application
+    APP_NAME: str = "VistaSign Digital Signature Platform"
+    VERSION: str = "1.0.0"
+    DEBUG: bool = False
+    ENVIRONMENT: str = "development"
+    APP_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "http://localhost:3000"
+    
+    # Database
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/vistasign"
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+    
+    # Security
+    SECRET_KEY: str = "your-secret-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    INVITE_ONLY: bool = True
+    
+    # CORS
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "https://localhost:3000"]
+    
+    # File Storage
+    UPLOAD_DIR: str = "uploads"
+    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
+    ALLOWED_FILE_TYPES: List[str] = [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ]
+    
+    # Digital Signatures
+    SIGNATURE_CERT_PATH: Optional[str] = None
+    SIGNATURE_KEY_PATH: Optional[str] = None
+    SIGNATURE_PASSWORD: Optional[str] = None
+    
+    # Encryption
+    ENCRYPTION_KEY: str = "your-encryption-key-change-in-production"
+    
+    # Email (for notifications)
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REFRESH_TOKEN: Optional[str] = None
+    GOOGLE_REDIRECT_URI: Optional[str] = None
+    GOOGLE_WORKSPACE_DOMAIN: Optional[str] = None
+    FROM_EMAIL: Optional[str] = None
+    FROM_NAME: Optional[str] = None
+
+    # Slack notifications (for DNS TXT challenges or alerts)
+    SLACK_WEBHOOK_URL: Optional[str] = None
+    SLACK_BOT_TOKEN: Optional[str] = None
+
+    # Route53 / AWS (for DNS-01 automation via reverse proxy)
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: Optional[str] = None
+    ROUTE53_HOSTED_ZONE_ID: Optional[str] = None
+    
+    # Redis (for caching and sessions)
+    REDIS_URL: str = "redis://localhost:6379"
+    
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "logs/vistasign.log"
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+    def model_post_init(self, __context) -> None:
+        """Decode URL-encoded secrets so they are env-safe."""
+        try:
+            if isinstance(self.ENCRYPTION_KEY, str) and "%" in self.ENCRYPTION_KEY:
+                # Only unquote if percent-encoded content is present
+                self.ENCRYPTION_KEY = unquote(self.ENCRYPTION_KEY)
+        except Exception:
+            # Leave as-is if decoding fails
+            pass
+
+# Create settings instance
+settings = Settings()
