@@ -17,6 +17,7 @@ from app.api.v1 import auth, documents, signatures, workflows, users, public_sig
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
+from app.core.security_headers import SecurityHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -57,6 +58,9 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Security headers middleware (add first)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware
 app.add_middleware(
