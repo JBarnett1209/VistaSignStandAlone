@@ -3,7 +3,7 @@ VistaSign Public Signing Models
 For DocuSign-style public document signing
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Enum, JSON
+from sqlalchemy import Column, String, Boolean, DateTime, Text, ForeignKey, Enum, JSON, Integer
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
