@@ -180,6 +180,83 @@ async def revoke_invite(
     await db.commit()
     return {"message": "Invite revoked"}
 
+
+@router.put("/users/{user_id}/toggle-active", response_model=dict)
+async def toggle_user_active(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Toggle user active status (admin only)."""
+    # Verify admin
+    result = await db.execute(select(User).where(User.id == current_user["user_id"]))
+    me: User | None = result.scalar_one_or_none()
+    if not me or me.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Get target user
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user: User | None = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Prevent self-deactivation
+    if target_user.id == me.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot deactivate your own account"
+        )
+
+    # Toggle active status
+    target_user.is_active = not target_user.is_active
+    db.add(target_user)
+    await db.commit()
+
+    status = "activated" if target_user.is_active else "deactivated"
+    return {"message": f"User {status} successfully"}
+
+
+@router.put("/users/{user_id}/role", response_model=dict)
+async def update_user_role(
+    user_id: str,
+    new_role: str = Body(..., description="New role: 'user' or 'admin'"),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update user role (admin only)."""
+    # Verify admin
+    result = await db.execute(select(User).where(User.id == current_user["user_id"]))
+    me: User | None = result.scalar_one_or_none()
+    if not me or me.role != UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Validate role
+    if new_role not in ["user", "admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'user' or 'admin'"
+        )
+
+    # Get target user
+    result = await db.execute(select(User).where(User.id == user_id))
+    target_user: User | None = result.scalar_one_or_none()
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Prevent self-demotion
+    if target_user.id == me.id and new_role == "user":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot demote your own account"
+        )
+
+    # Update role
+    target_user.role = UserRole(new_role)
+    db.add(target_user)
+    await db.commit()
+
+    return {"message": f"User role updated to {new_role}"}
+
 @router.put("/profile", response_model=UserResponse)
 async def update_user_profile(
     user_update: UserUpdate,
