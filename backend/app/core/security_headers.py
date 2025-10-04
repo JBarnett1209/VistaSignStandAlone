@@ -6,6 +6,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 import time
+import secrets
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -13,6 +14,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
+        
+        # Generate nonce for CSP
+        nonce = secrets.token_urlsafe(16)
         
         # HSTS - Force HTTPS
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
@@ -29,17 +33,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         
-        # Content Security Policy
+        # Content Security Policy - Strict security for production
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' data: https: blob:; "
             "font-src 'self' data:; "
-            "connect-src 'self' https:; "
+            "connect-src 'self' https: wss:; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "
-            "form-action 'self'"
+            "form-action 'self'; "
+            "object-src 'none'; "
+            "media-src 'self'; "
+            "worker-src 'self'"
         )
         
         # Permissions Policy
