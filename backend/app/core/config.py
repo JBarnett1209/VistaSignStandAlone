@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_LAST_NAME: str = "User"
     
     # Redis (for caching and sessions)
-    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_URL: str = "redis://redis:6379"
     
     # Logging
     LOG_LEVEL: str = "INFO"
