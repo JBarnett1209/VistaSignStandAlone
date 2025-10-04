@@ -12,28 +12,28 @@ from urllib.parse import unquote
 class Settings(BaseSettings):
     """Application settings"""
     
-    # Application
-    APP_NAME: str = "VistaSign Digital Signature Platform"
-    VERSION: str = "1.0.0"
-    DEBUG: bool = False
-    ENVIRONMENT: str = "development"
-    APP_URL: str = "http://localhost:8000"
-    FRONTEND_URL: str = "http://localhost:3000"
+    # Application - REQUIRED
+    APP_NAME: str
+    VERSION: str
+    DEBUG: bool
+    ENVIRONMENT: str
+    APP_URL: str
+    FRONTEND_URL: str
     
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@db:5432/vistasign"
+    # Database - REQUIRED
+    DATABASE_URL: str
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     
-    # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    # Security - REQUIRED
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     INVITE_ONLY: bool = True
     
-    # CORS
-    ALLOWED_ORIGINS: str = "http://localhost:3000,https://localhost:3000"
+    # CORS - REQUIRED
+    ALLOWED_ORIGINS: str
     
     @field_validator('ALLOWED_ORIGINS', mode='after')
     @classmethod
@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     SIGNATURE_KEY_PATH: Optional[str] = None
     SIGNATURE_PASSWORD: Optional[str] = None
     
-    # Encryption
-    ENCRYPTION_KEY: str = "your-encryption-key-change-in-production"
+    # Encryption - REQUIRED
+    ENCRYPTION_KEY: str
     
     # Email (for notifications)
     GOOGLE_CLIENT_ID: Optional[str] = None
@@ -89,8 +89,8 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_FIRST_NAME: str = "Admin"
     INITIAL_ADMIN_LAST_NAME: str = "User"
     
-    # Redis (for caching and sessions)
-    REDIS_URL: str = "redis://redis:6379"
+    # Redis (for caching and sessions) - REQUIRED
+    REDIS_URL: str
     
     # Logging
     LOG_LEVEL: str = "INFO"
