@@ -1,34 +1,19 @@
 
 services:
-  # Reverse proxy with automatic Let's Encrypt via Route53 DNS-01
-  traefik:
-    image: traefik:v2.10
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.r53.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.r53.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.r53.acme.dnschallenge.provider=route53
-      - --certificatesresolvers.r53.acme.dnschallenge.delaybeforecheck=0
-      - --api.dashboard=false
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
     ports:
       - "80:80"
       - "443:443"
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_letsencrypt:/letsencrypt
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/ssl
+    depends_on:
+      - backend
+      - frontend
     networks:
       - web
-    depends_on: {}
 
 
   # PostgreSQL Database
@@ -81,15 +66,8 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
-      - traefik_letsencrypt:/letsencrypt:ro
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.backend.rule=Host(`${SINGLE_HOSTNAME}`) && PathPrefix(`/api`)
-      - traefik.http.routers.backend.entrypoints=websecure
-      - traefik.http.routers.backend.tls.certresolver=r53
-      - traefik.http.services.backend.loadbalancer.server.port=8000
-      - traefik.http.services.backend.loadbalancer.server.scheme=http
+    # No labels needed for Nginx
     networks:
       - web
 
@@ -112,13 +90,7 @@ services:
       - /app/node_modules
     restart: unless-stopped
     command: npm start
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.frontend.rule=Host(`${SINGLE_HOSTNAME}`) && PathPrefix(`/`)
-      - traefik.http.routers.frontend.entrypoints=websecure
-      - traefik.http.routers.frontend.tls.certresolver=r53
-      - traefik.http.services.frontend.loadbalancer.server.port=3000
-      - traefik.http.services.frontend.loadbalancer.server.scheme=http
+    # No labels needed for Nginx
     networks:
       - web
 
@@ -126,7 +98,6 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
-  traefik_letsencrypt:
 
 networks:
   web:
