@@ -89,6 +89,7 @@ services:
       - traefik.http.routers.backend.entrypoints=websecure
       - traefik.http.routers.backend.tls.certresolver=r53
       - traefik.http.services.backend.loadbalancer.server.port=8000
+      - traefik.http.services.backend.loadbalancer.server.scheme=http
     networks:
       - web
 
@@ -102,11 +103,14 @@ services:
       - .env
     environment:
       - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}/api
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     depends_on:
       - backend
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    restart: unless-stopped
     command: npm start
     labels:
       - traefik.enable=true
@@ -114,6 +118,7 @@ services:
       - traefik.http.routers.frontend.entrypoints=websecure
       - traefik.http.routers.frontend.tls.certresolver=r53
       - traefik.http.services.frontend.loadbalancer.server.port=3000
+      - traefik.http.services.frontend.loadbalancer.server.scheme=http
     networks:
       - web
 
