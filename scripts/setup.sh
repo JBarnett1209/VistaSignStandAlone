@@ -28,7 +28,7 @@ mkdir -p certs
 # Set up environment file
 echo "⚙️ Setting up environment..."
 if [ ! -f .env ]; then
-    cp env.example .env
+    cp env.template .env
     echo "✅ Created .env file from template"
 else
     echo "ℹ️ .env file already exists"
