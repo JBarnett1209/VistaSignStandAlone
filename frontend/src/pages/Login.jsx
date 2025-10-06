@@ -37,70 +37,57 @@ export default function Login() {
   };
 
   return (
-    <Container component="main" maxWidth={false} disableGutters className="content-section" sx={{ alignItems: 'center' }}>
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
+    <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
+      <Paper elevation={6} sx={{ p: 4, width: '100%', borderRadius: 3 }}>
+        <Box sx={{ textAlign: 'center', mb: 2 }}>
+          <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
             VistaSign
           </Typography>
-          <Typography component="h2" variant="h6" align="center" color="text.secondary" gutterBottom>
-            Sign in to your account
+          <Typography variant="body2" color="text.secondary">
+            Sign in to continue
           </Typography>
-          
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
+        </Box>
 
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              placeholder="Email Address"
-              InputLabelProps={{ shrink: true }}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              placeholder="Password"
-              InputLabelProps={{ shrink: true }}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
-            >
-              {loading ? 'Signing In...' : 'Sign In'}
-            </Button>
-          </Box>
-        </Paper>
-      </Box>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={handleSubmit}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            placeholder="Email Address"
+            InputLabelProps={{ shrink: true }}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type="password"
+            id="password"
+            autoComplete="current-password"
+            placeholder="Password"
+            InputLabelProps={{ shrink: true }}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Button type="submit" fullWidth variant="contained" sx={{ mt: 2 }} disabled={loading}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </Button>
+        </Box>
+      </Paper>
     </Container>
   );
 }

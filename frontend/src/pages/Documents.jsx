@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 export default function Documents() {
   return (
     <Box className="content-section">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%', maxWidth: 'none' }}>
         <Typography variant="h4">
           Documents
         </Typography>

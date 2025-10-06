@@ -61,6 +61,11 @@ export const Layout = () => {
           }}>
             <InputBase placeholder="Search" fullWidth />
           </Box>
+          <Box sx={{ ml: 'auto' }}>
+            <Typography component={Link} to="/profile" sx={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>
+              Profile
+            </Typography>
+          </Box>
         </Toolbar>
       </AppBar>
       

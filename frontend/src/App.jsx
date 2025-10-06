@@ -17,6 +17,8 @@ import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Pricing from './pages/Pricing';
 import PublicSigning from './pages/PublicSigning';
+import Invites from './pages/Invites';
+import Users from './pages/Users';
 
 // Create theme (UnitVista color feel)
 const theme = createTheme({
@@ -48,6 +50,31 @@ const theme = createTheme({
           borderRight: '1px solid #E5E7EB',
         },
       },
+    },
+    MuiContainer: {
+      defaultProps: {
+        maxWidth: false,
+        disableGutters: true
+      },
+      styleOverrides: {
+        root: {
+          width: '100%'
+        }
+      }
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          width: '100%'
+        }
+      }
+    },
+    MuiTableContainer: {
+      styleOverrides: {
+        root: {
+          width: '100%'
+        }
+      }
     },
     MuiListItemButton: {
       styleOverrides: {
@@ -106,6 +133,8 @@ function App() {
                 <Route path="workflows" element={<Workflows />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="settings/invites" element={<Invites />} />
+                <Route path="settings/users" element={<Users />} />
                 <Route path="pricing" element={<Pricing />} />
               </Route>
             </Routes>
