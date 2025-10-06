@@ -22,28 +22,28 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#5B6CF9', // UnitVista-like indigo
+      main: '#7B5CFF', // vivid indigo/purple
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#7A52F4', // accent purple
+      main: '#A855F7', // accent purple
       contrastText: '#ffffff',
     },
     background: {
-      default: '#f7f8fb',
+      default: '#F5F3FF', // soft lavender background
       paper: '#ffffff',
     },
     text: {
-      primary: '#0f172a',
-      secondary: '#475569',
+      primary: '#111827',
+      secondary: '#6B7280',
     },
   },
   components: {
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#0f172a', // dark sidebar
-          color: '#e2e8f0',
+          backgroundColor: '#1B1436', // deep purple sidebar
+          color: '#E9D5FF',
         },
       },
     },
@@ -53,12 +53,12 @@ const theme = createTheme({
           borderRadius: 8,
           margin: '4px 8px',
           '&.Mui-selected': {
-            backgroundColor: 'rgba(91,108,249,0.15)',
-            color: '#ffffff',
-            '& .MuiListItemIcon-root': { color: '#ffffff' },
+            backgroundColor: 'rgba(168, 85, 247, 0.25)',
+            color: '#FFFFFF',
+            '& .MuiListItemIcon-root': { color: '#FFFFFF' },
           },
           '&:hover': {
-            backgroundColor: 'rgba(91,108,249,0.1)',
+            backgroundColor: 'rgba(123, 92, 255, 0.18)',
           },
         },
       },
@@ -66,9 +66,9 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: '#ffffff',
-          color: '#0f172a',
-          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+          background: 'linear-gradient(90deg, #6D28D9 0%, #7B5CFF 50%, #9333EA 100%)',
+          color: '#FFFFFF',
+          boxShadow: '0 2px 10px rgba(123, 92, 255, 0.25)',
         },
       },
     },
