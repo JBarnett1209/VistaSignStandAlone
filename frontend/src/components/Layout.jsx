@@ -23,6 +23,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 256;
+const sidebarGutter = 32; // extra spacing between drawer and content
 
 export const Layout = () => {
   const location = useLocation();
@@ -37,7 +38,7 @@ export const Layout = () => {
 
   return (
     <Box className="app-root">
-      <AppBar position="fixed" sx={{ left: drawerWidth, width: `calc(100% - ${drawerWidth}px)` }}>
+      <AppBar position="fixed" sx={{ left: drawerWidth + sidebarGutter, width: `calc(100% - ${drawerWidth + sidebarGutter}px)` }}>
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
           <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
             VistaSign
@@ -90,7 +91,7 @@ export const Layout = () => {
         </Box>
       </Drawer>
       
-      <Box component="main" className="app-main" sx={{ bgcolor: 'background.default', ml: `${drawerWidth}px` }}>
+      <Box component="main" className="app-main" sx={{ bgcolor: 'background.default', ml: `${drawerWidth + sidebarGutter}px` }}>
         <Toolbar />
         <Box className="app-content">
           <Outlet />
