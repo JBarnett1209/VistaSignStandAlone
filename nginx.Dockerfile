@@ -1,14 +1,16 @@
 FROM node:18-alpine AS build
 
-WORKDIR /app
-
-# Copy frontend package files and install deps
-COPY frontend/package*.json ./frontend/
 WORKDIR /app/frontend
-RUN npm ci --legacy-peer-deps
 
-# Copy source and build
-COPY frontend/ ./
+# Copy only package manifests first for better layer caching
+COPY frontend/package.json ./package.json
+COPY frontend/package-lock.json ./package-lock.json
+
+# Install dependencies; fall back to npm install if lock is out-of-sync
+RUN npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps
+
+# Copy the rest of the source and build
+COPY frontend/ .
 
 # Allow API base URL at build time
 ARG REACT_APP_API_URL
