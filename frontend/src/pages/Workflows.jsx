@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 
 export default function Workflows() {
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
           Workflows
@@ -14,8 +14,8 @@ export default function Workflows() {
         </Button>
       </Box>
       
-      <TableContainer component={Paper} sx={{ width: '100%' }}>
-        <Table sx={{ width: '100%', tableLayout: 'auto' }}>
+      <TableContainer component={Paper} sx={{ width: '100%', flex: 1 }}>
+        <Table stickyHeader sx={{ width: '100%', tableLayout: 'auto' }}>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>

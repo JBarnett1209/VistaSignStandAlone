@@ -111,7 +111,9 @@ export const Layout = () => {
         }}
       >
         <Toolbar />
-        <Outlet />
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );
