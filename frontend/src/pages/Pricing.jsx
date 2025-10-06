@@ -22,7 +22,7 @@ export default function Pricing() {
   ];
 
   return (
-    <Box>
+    <Box className="content-section">
       <Typography variant="h4" align="center" gutterBottom>
         Pricing Plans
       </Typography>

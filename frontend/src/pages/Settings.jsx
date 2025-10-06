@@ -3,7 +3,7 @@ import { Typography, Box, Card, CardContent, Switch, FormControlLabel, Button } 
 
 export default function Settings() {
   return (
-    <Box>
+    <Box className="content-section">
       <Typography variant="h4" gutterBottom>
         Settings
       </Typography>

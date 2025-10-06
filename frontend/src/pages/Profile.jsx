@@ -6,7 +6,7 @@ export default function Profile() {
   const { user } = useAuth();
 
   return (
-    <Box>
+    <Box className="content-section">
       <Typography variant="h4" gutterBottom>
         Profile
       </Typography>

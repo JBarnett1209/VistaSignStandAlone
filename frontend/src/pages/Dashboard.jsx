@@ -7,7 +7,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 
 export default function Dashboard() {
   return (
-    <Box>
+    <Box className="content-section">
       <Typography variant="h4" gutterBottom>
         Dashboard
       </Typography>
