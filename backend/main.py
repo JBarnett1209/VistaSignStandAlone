@@ -4,6 +4,7 @@ Main FastAPI application entry point
 """
 
 from fastapi import FastAPI, HTTPException, Depends, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
@@ -84,7 +85,7 @@ async def csrf_protect(request: Request, call_next):
         csrf_cookie = request.cookies.get("vst_csrf")
         csrf_header = request.headers.get("x-csrf-token")
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-            return FastAPI.responses.JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+            return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
 
 # Health check endpoint
