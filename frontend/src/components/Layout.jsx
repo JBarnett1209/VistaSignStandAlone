@@ -11,7 +11,9 @@ import {
   ListItemButton, 
   ListItemIcon, 
   ListItemText,
-  Divider
+  Divider,
+  InputBase,
+  alpha
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -42,10 +44,21 @@ export const Layout = () => {
           ml: `${drawerWidth}px`,
         }}
       >
-        <Toolbar>
-          <Typography variant="h6" noWrap component="div">
+        <Toolbar sx={{ display: 'flex', gap: 2 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
             VistaSign
           </Typography>
+          <Box sx={{
+            ml: 2,
+            flex: 1,
+            maxWidth: 480,
+            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.06),
+            borderRadius: 2,
+            px: 2,
+            py: 0.5,
+          }}>
+            <InputBase placeholder="Search" fullWidth />
+          </Box>
         </Toolbar>
       </AppBar>
       

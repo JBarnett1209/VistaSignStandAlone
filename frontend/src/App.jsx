@@ -17,19 +17,64 @@ import Settings from './pages/Settings';
 import Pricing from './pages/Pricing';
 import PublicSigning from './pages/PublicSigning';
 
-// Create theme
+// Create theme (UnitVista color feel)
 const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#1976d2',
+      main: '#5B6CF9', // UnitVista-like indigo
+      contrastText: '#ffffff',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#7A52F4', // accent purple
+      contrastText: '#ffffff',
+    },
+    background: {
+      default: '#f7f8fb',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#0f172a',
+      secondary: '#475569',
+    },
+  },
+  components: {
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: '#0f172a', // dark sidebar
+          color: '#e2e8f0',
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          margin: '4px 8px',
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(91,108,249,0.15)',
+            color: '#ffffff',
+            '& .MuiListItemIcon-root': { color: '#ffffff' },
+          },
+          '&:hover': {
+            backgroundColor: 'rgba(91,108,249,0.1)',
+          },
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
+          color: '#0f172a',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
+        },
+      },
     },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
   },
 });
 
