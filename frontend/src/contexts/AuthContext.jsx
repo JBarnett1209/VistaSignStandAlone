@@ -16,34 +16,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // Verify token and get user info
-      api.get('/api/v1/auth/me')
-        .then((response) => {
-          setUser(response.data);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
+    // Attempt to refresh on load (cookie-based refresh)
+    const attemptRefresh = async () => {
+      try {
+        const res = await api.post('/api/v1/auth/refresh', {});
+        // Keep access token only in memory
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = res.data.access_token;
+        }
+        const me = await api.get('/api/v1/auth/me');
+        setUser(me.data);
+      } catch (e) {
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    attemptRefresh();
   }, []);
 
   const login = async (email, password) => {
     const response = await api.post('/api/v1/auth/login', { email, password });
     const { access_token, user: userData } = response.data;
-    
-    localStorage.setItem('token', access_token);
+    if (typeof window !== 'undefined') {
+      window.__vstAccessToken = access_token;
+    }
     setUser(userData);
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
+  const logout = async () => {
+    try { await api.post('/api/v1/auth/logout'); } catch (_) {}
+    if (typeof window !== 'undefined') {
+      window.__vstAccessToken = null;
+    }
     setUser(null);
   };
 

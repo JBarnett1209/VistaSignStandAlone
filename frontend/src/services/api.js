@@ -5,14 +5,24 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
 });
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    // Access token stored only in memory (window.__vstAccessToken)
+    const token = typeof window !== 'undefined' ? window.__vstAccessToken : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Attach CSRF token from cookie if present for unsafe methods
+    const method = (config.method || 'get').toLowerCase();
+    if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      const csrf = document.cookie.split('; ').find((c) => c.startsWith('vst_csrf='));
+      if (csrf) {
+        config.headers['X-CSRF-Token'] = csrf.split('=')[1];
+      }
     }
     return config;
   },

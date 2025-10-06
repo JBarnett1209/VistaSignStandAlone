@@ -2,12 +2,13 @@
 VistaSign Authentication API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
 from typing import Optional
+import secrets
 import logging
 
 from app.core.database import get_db
@@ -25,10 +26,15 @@ security = HTTPBearer()
 auth_handler = AuthHandler()
 logger = logging.getLogger(__name__)
 
+REFRESH_COOKIE_NAME = "vst_refresh"
+CSRF_COOKIE_NAME = "vst_csrf"
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    response: Response = None
 ):
     """User login endpoint"""
     try:
@@ -69,6 +75,29 @@ async def login(
         refresh_token = auth_handler.create_refresh_token(
             data={"sub": str(user.id)}
         )
+        # Set HttpOnly refresh cookie (Secure, Lax)
+        max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
+        if response:
+            response.set_cookie(
+                key=REFRESH_COOKIE_NAME,
+                value=refresh_token,
+                max_age=max_age,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/",
+            )
+            # CSRF cookie (non-HttpOnly)
+            csrf_token = secrets.token_urlsafe(32)
+            response.set_cookie(
+                key=CSRF_COOKIE_NAME,
+                value=csrf_token,
+                max_age=max_age,
+                httponly=False,
+                secure=True,
+                samesite="lax",
+                path="/",
+            )
         
         return LoginResponse(
             access_token=access_token,
@@ -190,12 +219,21 @@ async def register(
 @router.post("/refresh", response_model=TokenRefreshResponse)
 async def refresh_token(
     refresh_data: TokenRefreshRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request: Request = None,
+    response: Response = None
 ):
     """Token refresh endpoint"""
     try:
+        # Prefer cookie for refresh token
+        incoming_refresh = refresh_data.refresh_token if refresh_data and getattr(refresh_data, "refresh_token", None) else None
+        if request and not incoming_refresh:
+            incoming_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
+        if not incoming_refresh:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+
         # Verify refresh token
-        payload = auth_handler.verify_token(refresh_data.refresh_token)
+        payload = auth_handler.verify_token(incoming_refresh)
         if not payload or payload.get("type") != "refresh":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -226,6 +264,28 @@ async def refresh_token(
         new_refresh_token = auth_handler.create_refresh_token(
             data={"sub": str(user.id)}
         )
+        # Rotate cookie
+        max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
+        if response:
+            response.set_cookie(
+                key=REFRESH_COOKIE_NAME,
+                value=new_refresh_token,
+                max_age=max_age,
+                httponly=True,
+                secure=True,
+                samesite="lax",
+                path="/",
+            )
+            csrf_token = secrets.token_urlsafe(32)
+            response.set_cookie(
+                key=CSRF_COOKIE_NAME,
+                value=csrf_token,
+                max_age=max_age,
+                httponly=False,
+                secure=True,
+                samesite="lax",
+                path="/",
+            )
         
         return TokenRefreshResponse(
             access_token=access_token,
@@ -285,6 +345,8 @@ async def get_current_user_profile(
         )
 
 @router.post("/logout")
-async def logout():
+async def logout(response: Response):
     """User logout endpoint"""
+    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
+    response.delete_cookie(CSRF_COOKIE_NAME, path="/")
     return {"message": "Successfully logged out"}

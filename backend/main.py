@@ -3,7 +3,7 @@ VistaSign - Digital Signature Platform
 Main FastAPI application entry point
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
@@ -76,6 +76,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Basic CSRF protection for unsafe methods using X-CSRF-Token header + cookie
+@app.middleware("http")
+async def csrf_protect(request: Request, call_next):
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        csrf_cookie = request.cookies.get("vst_csrf")
+        csrf_header = request.headers.get("x-csrf-token")
+        if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            return FastAPI.responses.JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+    return await call_next(request)
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
