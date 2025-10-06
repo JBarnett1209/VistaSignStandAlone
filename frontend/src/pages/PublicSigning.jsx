@@ -3,7 +3,7 @@ import { Typography, Box, Card, CardContent, Button } from '@mui/material';
 
 export default function PublicSigning() {
   return (
-    <Box>
+    <Box className="content-section">
       <Typography variant="h4" gutterBottom>
         Public Document Signing
       </Typography>

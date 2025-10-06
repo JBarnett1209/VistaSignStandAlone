@@ -37,7 +37,7 @@ export default function Login() {
   };
 
   return (
-    <Container component="main" maxWidth="sm">
+    <Container component="main" maxWidth={false} disableGutters className="content-section" sx={{ alignItems: 'center' }}>
       <Box
         sx={{
           marginTop: 8,
