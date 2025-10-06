@@ -3,7 +3,7 @@ VistaSign Authentication Schemas
 """
 
 from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 class LoginRequest(BaseModel):
@@ -70,6 +70,24 @@ class UserProfile(BaseModel):
     
     class Config:
         from_attributes = True
+
+# Invite Schemas
+class InviteCreate(BaseModel):
+    email: Optional[EmailStr] = None
+    role: str
+
+class InviteResponse(BaseModel):
+    id: str
+    email: Optional[EmailStr] = None
+    role: str
+    code: str
+    revoked: bool
+    uses_count: int
+    max_uses: int
+    expires_at: Optional[datetime] = None
+
+class InviteListResponse(BaseModel):
+    invites: List[InviteResponse]
 
 # Update forward references
 LoginResponse.model_rebuild()

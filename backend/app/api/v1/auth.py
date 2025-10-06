@@ -14,7 +14,7 @@ import logging
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security.auth import AuthHandler, get_current_user
-from app.models.user import User, UserStatus
+from app.models.user import User, UserStatus, UserRole
 from app.models.invite import Invite
 from app.schemas.auth import (
     LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,

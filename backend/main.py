@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import logging
-import secrets
 import os
 import asyncio
 from typing import AsyncGenerator
@@ -17,6 +16,7 @@ from typing import AsyncGenerator
 from app.core.database import init_db, get_db
 from app.core.config import settings
 from app.api.v1 import auth, documents, signatures, workflows, users, public_signing, billing
+from app.api.v1 import invites
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
@@ -116,6 +116,7 @@ app.include_router(signatures.router, prefix="/api/v1/signatures", tags=["Signat
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["Workflows"])
 app.include_router(public_signing.router, prefix="/api/v1/public", tags=["Public Signing"])
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+app.include_router(invites.router, prefix="/api/v1/invites", tags=["Invites"])
 
 # CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
 @app.get("/api/v1/auth/csrf", tags=["Authentication"])
