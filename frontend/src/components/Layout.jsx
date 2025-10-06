@@ -100,9 +100,10 @@ export const Layout = () => {
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0, // allow children (tables, grids) to use full width
           bgcolor: 'background.default',
           p: 3,
-          width: `calc(100% - ${drawerWidth}px)`,
+          width: '100%'
         }}
       >
         <Toolbar />
