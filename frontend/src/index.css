@@ -12,6 +12,28 @@ html, body, #root {
   width: 100%;
 }
 
+/* Force full-bleed app layout and prevent any component max-width from constraining pages */
+html, body, #root {
+  overflow-x: hidden;
+}
+
+/* Disable MUI Container max-width caps globally */
+.MuiContainer-maxWidthXs,
+.MuiContainer-maxWidthSm,
+.MuiContainer-maxWidthMd,
+.MuiContainer-maxWidthLg,
+.MuiContainer-maxWidthXl {
+  max-width: 100% !important;
+}
+
+/* Ensure Papers and main content span available width */
+main {
+  width: 100% !important;
+}
+.MuiPaper-root {
+  width: 100%;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
