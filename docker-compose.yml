@@ -93,7 +93,7 @@ services:
     env_file:
       - .env
     environment:
-      - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}/api
+      - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
     depends_on:
