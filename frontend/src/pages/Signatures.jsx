@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 
 export default function Signatures() {
   return (
-    <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+    <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, px: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
           Signatures
@@ -14,7 +14,7 @@ export default function Signatures() {
         </Button>
       </Box>
       
-      <TableContainer component={Paper} sx={{ width: '100%', flex: 1 }}>
+      <TableContainer component={Paper} elevation={0} square sx={{ width: '100%', flex: 1 }}>
         <Table stickyHeader sx={{ width: '100%', tableLayout: 'auto' }}>
           <TableHead>
             <TableRow>

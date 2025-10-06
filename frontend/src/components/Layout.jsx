@@ -102,7 +102,7 @@ export const Layout = () => {
           flexGrow: 1,
           minWidth: 0, // allow children (tables, grids) to use full width
           bgcolor: 'background.default',
-          p: 3,
+          p: 0,
           width: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -111,7 +111,7 @@ export const Layout = () => {
         }}
       >
         <Toolbar />
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, px: 3, pb: 3 }}>
           <Outlet />
         </Box>
       </Box>
