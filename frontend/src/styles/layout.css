@@ -1,0 +1,54 @@
+/* Global layout system for VistaSign */
+
+:root {
+  --sidebar-width: 240px;
+  --page-padding-x: 24px;
+  --page-padding-y: 24px;
+}
+
+/* App shell */
+.app-root {
+  display: flex;
+  width: 100vw;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.app-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--page-padding-y) var(--page-padding-x);
+}
+
+/* Page sections */
+.content-section {
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-width-table {
+  width: 100% !important;
+  flex: 1 1 auto;
+}
+
+.full-width-table .MuiTable-root {
+  width: 100% !important;
+  table-layout: fixed;
+}
+
+

@@ -36,7 +36,7 @@ export const Layout = () => {
   ];
 
   return (
-    <Box sx={{ display: 'flex', width: '100vw', minHeight: '100vh', overflowX: 'hidden' }}>
+    <Box className="app-root">
       <AppBar
         position="fixed"
         sx={{
@@ -96,22 +96,9 @@ export const Layout = () => {
         </Box>
       </Drawer>
       
-      <Box
-        component="main"
-        sx={{
-          flex: '1 1 auto',
-          minWidth: 0, // allow children (tables, grids) to use full width
-          bgcolor: 'background.default',
-          p: 0,
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh',
-          overflow: 'auto'
-        }}
-      >
+      <Box component="main" className="app-main" sx={{ bgcolor: 'background.default' }}>
         <Toolbar />
-        <Box sx={{ flex: '1 1 auto', width: '100%', display: 'flex', flexDirection: 'column', minWidth: 0, px: 3, pb: 3 }}>
+        <Box className="app-content">
           <Outlet />
         </Box>
       </Box>
