@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from contextlib import asynccontextmanager
 import logging
+import secrets
 import os
 import asyncio
 from typing import AsyncGenerator
@@ -81,6 +82,15 @@ app.add_middleware(
 # Basic CSRF protection for unsafe methods using X-CSRF-Token header + cookie
 @app.middleware("http")
 async def csrf_protect(request: Request, call_next):
+    # Allow preflight and public endpoints
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
+    path = request.url.path
+    # Exempt initial login and CSRF minting endpoints
+    if path == "/api/v1/auth/login" or path == "/api/v1/auth/csrf":
+        return await call_next(request)
+
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         csrf_cookie = request.cookies.get("vst_csrf")
         csrf_header = request.headers.get("x-csrf-token")
@@ -106,6 +116,21 @@ app.include_router(signatures.router, prefix="/api/v1/signatures", tags=["Signat
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["Workflows"])
 app.include_router(public_signing.router, prefix="/api/v1/public", tags=["Public Signing"])
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+
+# CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
+@app.get("/api/v1/auth/csrf", tags=["Authentication"])
+async def mint_csrf():
+    token = secrets.token_urlsafe(32)
+    response = JSONResponse({"csrf": token})
+    # Non-HttpOnly by design for double-submit pattern; Secure+Lax for safety
+    response.set_cookie(
+        key="vst_csrf",
+        value=token,
+        httponly=False,
+        samesite="lax",
+        secure=True,
+    )
+    return response
 
 # Root endpoint
 @app.get("/", tags=["Root"])
