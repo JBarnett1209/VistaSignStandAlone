@@ -38,7 +38,14 @@ export const Layout = () => {
 
   return (
     <Box className="app-root">
-      <AppBar position="fixed" sx={{ left: drawerWidth, width: `calc(100% - ${drawerWidth}px)` }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          left: 0,
+          width: '100%',
+          pl: `${drawerWidth + sidebarGutter}px`,
+        }}
+      >
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
           <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
             VistaSign
