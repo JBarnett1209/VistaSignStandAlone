@@ -37,25 +37,19 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
-        try {
-          const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            refresh_token: refreshToken
-          });
-          
-          const { access_token, refresh_token: new_refresh_token } = response.data;
-          localStorage.setItem('access_token', access_token);
-          localStorage.setItem('refresh_token', new_refresh_token);
-          
+      try {
+        // Cookie-based refresh (no body required)
+        const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {}, { withCredentials: true });
+        const { access_token } = response.data;
+        if (access_token) {
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          if (typeof window !== 'undefined') {
+            window.__vstAccessToken = access_token;
+          }
           return api(originalRequest);
-        } catch (refreshError) {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
         }
+      } catch (refreshError) {
+        // fall through to reject
       }
     }
 

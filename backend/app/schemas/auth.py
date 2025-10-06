@@ -44,7 +44,8 @@ class RegisterResponse(BaseModel):
 
 class TokenRefreshRequest(BaseModel):
     """Token refresh request schema"""
-    refresh_token: str
+    # Optional: if omitted, backend will read HttpOnly cookie
+    refresh_token: Optional[str] = None
 
 class TokenRefreshResponse(BaseModel):
     """Token refresh response schema"""
