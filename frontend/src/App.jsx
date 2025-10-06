@@ -42,8 +42,9 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#1B1436', // deep purple sidebar
-          color: '#E9D5FF',
+          backgroundColor: '#ffffff', // light sidebar
+          color: '#111827',
+          borderRight: '1px solid #E5E7EB',
         },
       },
     },
@@ -53,12 +54,12 @@ const theme = createTheme({
           borderRadius: 8,
           margin: '4px 8px',
           '&.Mui-selected': {
-            backgroundColor: 'rgba(168, 85, 247, 0.25)',
-            color: '#FFFFFF',
-            '& .MuiListItemIcon-root': { color: '#FFFFFF' },
+            backgroundColor: 'rgba(123, 92, 255, 0.12)',
+            color: '#7B5CFF',
+            '& .MuiListItemIcon-root': { color: '#7B5CFF' },
           },
           '&:hover': {
-            backgroundColor: 'rgba(123, 92, 255, 0.18)',
+            backgroundColor: 'rgba(123, 92, 255, 0.08)',
           },
         },
       },
