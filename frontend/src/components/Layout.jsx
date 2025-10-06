@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -13,8 +13,13 @@ import {
   ListItemText,
   Divider,
   InputBase,
-  alpha
+  alpha,
+  IconButton,
+  Menu,
+  MenuItem
 } from '@mui/material';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import { useAuth } from '../contexts/AuthContext';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
@@ -27,12 +32,19 @@ const sidebarGutter = 32; // extra spacing between drawer and content
 
 export const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [menuAnchor, setMenuAnchor] = React.useState(null);
+  const menuOpen = Boolean(menuAnchor);
+  const handleMenu = (event) => setMenuAnchor(event.currentTarget);
+  const handleClose = () => setMenuAnchor(null);
+  const goProfile = () => { handleClose(); navigate('/profile'); };
+  const doLogout = async () => { handleClose(); try { await logout(); } finally { navigate('/login'); } };
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
     { text: 'Signatures', icon: <EditIcon />, path: '/signatures' },
     { text: 'Workflows', icon: <AssignmentIcon />, path: '/workflows' },
-    { text: 'Profile', icon: <PersonIcon />, path: '/profile' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
 
@@ -62,9 +74,19 @@ export const Layout = () => {
             <InputBase placeholder="Search" fullWidth />
           </Box>
           <Box sx={{ ml: 'auto' }}>
-            <Typography component={Link} to="/profile" sx={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>
-              Profile
-            </Typography>
+            <IconButton color="inherit" onClick={handleMenu} aria-label="account">
+              <AccountCircle />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={menuOpen}
+              onClose={handleClose}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MenuItem onClick={goProfile}>Profile</MenuItem>
+              <MenuItem onClick={doLogout}>Logout</MenuItem>
+            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
