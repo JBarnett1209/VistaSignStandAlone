@@ -1,20 +1,5 @@
 
 services:
-  # Frontend Build Service
-  frontend-build:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}
-    environment:
-      - REACT_APP_API_URL=https://${SINGLE_HOSTNAME}
-    volumes:
-      - ./frontend/build:/app/build
-    command: npm run build
-    networks:
-      - web
-
   # Nginx Reverse Proxy (serves frontend build and proxies API)
   nginx:
     build:
@@ -27,9 +12,8 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - /dev/null:/etc/nginx/conf.d/default.conf:ro
-      - ./frontend/build:/usr/share/nginx/html:ro
+      - ./frontend:/app/frontend:ro
     depends_on:
-      - frontend-build
       - backend
     networks:
       - web
