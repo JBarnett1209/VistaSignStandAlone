@@ -70,6 +70,8 @@ export default function Login() {
               name="email"
               autoComplete="email"
               autoFocus
+              placeholder="Email Address"
+              InputLabelProps={{ shrink: true }}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -82,6 +84,8 @@ export default function Login() {
               type="password"
               id="password"
               autoComplete="current-password"
+              placeholder="Password"
+              InputLabelProps={{ shrink: true }}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
