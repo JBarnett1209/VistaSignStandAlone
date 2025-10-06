@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-// Ensure HTTPS API URL - fallback to current origin with HTTPS
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (typeof window !== 'undefined' ? window.location.origin : 'https://vistasign.unitvista.com');
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
