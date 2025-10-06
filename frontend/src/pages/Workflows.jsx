@@ -14,8 +14,8 @@ export default function Workflows() {
         </Button>
       </Box>
       
-      <TableContainer component={Paper} elevation={0} square className="full-width-table">
-        <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed' }}>
+      <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
+        <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed', minWidth: 0 }}>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>

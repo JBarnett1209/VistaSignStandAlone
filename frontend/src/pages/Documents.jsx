@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 export default function Documents() {
   return (
     <Box className="content-section">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
         <Typography variant="h4">
           Documents
         </Typography>
@@ -14,8 +14,8 @@ export default function Documents() {
         </Button>
       </Box>
       
-      <TableContainer component={Paper} elevation={0} square className="full-width-table">
-        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%' }}>
+      <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
+        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
