@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Typography, Box, Grid, Card, CardContent, CardActions, Button } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
@@ -24,7 +25,7 @@ export default function Dashboard() {
               </Typography>
             </CardContent>
             <CardActions>
-              <Button size="small">View Documents</Button>
+              <Button size="small" component={Link} to="/documents">View Documents</Button>
             </CardActions>
           </Card>
         </Grid>
@@ -41,7 +42,7 @@ export default function Dashboard() {
               </Typography>
             </CardContent>
             <CardActions>
-              <Button size="small">View Signatures</Button>
+              <Button size="small" component={Link} to="/signatures">View Signatures</Button>
             </CardActions>
           </Card>
         </Grid>
@@ -58,7 +59,7 @@ export default function Dashboard() {
               </Typography>
             </CardContent>
             <CardActions>
-              <Button size="small">View Workflows</Button>
+              <Button size="small" component={Link} to="/workflows">View Workflows</Button>
             </CardActions>
           </Card>
         </Grid>

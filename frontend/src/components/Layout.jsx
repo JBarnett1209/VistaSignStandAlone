@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
@@ -23,6 +23,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 const drawerWidth = 240;
 
 export const Layout = () => {
+  const location = useLocation();
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
@@ -65,7 +66,11 @@ export const Layout = () => {
           <List>
             {menuItems.map((item) => (
               <ListItem key={item.text} disablePadding>
-                <ListItemButton>
+                <ListItemButton
+                  component={Link}
+                  to={item.path}
+                  selected={location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/')}
+                >
                   <ListItemIcon>
                     {item.icon}
                   </ListItemIcon>
