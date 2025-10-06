@@ -1,7 +1,7 @@
 /* Global layout system for VistaSign */
 
 :root {
-  --sidebar-width: 240px;
+  --sidebar-width: 256px;
   --page-padding-x: 24px;
   --page-padding-y: 24px;
 }
