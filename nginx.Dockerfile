@@ -1,30 +1,28 @@
-FROM node:18-alpine AS build
+FROM node:18-alpine
 
-WORKDIR /app/frontend
+# Install nginx and basic tools
+RUN apk add --no-cache nginx bash curl
 
-# Copy only package manifests first for better layer caching
-COPY frontend/package.json ./package.json
-COPY frontend/package-lock.json ./package-lock.json
+# Working directory for app
+WORKDIR /app
 
-# Install dependencies; fall back to npm install if lock is out-of-sync
-RUN npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps
+# Prime node modules layer (will be re-used if package files unchanged)
+COPY frontend/package.json /app/frontend/package.json
+COPY frontend/package-lock.json /app/frontend/package-lock.json
+RUN cd /app/frontend \
+  && (npm ci --no-audit --no-fund --legacy-peer-deps || npm install --no-audit --no-fund --legacy-peer-deps)
 
-# Copy the rest of the source and build
-COPY frontend/ .
+# Copy source (also mounted at runtime by docker-compose for rapid iteration)
+COPY frontend/ /app/frontend/
 
-# Allow API base URL at build time
+# Allow API base URL at build/start time
 ARG REACT_APP_API_URL
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
-RUN npm run build
+# Provide entrypoint that builds frontend then starts nginx
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-FROM nginx:alpine
-
-# Copy built static assets
-COPY --from=build /app/frontend/build /usr/share/nginx/html
-
-# Default nginx.conf will be mounted by docker-compose
-# Expose 80 by default (ALB terminates TLS)
+# Nginx default site will be mounted via docker-compose
 EXPOSE 80
-
-
+CMD ["/entrypoint.sh"]
