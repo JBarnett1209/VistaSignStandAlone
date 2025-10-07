@@ -17,6 +17,27 @@ from app.schemas.user import UserResponse, UserUpdate, UserListResponse
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+@router.get("/", response_model=UserListResponse)
+async def list_users(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all users (admin only)"""
+    if current_user["role"] != UserRole.ADMIN.value:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+    
+    result = await db.execute(select(User))
+    users = result.scalars().all()
+    
+    return UserListResponse(users=[
+        UserResponse(
+            id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name,
+            phone=user.phone, company=user.company, job_title=user.job_title, role=user.role.value,
+            status=user.status.value, is_verified=user.is_verified, signature_style=user.signature_style,
+            created_at=user.created_at, last_login=user.last_login
+        ) for user in users
+    ])
+
 @router.get("/profile", response_model=UserResponse)
 async def get_user_profile(
     current_user: dict = Depends(get_current_user),
@@ -86,7 +107,7 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(get_db), current_
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if str(user.id) == current_user["user_id"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
-    await db.delete(user)
+    db.delete(user)
     await db.commit()
     return {"message": "User deleted"}
 
