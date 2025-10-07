@@ -67,9 +67,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     import logging
     logger = logging.getLogger(__name__)
     
-    # Use the email that the OAuth2 token was generated for
-    # This should match the Gmail account that authorized the OAuth2 app
-    from_email = "jbarnett1209@gmail.com"  # The email that generated the OAuth2 token
+    from_email = settings.FROM_EMAIL or "no-reply@example.com"
     from_name = settings.FROM_NAME or "VistaSign"
 
     logger.info(f"Attempting to send email to {to_email} from {from_email}")
@@ -85,24 +83,25 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     msg["Subject"] = subject
     msg["From"] = formataddr((from_name, from_email))
     msg["To"] = to_email
+    msg["Message-ID"] = f"<{secrets.token_urlsafe(16)}@unitvista.com>"
 
     if text_body:
         msg.attach(MIMEText(text_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
+    
+    logger.info(f"Email message prepared: From={msg['From']}, To={msg['To']}, Subject={msg['Subject']}")
 
-    # Gmail SMTP
+    # Gmail SMTP - try SSL first (port 465)
     smtp_server = "smtp.gmail.com"
-    smtp_port = 587
+    smtp_port = 465
 
     auth_string = _generate_oauth2_string(from_email, access_token)
     logger.info(f"Generated OAuth2 auth string (first 50 chars): {auth_string[:50]}...")
 
     try:
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
+        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
             server.ehlo()
-            server.starttls()
-            server.ehlo()
-            logger.info("Attempting XOAUTH2 authentication...")
+            logger.info("Attempting XOAUTH2 authentication with SSL...")
             server.docmd("AUTH", "XOAUTH2 " + auth_string)
             logger.info("XOAUTH2 authentication successful, sending email...")
             logger.info(f"Sending email from {from_email} to {to_email}")
