@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = (process.env.REACT_APP_API_URL || '').startsWith('https://')
-  ? process.env.REACT_APP_API_URL
-  : `https://${process.env.REACT_APP_API_URL?.replace(/^https?:\/\//, '') || 'vistasign.unitvista.com'}`;
-
+// Force same-origin requests to avoid mixed content. Nginx proxies /api → backend.
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '',
   timeout: 30000,
   withCredentials: true,
 });
@@ -41,7 +38,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         // Cookie-based refresh (no body required)
-        const response = await axios.post(`${API_BASE_URL}/api/v1/auth/refresh`, {}, { withCredentials: true });
+        const response = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
         const { access_token } = response.data;
         if (access_token) {
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
