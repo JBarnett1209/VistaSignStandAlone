@@ -67,7 +67,9 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     import logging
     logger = logging.getLogger(__name__)
     
-    from_email = settings.FROM_EMAIL or "no-reply@example.com"
+    # Use the email that the OAuth2 token was generated for
+    # This should match the Gmail account that authorized the OAuth2 app
+    from_email = "jbarnett1209@gmail.com"  # The email that generated the OAuth2 token
     from_name = settings.FROM_NAME or "VistaSign"
 
     logger.info(f"Attempting to send email to {to_email} from {from_email}")
@@ -103,6 +105,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
             logger.info("Attempting XOAUTH2 authentication...")
             server.docmd("AUTH", "XOAUTH2 " + auth_string)
             logger.info("XOAUTH2 authentication successful, sending email...")
+            logger.info(f"Sending email from {from_email} to {to_email}")
             server.sendmail(from_email, [to_email], msg.as_string())
         
         logger.info(f"Successfully sent email to {to_email}")
