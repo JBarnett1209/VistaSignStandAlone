@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str
     APP_URL: str
     FRONTEND_URL: str
+    SINGLE_HOSTNAME: str
     
     # Database - REQUIRED
     DATABASE_URL: str
