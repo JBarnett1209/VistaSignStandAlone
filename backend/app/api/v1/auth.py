@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import secrets
 import logging
@@ -238,8 +238,8 @@ async def validate_invite(
         logger.warning(f"Invite {invite.id} is revoked")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
     
-    if invite.expires_at and invite.expires_at < datetime.now():
-        logger.warning(f"Invite {invite.id} has expired: {invite.expires_at} < {datetime.now()}")
+    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
+        logger.warning(f"Invite {invite.id} has expired: {invite.expires_at} < {datetime.now(timezone.utc)}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
     
     if invite.uses_count >= invite.max_uses:
@@ -270,7 +270,7 @@ async def register(
     if invite.revoked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
     
-    if invite.expires_at and invite.expires_at < datetime.now():
+    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
     
     if invite.uses_count >= invite.max_uses:
@@ -335,7 +335,7 @@ async def create_test_invite(
         role="user",
         created_by="00000000-0000-0000-0000-000000000000",  # dummy UUID
         max_uses=1,
-        expires_at=datetime.now() + timedelta(days=14)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=14)
     )
     db.add(invite)
     await db.commit()

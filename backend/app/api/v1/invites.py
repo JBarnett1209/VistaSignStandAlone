@@ -4,7 +4,7 @@ VistaSign Invites API
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 
 from app.core.database import get_db
@@ -39,7 +39,7 @@ async def create_invite(
         role=requested_role,
         created_by=current_user["user_id"],
         max_uses=1,
-        expires_at=datetime.now() + timedelta(days=14)
+        expires_at=datetime.now(timezone.utc) + timedelta(days=14)
     )
     db.add(invite)
     await db.commit()
@@ -120,7 +120,7 @@ async def list_invites(
     now = datetime.now()
     base = select(Invite).where(
         Invite.revoked == False,
-        (Invite.expires_at == None) | (Invite.expires_at > now),
+        (Invite.expires_at == None) | (Invite.expires_at > datetime.now(timezone.utc)),
         Invite.uses_count < Invite.max_uses,
     )
     if current_user["role"] == UserRole.ADMIN.value:
