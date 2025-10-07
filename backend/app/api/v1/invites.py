@@ -116,11 +116,17 @@ async def list_invites(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """List invites. Admins see all; users see invites they created."""
+    """List active invites (exclude revoked, expired, or fully used)."""
+    now = datetime.utcnow()
+    base = select(Invite).where(
+        Invite.revoked == False,
+        (Invite.expires_at == None) | (Invite.expires_at > now),
+        Invite.uses_count < Invite.max_uses,
+    )
     if current_user["role"] == UserRole.ADMIN.value:
-        result = await db.execute(select(Invite))
+        result = await db.execute(base)
     else:
-        result = await db.execute(select(Invite).where(Invite.created_by == current_user["user_id"]))
+        result = await db.execute(base.where(Invite.created_by == current_user["user_id"]))
     invites = result.scalars().all()
     return InviteListResponse(invites=[
         InviteResponse(
