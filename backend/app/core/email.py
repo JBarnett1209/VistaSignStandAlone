@@ -1,19 +1,17 @@
 """
-Email utility for sending via Gmail SMTP using OAuth2 (XOAUTH2).
+Email utility for sending via Gmail API using OAuth2.
 """
 
 from typing import Optional
 import base64
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr
+import json
 import requests
 
 from app.core.config import settings
 
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GMAIL_API_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
 
 
 def _get_oauth2_access_token() -> Optional[str]:
@@ -54,13 +52,35 @@ def _get_oauth2_access_token() -> Optional[str]:
         return None
 
 
-def _generate_oauth2_string(username: str, access_token: str) -> str:
-    auth_string = f"user={username}\x01auth=Bearer {access_token}\x01\x01"
-    return base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+def _create_email_message(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> str:
+    """Create a properly formatted email message for Gmail API."""
+    from_email = settings.FROM_EMAIL or "no-reply@example.com"
+    from_name = settings.FROM_NAME or "VistaSign"
+    
+    # Create the email message
+    message = f"""From: {from_name} <{from_email}>
+To: {to_email}
+Subject: {subject}
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset=UTF-8
+
+{text_body or html_body.replace('<br>', '\n').replace('<p>', '\n').replace('</p>', '\n')}
+
+--boundary123
+Content-Type: text/html; charset=UTF-8
+
+{html_body}
+
+--boundary123--
+"""
+    return message
 
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
-    """Send an email via Gmail SMTP with OAuth2.
+    """Send an email via Gmail API using OAuth2.
 
     Returns True on success, False otherwise.
     """
@@ -70,7 +90,7 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     from_email = settings.FROM_EMAIL or "no-reply@example.com"
     from_name = settings.FROM_NAME or "VistaSign"
 
-    logger.info(f"Attempting to send email to {to_email} from {from_email}")
+    logger.info(f"Attempting to send email to {to_email} from {from_email} via Gmail API")
 
     access_token = _get_oauth2_access_token()
     if not access_token:
@@ -79,41 +99,35 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
 
     logger.info("Successfully obtained OAuth2 access token")
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = formataddr((from_name, from_email))
-    msg["To"] = to_email
-    msg["Message-ID"] = f"<{secrets.token_urlsafe(16)}@unitvista.com>"
-
-    if text_body:
-        msg.attach(MIMEText(text_body, "plain"))
-    msg.attach(MIMEText(html_body, "html"))
+    # Create email message
+    message = _create_email_message(to_email, subject, html_body, text_body)
     
-    logger.info(f"Email message prepared: From={msg['From']}, To={msg['To']}, Subject={msg['Subject']}")
-
-    # Gmail SMTP - try SSL first (port 465)
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 465
-
-    auth_string = _generate_oauth2_string(from_email, access_token)
-    logger.info(f"Generated OAuth2 auth string (first 50 chars): {auth_string[:50]}...")
-
+    # Encode message for Gmail API
+    message_bytes = message.encode('utf-8')
+    message_b64 = base64.urlsafe_b64encode(message_bytes).decode('utf-8')
+    
+    # Prepare API request
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    data = {
+        'raw': message_b64
+    }
+    
     try:
-        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
-            server.ehlo()
-            logger.info("Attempting XOAUTH2 authentication with SSL...")
-            server.docmd("AUTH", "XOAUTH2 " + auth_string)
-            logger.info("XOAUTH2 authentication successful, sending email...")
-            logger.info(f"Sending email from {from_email} to {to_email}")
-            server.sendmail(from_email, [to_email], msg.as_string())
+        logger.info("Sending email via Gmail API...")
+        response = requests.post(GMAIL_API_URL, headers=headers, json=data, timeout=30)
+        response.raise_for_status()
         
-        logger.info(f"Successfully sent email to {to_email}")
+        logger.info(f"Successfully sent email to {to_email} via Gmail API")
         return True
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"SMTP Authentication failed: {e}")
-        return False
-    except smtplib.SMTPException as e:
-        logger.error(f"SMTP error: {e}")
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Gmail API error: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response content: {e.response.text}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error sending email: {e}")
