@@ -138,7 +138,7 @@ async def list_invites(
 
 @router.delete("/{invite_id}")
 async def revoke_invite(invite_id: str, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
-    """Revoke an invite (mark as revoked). Admins can revoke any; users can revoke theirs."""
+    """Delete an invite permanently. Admins can delete any; users can delete their own."""
     result = await db.execute(select(Invite).where(Invite.id == invite_id))
     invite = result.scalar_one_or_none()
     if not invite:
@@ -147,7 +147,7 @@ async def revoke_invite(invite_id: str, db: AsyncSession = Depends(get_db), curr
     if current_user["role"] != UserRole.ADMIN.value and invite.created_by != current_user["user_id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
-    invite.revoked = True
-    db.add(invite)
+    # Hard delete invite so it no longer appears in any listings
+    await db.delete(invite)
     await db.commit()
-    return {"message": "Invite revoked"}
+    return {"message": "Invite deleted"}
