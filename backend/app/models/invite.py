@@ -50,7 +50,7 @@ class Invite(Base):
         """Return True if the invite can be used now for the given email."""
         if self.revoked:
             return False
-        if self.expires_at and datetime.utcnow().astimezone(self.expires_at.tzinfo) > self.expires_at:
+        if self.expires_at and datetime.now() > self.expires_at:
             return False
         if self.uses_count >= self.max_uses:
             return False

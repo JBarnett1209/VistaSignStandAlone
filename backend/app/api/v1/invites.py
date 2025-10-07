@@ -39,7 +39,7 @@ async def create_invite(
         role=requested_role,
         created_by=current_user["user_id"],
         max_uses=1,
-        expires_at=datetime.utcnow() + timedelta(days=14)
+        expires_at=datetime.now() + timedelta(days=14)
     )
     db.add(invite)
     await db.commit()
