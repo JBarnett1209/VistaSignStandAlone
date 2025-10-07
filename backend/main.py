@@ -110,11 +110,15 @@ async def csrf_protect(request: Request, call_next):
         if auth_header.lower().startswith("bearer "):
             return await call_next(request)
 
-        # Get CSRF cookie (FastAPI cookies is a dict, so just get the value)
+        # For cookie-based auth, validate CSRF token
         csrf_cookie = request.cookies.get("vst_csrf")
         csrf_header = request.headers.get("x-csrf-token")
         
+        # Debug logging
+        logger.info(f"CSRF validation - Cookie: {csrf_cookie}, Header: {csrf_header}")
+        
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+            logger.warning(f"CSRF validation failed - Cookie: {csrf_cookie}, Header: {csrf_header}")
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
 
