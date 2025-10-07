@@ -9,6 +9,8 @@ import secrets
 
 from app.core.database import get_db
 from app.core.security.auth import get_current_user
+from app.core.email import send_email
+from app.core.config import settings
 from app.models.invite import Invite
 from app.models.user import User, UserRole
 from app.schemas.auth import InviteCreate, InviteResponse, InviteListResponse
@@ -42,6 +44,61 @@ async def create_invite(
     db.add(invite)
     await db.commit()
     await db.refresh(invite)
+
+    # Send invite email
+    try:
+        invite_url = f"https://{settings.SINGLE_HOSTNAME}/register?invite={invite.code}"
+        subject = f"You're invited to join VistaSign"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #6B46C1;">Welcome to VistaSign!</h2>
+            <p>You've been invited to join VistaSign Digital Signature Platform.</p>
+            <p><strong>Role:</strong> {invite.role.title()}</p>
+            <p><strong>Expires:</strong> {invite.expires_at.strftime('%B %d, %Y at %I:%M %p UTC')}</p>
+            <p>Click the button below to accept your invitation:</p>
+            <a href="{invite_url}" style="background-color: #6B46C1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Accept Invitation</a>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #666;">{invite_url}</p>
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            <p style="color: #666; font-size: 14px;">This invitation was sent by {current_user.get('email', 'an administrator')}.</p>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Welcome to VistaSign!
+        
+        You've been invited to join VistaSign Digital Signature Platform.
+        
+        Role: {invite.role.title()}
+        Expires: {invite.expires_at.strftime('%B %d, %Y at %I:%M %p UTC')}
+        
+        Accept your invitation by visiting:
+        {invite_url}
+        
+        This invitation was sent by {current_user.get('email', 'an administrator')}.
+        """
+        
+        email_sent = send_email(
+            to_email=invite.invited_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body
+        )
+        
+        if not email_sent:
+            # Log warning but don't fail the request
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send invite email to {invite.invited_email}")
+            
+    except Exception as e:
+        # Log error but don't fail the request
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error sending invite email: {e}")
 
     return InviteResponse(
         id=str(invite.id),
