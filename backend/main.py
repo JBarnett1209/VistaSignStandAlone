@@ -151,6 +151,30 @@ async def mint_csrf():
     response.body = f'{{"csrf": "{token}"}}'.encode()
     return response
 
+# Test email endpoint for debugging
+@app.post("/test-email", tags=["Debug"])
+async def test_email():
+    """Test email sending for debugging OAuth2 issues"""
+    from app.core.email import send_email
+    
+    test_email_body = """
+    <html>
+    <body>
+        <h2>Test Email</h2>
+        <p>This is a test email to verify OAuth2 configuration.</p>
+    </body>
+    </html>
+    """
+    
+    success = send_email(
+        to_email="jbarnett1209@gmail.com",
+        subject="VistaSign OAuth2 Test",
+        html_body=test_email_body,
+        text_body="This is a test email to verify OAuth2 configuration."
+    )
+    
+    return {"success": success, "message": "Check backend logs for details"}
+
 # Root endpoint
 @app.get("/", tags=["Root"])
 async def root():
