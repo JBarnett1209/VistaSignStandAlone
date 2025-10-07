@@ -67,7 +67,7 @@ async def login(
             )
         
         # Update last login
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now()
         await db.commit()
         
         # Generate tokens
@@ -324,7 +324,7 @@ async def validate_invite(
     if invite.revoked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
     
-    if invite.expires_at and invite.expires_at < datetime.utcnow():
+    if invite.expires_at and invite.expires_at < datetime.now():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
     
     if invite.uses_count >= invite.max_uses:
@@ -353,7 +353,7 @@ async def register(
     if invite.revoked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
     
-    if invite.expires_at and invite.expires_at < datetime.utcnow():
+    if invite.expires_at and invite.expires_at < datetime.now():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
     
     if invite.uses_count >= invite.max_uses:

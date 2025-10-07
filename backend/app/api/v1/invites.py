@@ -117,7 +117,7 @@ async def list_invites(
     current_user: dict = Depends(get_current_user)
 ):
     """List active invites (exclude revoked, expired, or fully used)."""
-    now = datetime.utcnow()
+    now = datetime.now()
     base = select(Invite).where(
         Invite.revoked == False,
         (Invite.expires_at == None) | (Invite.expires_at > now),
@@ -148,6 +148,6 @@ async def revoke_invite(invite_id: str, db: AsyncSession = Depends(get_db), curr
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     # Hard delete invite so it no longer appears in any listings
-    db.delete(invite)
+    await db.delete(invite)
     await db.commit()
     return {"message": "Invite deleted"}
