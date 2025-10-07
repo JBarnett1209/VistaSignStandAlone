@@ -22,7 +22,7 @@ from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.acme_watcher import acme_watcher_task
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -67,6 +67,16 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Custom middleware to handle ALB proxy headers
+class ProxyHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        # Trust X-Forwarded-* headers from ALB
+        if "x-forwarded-proto" in request.headers:
+            request.scope["scheme"] = request.headers["x-forwarded-proto"]
+        if "x-forwarded-host" in request.headers:
+            request.scope["server"] = (request.headers["x-forwarded-host"], None)
+        return await call_next(request)
 
 # Security headers middleware (add first)
 app.add_middleware(SecurityHeadersMiddleware)
