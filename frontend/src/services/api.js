@@ -108,8 +108,8 @@ export const usersAPI = {
 
 // Invites API
 export const invitesAPI = {
-  create: (email, role) => api.post('/api/v1/invites', { email, role }),
-  list: () => api.get('/api/v1/invites'),
+  create: (email, role) => api.post('/api/v1/invites/', { email, role }),
+  list: () => api.get('/api/v1/invites/'),
   revoke: (id) => api.delete(`/api/v1/invites/${id}`),
 };
 
