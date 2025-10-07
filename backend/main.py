@@ -100,13 +100,16 @@ async def csrf_protect(request: Request, call_next):
         return await call_next(request)
 
     path = request.url.path
-    # Exempt initial login and CSRF minting endpoints
-    if path == "/api/v1/auth/login" or path == "/api/v1/auth/csrf":
+    # Exempt auth endpoints that handle their own CSRF
+    if path in ["/api/v1/auth/login", "/api/v1/auth/csrf", "/api/v1/auth/refresh"]:
         return await call_next(request)
 
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        csrf_cookie = request.cookies.get("vst_csrf")
+        # Get CSRF cookie (handle multiple cookies by taking the last one)
+        csrf_cookies = request.cookies.getlist("vst_csrf")
+        csrf_cookie = csrf_cookies[-1] if csrf_cookies else None
         csrf_header = request.headers.get("x-csrf-token")
+        
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
