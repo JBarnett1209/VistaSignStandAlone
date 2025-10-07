@@ -20,8 +20,13 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem
+  MenuItem,
+  Checkbox,
+  Chip,
+  Tooltip,
+  IconButton
 } from '@mui/material';
+import { Delete as DeleteIcon, Block as BlockIcon, CheckCircle as AllowIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { usersAPI, invitesAPI } from '../services/api';
 
@@ -37,6 +42,8 @@ export default function Settings() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const loadUsers = async () => {
     setUsersLoading(true);
@@ -97,6 +104,78 @@ export default function Settings() {
     } finally { setInviting(false); }
   };
 
+  // Multi-selection handlers
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      const allIds = new Set([
+        ...users.map(u => u.id),
+        ...invites.map(i => `invite-${i.id}`)
+      ]);
+      setSelectedUsers(allIds);
+    } else {
+      setSelectedUsers(new Set());
+    }
+  };
+
+  const handleSelectUser = (userId, checked) => {
+    const newSelected = new Set(selectedUsers);
+    if (checked) {
+      newSelected.add(userId);
+    } else {
+      newSelected.delete(userId);
+    }
+    setSelectedUsers(newSelected);
+  };
+
+  const isAllSelected = () => {
+    const totalItems = users.length + invites.length;
+    return totalItems > 0 && selectedUsers.size === totalItems;
+  };
+
+  const isIndeterminate = () => {
+    return selectedUsers.size > 0 && selectedUsers.size < (users.length + invites.length);
+  };
+
+  // Bulk actions
+  const handleBulkAction = async (action) => {
+    if (selectedUsers.size === 0) return;
+    
+    setBulkActionLoading(true);
+    try {
+      const selectedArray = Array.from(selectedUsers);
+      const userIds = selectedArray.filter(id => !id.startsWith('invite-'));
+      const inviteIds = selectedArray.filter(id => id.startsWith('invite-')).map(id => id.replace('invite-', ''));
+      
+      // Process users
+      if (userIds.length > 0) {
+        const promises = userIds.map(id => {
+          if (action === 'deactivate') {
+            return usersAPI.deactivate(id);
+          } else if (action === 'activate') {
+            return usersAPI.reactivate(id);
+          } else if (action === 'delete') {
+            return usersAPI.delete(id);
+          }
+        });
+        await Promise.all(promises);
+      }
+      
+      // Process invites
+      if (inviteIds.length > 0 && action === 'delete') {
+        const promises = inviteIds.map(id => invitesAPI.revoke(id));
+        await Promise.all(promises);
+      }
+      
+      // Refresh data
+      await loadUsers();
+      setSelectedUsers(new Set());
+    } catch (error) {
+      console.error('Bulk action failed:', error);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   return (
     <Box className="content-section">
       <Typography variant="h4" gutterBottom>
@@ -146,15 +225,69 @@ export default function Settings() {
           <CardContent>
             <Box className="page-header">
               <Typography variant="h6">User Management</Typography>
-              <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {selectedUsers.size > 0 && (
+                  <Chip 
+                    label={`${selectedUsers.size} selected`} 
+                    color="primary" 
+                    size="small"
+                    onDelete={() => setSelectedUsers(new Set())}
+                  />
+                )}
                 <Button variant="outlined" onClick={loadUsers} sx={{ mr: 2 }}>Refresh</Button>
                 <Button onClick={openInvite}>Invite User</Button>
               </Box>
             </Box>
+            
+            {/* Bulk Actions */}
+            {selectedUsers.size > 0 && (
+              <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary">
+                  Bulk Actions:
+                </Typography>
+                <Tooltip title="Activate selected users">
+                  <IconButton 
+                    size="small" 
+                    color="success"
+                    onClick={() => handleBulkAction('activate')}
+                    disabled={bulkActionLoading}
+                  >
+                    <AllowIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Deactivate selected users">
+                  <IconButton 
+                    size="small" 
+                    color="warning"
+                    onClick={() => handleBulkAction('deactivate')}
+                    disabled={bulkActionLoading}
+                  >
+                    <BlockIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete selected users/invites">
+                  <IconButton 
+                    size="small" 
+                    color="error"
+                    onClick={() => handleBulkAction('delete')}
+                    disabled={bulkActionLoading}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
             <TableContainer component={Paper} className="full-width-table">
               <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={isAllSelected()}
+                        indeterminate={isIndeterminate()}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    </TableCell>
                     <TableCell>Name / Email</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Status</TableCell>
@@ -164,6 +297,12 @@ export default function Settings() {
                   {/* Invited entries first */}
                   {Array.isArray(invites) && invites.map((i) => (
                     <TableRow key={`invite-${i.id}`}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedUsers.has(`invite-${i.id}`)}
+                          onChange={(e) => handleSelectUser(`invite-${i.id}`, e.target.checked)}
+                        />
+                      </TableCell>
                       <TableCell>{i.email}</TableCell>
                       <TableCell>{i.role}</TableCell>
                       <TableCell>Invited</TableCell>
@@ -172,14 +311,20 @@ export default function Settings() {
                   {/* Existing users */}
                   {Array.isArray(users) && users.map((u) => (
                     <TableRow key={u.id || u.email}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedUsers.has(u.id)}
+                          onChange={(e) => handleSelectUser(u.id, e.target.checked)}
+                        />
+                      </TableCell>
                       <TableCell>{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email}</TableCell>
                       <TableCell>{u.role}</TableCell>
                       <TableCell>{u.status || (u.is_active ? 'active' : 'inactive')}</TableCell>
                     </TableRow>
                   ))}
-                  {!usersLoading && (!Array.isArray(users) || users.length === 0) && (
+                  {!usersLoading && (!Array.isArray(users) || users.length === 0) && (!Array.isArray(invites) || invites.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={3} align="center">
+                      <TableCell colSpan={4} align="center">
                         <Typography color="text.secondary">{usersError || 'No users yet.'}</Typography>
                       </TableCell>
                     </TableRow>
