@@ -30,16 +30,35 @@ export default function Settings() {
   const isAdmin = user?.role === 'admin';
 
   const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviting, setInviting] = useState(false);
 
   const loadUsers = async () => {
+    setUsersLoading(true);
+    setUsersError('');
     try {
       const res = await usersAPI.list();
-      setUsers(res.data || []);
-    } catch (_) {}
+      const data = res?.data;
+      const normalized = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.items)
+          ? data.items
+          : Array.isArray(data?.results)
+            ? data.results
+            : Array.isArray(data?.users)
+              ? data.users
+              : [];
+      setUsers(normalized);
+    } catch (e) {
+      setUsers([]);
+      setUsersError('Failed to load users');
+    } finally {
+      setUsersLoading(false);
+    }
   };
 
   useEffect(() => { if (isAdmin) loadUsers(); }, [isAdmin]);
@@ -119,17 +138,17 @@ export default function Settings() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {users.map((u) => (
+                  {Array.isArray(users) && users.map((u) => (
                     <TableRow key={u.id || u.email}>
                       <TableCell>{u.first_name ? `${u.first_name} ${u.last_name || ''}` : '-'}</TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell>{u.role}</TableCell>
                     </TableRow>
                   ))}
-                  {users.length === 0 && (
+                  {!usersLoading && (!Array.isArray(users) || users.length === 0) && (
                     <TableRow>
                       <TableCell colSpan={3} align="center">
-                        <Typography color="text.secondary">No users yet.</Typography>
+                        <Typography color="text.secondary">{usersError || 'No users yet.'}</Typography>
                       </TableCell>
                     </TableRow>
                   )}
