@@ -105,9 +105,8 @@ async def csrf_protect(request: Request, call_next):
         return await call_next(request)
 
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        # Get CSRF cookie (handle multiple cookies by taking the last one)
-        csrf_cookies = request.cookies.getlist("vst_csrf")
-        csrf_cookie = csrf_cookies[-1] if csrf_cookies else None
+        # Get CSRF cookie (FastAPI cookies is a dict, so just get the value)
+        csrf_cookie = request.cookies.get("vst_csrf")
         csrf_header = request.headers.get("x-csrf-token")
         
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
