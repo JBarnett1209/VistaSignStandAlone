@@ -38,9 +38,9 @@ export default function Login() {
 
   return (
     <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
-      <Paper elevation={6} sx={{ p: 4, width: '100%', borderRadius: 3 }}>
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <Typography component="h1" variant="h5" sx={{ fontWeight: 700 }}>
+      <Paper elevation={8} sx={{ p: 4, width: '100%', borderRadius: 3 }}>
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Typography component="h1" variant="h5" sx={{ fontWeight: 800, color: 'primary.main' }}>
             VistaSign
           </Typography>
           <Typography variant="body2" color="text.secondary">
@@ -83,7 +83,7 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <Button type="submit" fullWidth variant="contained" sx={{ mt: 2 }} disabled={loading}>
+          <Button type="submit" fullWidth sx={{ mt: 2, py: 1.25 }} disabled={loading}>
             {loading ? 'Signing In...' : 'Sign In'}
           </Button>
         </Box>

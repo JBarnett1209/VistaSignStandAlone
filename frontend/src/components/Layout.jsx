@@ -24,7 +24,7 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import AssignmentIcon from '@mui/icons-material/Assignment';
-import PersonIcon from '@mui/icons-material/Person';
+// PersonIcon removed (unused)
 import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 256;
@@ -98,6 +98,8 @@ export const Layout = () => {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
+            backgroundColor: (theme) => theme.palette.background.paper,
+            borderRight: '1px solid #E5E7EB'
           },
         }}
         variant="permanent"

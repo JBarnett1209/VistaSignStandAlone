@@ -25,7 +25,7 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#7B5CFF', // vivid indigo/purple
+      main: '#7B5CFF', // UnitVista purple
       contrastText: '#ffffff',
     },
     secondary: {
@@ -33,7 +33,7 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     background: {
-      default: '#F5F3FF', // soft lavender background
+      default: '#F8F7FF', // softer lavender tint
       paper: '#ffffff',
     },
     text: {
@@ -101,6 +101,23 @@ const theme = createTheme({
         },
       },
     },
+    MuiButton: {
+      defaultProps: { variant: 'contained' },
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          textTransform: 'none',
+          fontWeight: 600
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12
+        }
+      }
+    }
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
