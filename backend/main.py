@@ -22,6 +22,7 @@ from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.acme_watcher import acme_watcher_task
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -69,6 +70,8 @@ app = FastAPI(
 
 # Security headers middleware (add first)
 app.add_middleware(SecurityHeadersMiddleware)
+# Trust ALB/X-Forwarded-* so app treats scheme/host correctly
+app.add_middleware(ProxyHeadersMiddleware)
 
 # CORS middleware
 app.add_middleware(

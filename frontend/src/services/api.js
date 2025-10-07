@@ -38,7 +38,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         // Cookie-based refresh (no body required)
-        const response = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
+        const response = await api.post('/api/v1/auth/refresh', {}, { withCredentials: true });
         const { access_token } = response.data;
         if (access_token) {
           originalRequest.headers.Authorization = `Bearer ${access_token}`;

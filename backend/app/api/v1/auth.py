@@ -84,7 +84,8 @@ async def login(
                 max_age=max_age,
                 httponly=True,
                 secure=True,
-                samesite="lax",
+                samesite="none",
+                domain="vistasign.unitvista.com",
                 path="/",
             )
             # CSRF cookie (non-HttpOnly)
@@ -95,7 +96,8 @@ async def login(
                 max_age=max_age,
                 httponly=False,
                 secure=True,
-                samesite="lax",
+                samesite="none",
+                domain="vistasign.unitvista.com",
                 path="/",
             )
         
@@ -273,7 +275,8 @@ async def refresh_token(
                 max_age=max_age,
                 httponly=True,
                 secure=True,
-                samesite="lax",
+                samesite="none",
+                domain="vistasign.unitvista.com",
                 path="/",
             )
             csrf_token = secrets.token_urlsafe(32)
@@ -283,7 +286,8 @@ async def refresh_token(
                 max_age=max_age,
                 httponly=False,
                 secure=True,
-                samesite="lax",
+                samesite="none",
+                domain="vistasign.unitvista.com",
                 path="/",
             )
         
