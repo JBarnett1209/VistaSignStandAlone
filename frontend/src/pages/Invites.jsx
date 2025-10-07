@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Card, CardContent, Grid, TextField, Button, MenuItem, Table, TableHead, TableRow, TableCell, TableBody, Paper } from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, TextField, Button, MenuItem, Table, TableHead, TableRow, TableCell, TableBody, Paper, TableContainer } from '@mui/material';
 import { invitesAPI } from '../services/api';
 
 export default function Invites() {
@@ -59,8 +59,8 @@ export default function Invites() {
         </CardContent>
       </Card>
 
-      <Paper>
-        <Table>
+      <TableContainer component={Paper} className="full-width-table">
+        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
           <TableHead>
             <TableRow>
               <TableCell>Email</TableCell>
@@ -82,7 +82,7 @@ export default function Invites() {
             ))}
           </TableBody>
         </Table>
-      </Paper>
+      </TableContainer>
     </Box>
   );
 }

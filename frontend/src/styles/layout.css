@@ -50,6 +50,14 @@
   align-items: stretch;
 }
 
+/* Uniform page header spacing */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
 /* Page sections */
 .content-section {
   width: 100%;
