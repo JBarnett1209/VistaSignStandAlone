@@ -56,26 +56,35 @@ def _create_email_message(to_email: str, subject: str, html_body: str, text_body
     """Create a properly formatted email message for Gmail API."""
     from_email = settings.FROM_EMAIL or "no-reply@example.com"
     from_name = settings.FROM_NAME or "VistaSign"
-    
+
+    # Prepare plain text version outside the f-string to avoid backslashes in expressions
+    if text_body is not None:
+        plain_body = text_body
+    else:
+        plain_body = (
+            html_body
+            .replace('<br>', '\n')
+            .replace('<br/>', '\n')
+            .replace('<br />', '\n')
+            .replace('</p>', '\n')
+            .replace('<p>', '')
+        )
+
     # Create the email message
-    message = f"""From: {from_name} <{from_email}>
-To: {to_email}
-Subject: {subject}
-MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="boundary123"
-
---boundary123
-Content-Type: text/plain; charset=UTF-8
-
-{text_body or html_body.replace('<br>', '\n').replace('<p>', '\n').replace('</p>', '\n')}
-
---boundary123
-Content-Type: text/html; charset=UTF-8
-
-{html_body}
-
---boundary123--
-"""
+    message = (
+        f"From: {from_name} <{from_email}>\n"
+        f"To: {to_email}\n"
+        f"Subject: {subject}\n"
+        "MIME-Version: 1.0\n"
+        "Content-Type: multipart/alternative; boundary=\"boundary123\"\n\n"
+        "--boundary123\n"
+        "Content-Type: text/plain; charset=UTF-8\n\n"
+        f"{plain_body}\n\n"
+        "--boundary123\n"
+        "Content-Type: text/html; charset=UTF-8\n\n"
+        f"{html_body}\n\n"
+        "--boundary123--\n"
+    )
     return message
 
 
