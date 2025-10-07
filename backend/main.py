@@ -105,6 +105,11 @@ async def csrf_protect(request: Request, call_next):
         return await call_next(request)
 
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        # If a Bearer token is present, skip CSRF (Bearer requests are not CSRF-prone)
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.lower().startswith("bearer "):
+            return await call_next(request)
+
         # Get CSRF cookie (FastAPI cookies is a dict, so just get the value)
         csrf_cookie = request.cookies.get("vst_csrf")
         csrf_header = request.headers.get("x-csrf-token")
