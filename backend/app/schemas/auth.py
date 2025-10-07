@@ -36,6 +36,9 @@ class RegisterRequest(BaseModel):
             raise ValueError('Password must be at least 8 characters long')
         return v
 
+# Alias for invite-based registration
+UserRegistration = RegisterRequest
+
 class RegisterResponse(BaseModel):
     """Registration response schema"""
     message: str

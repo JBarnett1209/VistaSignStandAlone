@@ -9,6 +9,7 @@ import { Layout } from './components/Layout';
 
 // Pages
 import Login from './pages/Login';
+import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Documents from './pages/Documents';
 import Signatures from './pages/Signatures';
@@ -134,6 +135,7 @@ function App() {
             <Routes>
               {/* Public routes */}
               <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/sign/:publicId" element={<PublicSigning />} />
               

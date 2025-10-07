@@ -2,7 +2,7 @@
 VistaSign Authentication API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,7 +19,8 @@ from app.models.user import User, UserStatus, UserRole
 from app.models.invite import Invite
 from app.schemas.auth import (
     LoginRequest, LoginResponse, RegisterRequest, RegisterResponse,
-    TokenRefreshRequest, TokenRefreshResponse, UserProfile
+    UserRegistration, TokenRefreshRequest, TokenRefreshResponse, UserProfile,
+    TokenResponse
 )
 
 router = APIRouter()
@@ -307,6 +308,99 @@ async def get_current_user_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get user profile"
         )
+
+@router.get("/validate-invite")
+async def validate_invite(
+    code: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Validate an invite code and return invite details"""
+    result = await db.execute(select(Invite).where(Invite.code == code))
+    invite = result.scalar_one_or_none()
+    
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
+    
+    if invite.revoked:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
+    
+    if invite.expires_at and invite.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
+    
+    if invite.uses_count >= invite.max_uses:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been fully used")
+    
+    return {
+        "email": invite.invited_email,
+        "role": invite.role,
+        "expires_at": invite.expires_at
+    }
+
+@router.post("/register", response_model=TokenResponse)
+async def register(
+    payload: UserRegistration,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """Register a new user with an invite code"""
+    # Validate invite code
+    result = await db.execute(select(Invite).where(Invite.code == payload.invite_code))
+    invite = result.scalar_one_or_none()
+    
+    if not invite:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite code")
+    
+    if invite.revoked:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
+    
+    if invite.expires_at and invite.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
+    
+    if invite.uses_count >= invite.max_uses:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been fully used")
+    
+    # Check if user already exists
+    existing_user = await db.execute(select(User).where(User.email == payload.email))
+    if existing_user.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+    
+    # Create new user
+    auth_handler = AuthHandler()
+    hashed_password = auth_handler.get_password_hash(payload.password)
+    
+    user = User(
+        email=payload.email,
+        password_hash=hashed_password,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+        role=UserRole(invite.role),
+        status=UserStatus.ACTIVE,
+        is_verified=True,  # Invited users are pre-verified
+        is_active=True
+    )
+    
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    
+    # Update invite usage
+    invite.uses_count += 1
+    db.add(invite)
+    await db.commit()
+    
+    # Generate tokens
+    access_token = auth_handler.encode_token(str(user.id), user.email, "access")
+    refresh_token = auth_handler.encode_token(str(user.id), user.email, "refresh")
+    
+    # Set cookies
+    set_refresh_cookie(response, refresh_token)
+    set_csrf_cookie(response)
+    
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
 
 @router.post("/logout")
 async def logout(response: Response):

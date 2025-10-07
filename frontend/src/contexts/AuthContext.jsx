@@ -44,6 +44,17 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
+  const register = async (userData) => {
+    const response = await api.post('/api/v1/auth/register', userData);
+    const { access_token } = response.data;
+    if (typeof window !== 'undefined') {
+      window.__vstAccessToken = access_token;
+    }
+    // Get user profile after registration
+    const me = await api.get('/api/v1/auth/me');
+    setUser(me.data);
+  };
+
   const logout = async () => {
     try { await api.post('/api/v1/auth/logout'); } catch (_) {}
     if (typeof window !== 'undefined') {
@@ -55,6 +66,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     login,
+    register,
     logout,
     loading
   };
