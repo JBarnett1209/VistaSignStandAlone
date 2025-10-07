@@ -223,21 +223,30 @@ async def validate_invite(
     db: AsyncSession = Depends(get_db)
 ):
     """Validate an invite code and return invite details"""
+    logger.info(f"Validating invite code: {code}")
+    
     result = await db.execute(select(Invite).where(Invite.code == code))
     invite = result.scalar_one_or_none()
     
     if not invite:
+        logger.warning(f"Invite not found for code: {code}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid invite code")
     
+    logger.info(f"Found invite: id={invite.id}, email={invite.invited_email}, revoked={invite.revoked}, uses={invite.uses_count}/{invite.max_uses}, expires={invite.expires_at}")
+    
     if invite.revoked:
+        logger.warning(f"Invite {invite.id} is revoked")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
     
     if invite.expires_at and invite.expires_at < datetime.now():
+        logger.warning(f"Invite {invite.id} has expired: {invite.expires_at} < {datetime.now()}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
     
     if invite.uses_count >= invite.max_uses:
+        logger.warning(f"Invite {invite.id} is fully used: {invite.uses_count}/{invite.max_uses}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been fully used")
     
+    logger.info(f"Invite {invite.id} is valid")
     return {
         "email": invite.invited_email,
         "role": invite.role,
@@ -309,6 +318,34 @@ async def register(
         token_type="bearer",
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
+
+@router.post("/test-invite")
+async def create_test_invite(
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a test invite for debugging (temporary endpoint)"""
+    import secrets
+    from app.models.invite import Invite
+    from datetime import datetime, timedelta
+    
+    code = secrets.token_urlsafe(24)
+    invite = Invite(
+        code=code,
+        invited_email="test@example.com",
+        role="user",
+        created_by="00000000-0000-0000-0000-000000000000",  # dummy UUID
+        max_uses=1,
+        expires_at=datetime.now() + timedelta(days=14)
+    )
+    db.add(invite)
+    await db.commit()
+    await db.refresh(invite)
+    
+    return {
+        "code": code,
+        "url": f"https://vistasign.unitvista.com/register?invite={code}",
+        "id": str(invite.id)
+    }
 
 @router.post("/logout")
 async def logout(response: Response):
