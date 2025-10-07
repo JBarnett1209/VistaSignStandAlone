@@ -32,6 +32,7 @@ export default function Settings() {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
+  const [invites, setInvites] = useState([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('user');
@@ -41,8 +42,11 @@ export default function Settings() {
     setUsersLoading(true);
     setUsersError('');
     try {
-      const res = await usersAPI.list();
-      const data = res?.data;
+      const [usersRes, invitesRes] = await Promise.all([
+        usersAPI.list(),
+        invitesAPI.list()
+      ]);
+      const data = usersRes?.data;
       const normalized = Array.isArray(data)
         ? data
         : Array.isArray(data?.items)
@@ -52,9 +56,18 @@ export default function Settings() {
             : Array.isArray(data?.users)
               ? data.users
               : [];
+      // Normalize invites
+      const invitesData = invitesRes?.data;
+      const normalizedInvites = Array.isArray(invitesData?.invites)
+        ? invitesData.invites
+        : Array.isArray(invitesData)
+          ? invitesData
+          : [];
       setUsers(normalized);
+      setInvites(normalizedInvites);
     } catch (e) {
       setUsers([]);
+      setInvites([]);
       setUsersError('Failed to load users');
     } finally {
       setUsersLoading(false);
@@ -69,7 +82,17 @@ export default function Settings() {
     if (!inviteEmail) return;
     setInviting(true);
     try {
-      await invitesAPI.create(inviteEmail, inviteRole);
+      const res = await invitesAPI.create(inviteEmail, inviteRole);
+      // Optimistically add to invites list
+      const newInvite = res?.data || { email: inviteEmail, role: inviteRole, status: 'invited' };
+      setInvites((prev) => [{
+        id: newInvite.id || `temp-${Date.now()}`,
+        email: newInvite.email || inviteEmail,
+        role: newInvite.role || inviteRole,
+        status: 'invited'
+      }, ...prev]);
+      // Refresh users/invites from server
+      loadUsers();
       closeInvite();
     } finally { setInviting(false); }
   };
@@ -132,17 +155,26 @@ export default function Settings() {
               <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
+                    <TableCell>Name / Email</TableCell>
                     <TableCell>Role</TableCell>
+                    <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
+                  {/* Invited entries first */}
+                  {Array.isArray(invites) && invites.map((i) => (
+                    <TableRow key={`invite-${i.id}`}>
+                      <TableCell>{i.email}</TableCell>
+                      <TableCell>{i.role}</TableCell>
+                      <TableCell>Invited</TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Existing users */}
                   {Array.isArray(users) && users.map((u) => (
                     <TableRow key={u.id || u.email}>
-                      <TableCell>{u.first_name ? `${u.first_name} ${u.last_name || ''}` : '-'}</TableCell>
-                      <TableCell>{u.email}</TableCell>
+                      <TableCell>{u.first_name ? `${u.first_name} ${u.last_name || ''}` : u.email}</TableCell>
                       <TableCell>{u.role}</TableCell>
+                      <TableCell>{u.status || (u.is_active ? 'active' : 'inactive')}</TableCell>
                     </TableRow>
                   ))}
                   {!usersLoading && (!Array.isArray(users) || users.length === 0) && (
