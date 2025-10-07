@@ -57,6 +57,12 @@ class TokenRefreshResponse(BaseModel):
     token_type: str
     expires_in: int
 
+class TokenResponse(BaseModel):
+    """Generic token response schema"""
+    access_token: str
+    token_type: str
+    expires_in: int
+
 class UserProfile(BaseModel):
     """User profile schema"""
     id: str
