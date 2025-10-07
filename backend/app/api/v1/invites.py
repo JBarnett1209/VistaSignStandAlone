@@ -148,6 +148,6 @@ async def revoke_invite(invite_id: str, db: AsyncSession = Depends(get_db), curr
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     # Hard delete invite so it no longer appears in any listings
-    await db.delete(invite)
+    db.delete(invite)
     await db.commit()
     return {"message": "Invite deleted"}
