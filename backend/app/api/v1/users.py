@@ -22,21 +22,40 @@ async def list_users(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List all users (admin only)"""
+    """List all users (admin only). Simple unpaginated list with meta fields."""
     if current_user["role"] != UserRole.ADMIN.value:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
-    
+
     result = await db.execute(select(User))
     users = result.scalars().all()
-    
-    return UserListResponse(users=[
+
+    users_payload = [
         UserResponse(
-            id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name,
-            phone=user.phone, company=user.company, job_title=user.job_title, role=user.role.value,
-            status=user.status.value, is_verified=user.is_verified, signature_style=user.signature_style,
-            created_at=user.created_at, last_login=user.last_login
-        ) for user in users
-    ])
+            id=str(user.id),
+            email=user.email,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            phone=user.phone,
+            company=user.company,
+            job_title=user.job_title,
+            role=user.role.value,
+            status=user.status.value,
+            is_verified=user.is_verified,
+            signature_style=user.signature_style,
+            created_at=user.created_at,
+            last_login=user.last_login,
+        )
+        for user in users
+    ]
+
+    total = len(users_payload)
+    return UserListResponse(
+        users=users_payload,
+        total=total,
+        skip=0,
+        limit=total,
+        has_more=False,
+    )
 
 @router.get("/profile", response_model=UserResponse)
 async def get_user_profile(
