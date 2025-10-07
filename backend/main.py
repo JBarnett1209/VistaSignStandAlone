@@ -137,16 +137,10 @@ app.include_router(invites.router, prefix="/api/v1/invites", tags=["Invites"])
 # CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
 @app.get("/api/v1/auth/csrf", tags=["Authentication"])
 async def mint_csrf():
-    token = secrets.token_urlsafe(32)
-    response = JSONResponse({"csrf": token})
-    # Non-HttpOnly by design for double-submit pattern; Secure+Lax for safety
-    response.set_cookie(
-        key="vst_csrf",
-        value=token,
-        httponly=False,
-        samesite="lax",
-        secure=True,
-    )
+    from app.core.cookies import set_csrf_cookie
+    response = JSONResponse({"csrf": ""})
+    token = set_csrf_cookie(response)
+    response.body = f'{{"csrf": "{token}"}}'.encode()
     return response
 
 # Root endpoint

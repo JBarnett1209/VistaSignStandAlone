@@ -14,6 +14,7 @@ import logging
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security.auth import AuthHandler, get_current_user
+from app.core.cookies import set_refresh_cookie, set_csrf_cookie, delete_auth_cookies
 from app.models.user import User, UserStatus, UserRole
 from app.models.invite import Invite
 from app.schemas.auth import (
@@ -75,31 +76,10 @@ async def login(
         refresh_token = auth_handler.create_refresh_token(
             data={"sub": str(user.id)}
         )
-        # Set HttpOnly refresh cookie (Secure, Lax)
-        max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
+        # Set standardized cookies
         if response:
-            response.set_cookie(
-                key=REFRESH_COOKIE_NAME,
-                value=refresh_token,
-                max_age=max_age,
-                httponly=True,
-                secure=True,
-                samesite="none",
-                domain="vistasign.unitvista.com",
-                path="/",
-            )
-            # CSRF cookie (non-HttpOnly)
-            csrf_token = secrets.token_urlsafe(32)
-            response.set_cookie(
-                key=CSRF_COOKIE_NAME,
-                value=csrf_token,
-                max_age=max_age,
-                httponly=False,
-                secure=True,
-                samesite="none",
-                domain="vistasign.unitvista.com",
-                path="/",
-            )
+            set_refresh_cookie(response, refresh_token)
+            set_csrf_cookie(response)
         
         return LoginResponse(
             access_token=access_token,
@@ -266,30 +246,10 @@ async def refresh_token(
         new_refresh_token = auth_handler.create_refresh_token(
             data={"sub": str(user.id)}
         )
-        # Rotate cookie
-        max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
+        # Rotate cookies with standardized attributes
         if response:
-            response.set_cookie(
-                key=REFRESH_COOKIE_NAME,
-                value=new_refresh_token,
-                max_age=max_age,
-                httponly=True,
-                secure=True,
-                samesite="none",
-                domain="vistasign.unitvista.com",
-                path="/",
-            )
-            csrf_token = secrets.token_urlsafe(32)
-            response.set_cookie(
-                key=CSRF_COOKIE_NAME,
-                value=csrf_token,
-                max_age=max_age,
-                httponly=False,
-                secure=True,
-                samesite="none",
-                domain="vistasign.unitvista.com",
-                path="/",
-            )
+            set_refresh_cookie(response, new_refresh_token)
+            set_csrf_cookie(response)
         
         return TokenRefreshResponse(
             access_token=access_token,
@@ -351,6 +311,5 @@ async def get_current_user_profile(
 @router.post("/logout")
 async def logout(response: Response):
     """User logout endpoint"""
-    response.delete_cookie(REFRESH_COOKIE_NAME, path="/")
-    response.delete_cookie(CSRF_COOKIE_NAME, path="/")
+    delete_auth_cookies(response)
     return {"message": "Successfully logged out"}
