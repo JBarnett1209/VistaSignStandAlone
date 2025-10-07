@@ -54,9 +54,9 @@ def _get_oauth2_access_token() -> Optional[str]:
         return None
 
 
-def _generate_oauth2_string(username: str, access_token: str) -> bytes:
+def _generate_oauth2_string(username: str, access_token: str) -> str:
     auth_string = f"user={username}\x01auth=Bearer {access_token}\x01\x01"
-    return base64.b64encode(auth_string.encode("utf-8"))
+    return base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
 
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
@@ -93,13 +93,16 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     smtp_port = 587
 
     auth_string = _generate_oauth2_string(from_email, access_token)
+    logger.info(f"Generated OAuth2 auth string (first 50 chars): {auth_string[:50]}...")
 
     try:
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
-            server.docmd("AUTH", "XOAUTH2 " + auth_string.decode("utf-8"))
+            logger.info("Attempting XOAUTH2 authentication...")
+            server.docmd("AUTH", "XOAUTH2 " + auth_string)
+            logger.info("XOAUTH2 authentication successful, sending email...")
             server.sendmail(from_email, [to_email], msg.as_string())
         
         logger.info(f"Successfully sent email to {to_email}")
