@@ -108,6 +108,12 @@ class DocumentConverter:
                 
         except Exception as e:
             logger.error(f"Document conversion failed: {str(e)}")
+            logger.error(f"Input: {input_path}")
+            logger.error(f"Output: {output_path}")
+            logger.error(f"MIME type: {mime_type}")
+            logger.error(f"Title: {title}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
     @staticmethod
@@ -125,8 +131,8 @@ class DocumentConverter:
                 logger.info("ReportLab imports successful")
             except ImportError as e:
                 logger.error(f"ReportLab import failed: {e}")
-                # Fallback: create a simple text file instead of PDF
-                return await DocumentConverter._create_simple_pdf_fallback(input_path, output_path, title, "Word Document")
+                logger.error("ReportLab is required for PDF conversion. Please install it with: pip install reportlab")
+                return False
             
             # Create a PDF with document information
             doc = SimpleDocTemplate(output_path, pagesize=A4)
@@ -176,24 +182,9 @@ class DocumentConverter:
             
         except Exception as e:
             logger.error(f"DOCX to PDF conversion failed: {str(e)}")
-            # Fallback: create a simple text file instead of PDF
-            return await DocumentConverter._create_simple_pdf_fallback(input_path, output_path, title, "Word Document")
-    
-    @staticmethod
-    async def _create_simple_pdf_fallback(input_path: str, output_path: str, title: str, doc_type: str) -> bool:
-        """Create a simple PDF fallback when ReportLab is not available"""
-        try:
-            logger.info(f"Creating simple PDF fallback: {input_path} -> {output_path}")
-            
-            # For now, just copy the original file and rename it as PDF
-            # This is a temporary solution until we can get proper PDF conversion working
-            import shutil
-            shutil.copy2(input_path, output_path)
-            logger.info(f"Created fallback PDF: {output_path}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Fallback PDF creation failed: {str(e)}")
+            logger.error(f"Input file: {input_path}")
+            logger.error(f"Output file: {output_path}")
+            logger.error(f"Title: {title}")
             return False
     
     @staticmethod
