@@ -100,8 +100,14 @@ async def csrf_protect(request: Request, call_next):
         return await call_next(request)
 
     path = request.url.path
-    # Exempt auth endpoints that handle their own CSRF
-    if path in ["/api/v1/auth/login", "/api/v1/auth/csrf", "/api/v1/auth/refresh"]:
+    # Exempt endpoints that either mint tokens or already require Bearer auth
+    # Auth endpoints and file upload (upload guarded by Bearer via dependency)
+    if path in [
+        "/api/v1/auth/login",
+        "/api/v1/auth/csrf",
+        "/api/v1/auth/refresh",
+        "/api/v1/documents/upload",
+    ]:
         return await call_next(request)
 
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
