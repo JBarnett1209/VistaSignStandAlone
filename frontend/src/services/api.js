@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+// Global refresh coordination to prevent infinite loops and stampedes
+let isRefreshing = false;
+let refreshPromise = null;
+let lastRefreshFailureAt = 0;
+const REFRESH_COOLDOWN_MS = 5000; // back off for 5s after a failed refresh
+
 // Force same-origin requests to avoid mixed content. Nginx proxies /api → backend.
 const api = axios.create({
   baseURL: '',
@@ -34,27 +40,64 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // If request failed with 401, and it's not the refresh endpoint itself, try coordinated refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        // Cookie-based refresh (no body required)
-        const response = await api.post('/api/v1/auth/refresh', {}, { withCredentials: true });
-        const { access_token } = response.data;
-        if (access_token) {
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          if (typeof window !== 'undefined') {
-            window.__vstAccessToken = access_token;
-          }
-          return api(originalRequest);
-        }
-      } catch (refreshError) {
-        // Clear tokens and redirect to login on refresh failure
+      // Never attempt to refresh for refresh endpoint to avoid recursion
+      const isRefreshCall = (originalRequest?.url || '').includes('/api/v1/auth/refresh');
+      if (isRefreshCall) {
+        return Promise.reject(error);
+      }
+
+      // Respect cooldown after a failed refresh to avoid tight loops
+      const now = Date.now();
+      if (now - lastRefreshFailureAt < REFRESH_COOLDOWN_MS) {
         if (typeof window !== 'undefined') {
           window.__vstAccessToken = null;
-          // Dispatch a custom event to notify AuthContext
           window.dispatchEvent(new CustomEvent('auth-failed'));
         }
-        // fall through to reject
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      try {
+        // If a refresh is already in-flight, wait for it
+        if (isRefreshing && refreshPromise) {
+          const { access_token } = await refreshPromise;
+          if (access_token) {
+            originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            return api(originalRequest);
+          }
+        } else {
+          // Start a new coordinated refresh
+          isRefreshing = true;
+          refreshPromise = (async () => {
+            const resp = await api.post('/api/v1/auth/refresh', {}, { withCredentials: true });
+            return resp.data || {};
+          })();
+
+          const { access_token } = await refreshPromise;
+          isRefreshing = false;
+          refreshPromise = null;
+
+          if (access_token) {
+            if (typeof window !== 'undefined') {
+              window.__vstAccessToken = access_token;
+            }
+            originalRequest.headers.Authorization = `Bearer ${access_token}`;
+            return api(originalRequest);
+          }
+        }
+      } catch (refreshError) {
+        // Mark cooldown and broadcast auth-failed
+        lastRefreshFailureAt = Date.now();
+        isRefreshing = false;
+        refreshPromise = null;
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = null;
+          window.dispatchEvent(new CustomEvent('auth-failed'));
+        }
+        return Promise.reject(refreshError);
       }
     }
 
