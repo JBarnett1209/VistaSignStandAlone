@@ -151,12 +151,12 @@ export default function Documents() {
         <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Document</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Size</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Actions</TableCell>
+              <TableCell sx={{ width: '40%' }}>Document</TableCell>
+              <TableCell sx={{ width: '12%' }}>Type</TableCell>
+              <TableCell sx={{ width: '10%' }}>Size</TableCell>
+              <TableCell sx={{ width: '12%' }}>Status</TableCell>
+              <TableCell sx={{ width: '16%' }}>Created</TableCell>
+              <TableCell sx={{ width: '10%' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -178,13 +178,31 @@ export default function Documents() {
               documents.map((doc) => (
                 <TableRow key={doc.id} hover>
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
                       {getDocumentIcon(doc.document_type)}
-                      <Box sx={{ ml: 2 }}>
-                        <Typography variant="body1" noWrap>
+                      <Box sx={{ ml: 2, minWidth: 0, flex: 1 }}>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '100%'
+                          }}
+                        >
                           {doc.title}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          sx={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '100%',
+                            display: 'block'
+                          }}
+                        >
                           {doc.filename}
                         </Typography>
                       </Box>
