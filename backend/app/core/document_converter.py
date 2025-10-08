@@ -9,12 +9,10 @@ import logging
 from typing import Optional, Tuple
 from pathlib import Path
 import uuid
+from datetime import datetime
 
-try:
-    from docx2pdf import convert as docx_to_pdf
-    DOCX_CONVERSION_AVAILABLE = True
-except ImportError:
-    DOCX_CONVERSION_AVAILABLE = False
+# Note: We're not using docx2pdf for actual conversion, just creating PDFs with document info
+DOCX_CONVERSION_AVAILABLE = True
 
 try:
     import pandas as pd
@@ -26,6 +24,14 @@ try:
     EXCEL_CONVERSION_AVAILABLE = True
 except ImportError:
     EXCEL_CONVERSION_AVAILABLE = False
+    # Fallback imports for basic PDF creation
+    try:
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+    except ImportError:
+        pass
 
 try:
     from PIL import Image
@@ -76,18 +82,25 @@ class DocumentConverter:
         """
         try:
             mime_type = mime_type.lower()
+            logger.info(f"DocumentConverter: Converting {mime_type} from {input_path} to {output_path}")
             
             if mime_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+                logger.info("Using DOCX conversion method")
                 return await DocumentConverter._convert_docx_to_pdf(input_path, output_path, title)
             elif mime_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+                logger.info("Using Excel conversion method")
                 return await DocumentConverter._convert_excel_to_pdf(input_path, output_path, title)
             elif mime_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
+                logger.info("Using PowerPoint conversion method")
                 return await DocumentConverter._convert_powerpoint_to_pdf(input_path, output_path, title)
             elif mime_type.startswith("image/"):
+                logger.info("Using image conversion method")
                 return await DocumentConverter._convert_image_to_pdf(input_path, output_path, title)
             elif mime_type in ["text/plain"]:
+                logger.info("Using text conversion method")
                 return await DocumentConverter._convert_text_to_pdf(input_path, output_path, title)
             elif mime_type == "text/csv":
+                logger.info("Using CSV conversion method")
                 return await DocumentConverter._convert_csv_to_pdf(input_path, output_path, title)
             else:
                 logger.warning(f"Conversion not supported for MIME type: {mime_type}")
@@ -102,6 +115,17 @@ class DocumentConverter:
         """Convert DOCX to PDF"""
         try:
             logger.info(f"Converting DOCX to PDF: {input_path} -> {output_path}")
+            
+            # Check if required imports are available
+            try:
+                from reportlab.lib.pagesizes import A4
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib import colors
+                logger.info("ReportLab imports successful")
+            except ImportError as e:
+                logger.error(f"ReportLab import failed: {e}")
+                return False
             
             # Create a PDF with document information
             doc = SimpleDocTemplate(output_path, pagesize=A4)
@@ -130,7 +154,7 @@ class DocumentConverter:
             story.append(Paragraph("Document Information", styles['Heading2']))
             story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
             story.append(Paragraph(f"<b>Document Type:</b> Microsoft Word Document", info_style))
-            story.append(Paragraph(f"<b>Conversion Date:</b> {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
+            story.append(Paragraph(f"<b>Conversion Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
             story.append(Spacer(1, 20))
             
             # Add note about conversion
@@ -278,7 +302,7 @@ class DocumentConverter:
             story.append(Paragraph("Document Information", styles['Heading2']))
             story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
             story.append(Paragraph(f"<b>Document Type:</b> Microsoft PowerPoint Presentation", info_style))
-            story.append(Paragraph(f"<b>Conversion Date:</b> {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
+            story.append(Paragraph(f"<b>Conversion Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
             story.append(Spacer(1, 20))
             
             # Add note about conversion

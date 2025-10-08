@@ -312,6 +312,7 @@ async def upload_document(
                 pdf_path = os.path.join(settings.UPLOAD_DIR, pdf_filename)
                 
                 # Convert to PDF
+                logger.info(f"Attempting to convert {file.filename} from {content_type} to PDF")
                 conversion_success = await DocumentConverter.convert_to_pdf(
                     file_path, pdf_path, content_type, title
                 )
@@ -322,7 +323,7 @@ async def upload_document(
                     final_mime_type = "application/pdf"
                     final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
                     document_type = DocumentType.PDF
-                    logger.info(f"Document converted successfully: {final_filename}")
+                    logger.info(f"Document converted successfully: {final_filename} -> {final_mime_type}")
                 else:
                     logger.warning(f"Conversion failed for {file.filename}, using original file")
                     # Keep original file if conversion fails
