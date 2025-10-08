@@ -68,6 +68,14 @@ async def login(
                 detail="Account is not active"
             )
         
+        # Optional: upgrade legacy hash to Argon2+pepper on successful login
+        try:
+            new_hash = auth_handler.get_password_hash(login_data.password)
+            if new_hash and new_hash != user.password_hash:
+                user.password_hash = new_hash
+        except Exception:
+            pass
+
         # Update last login
         user.last_login = datetime.now()
         await db.commit()

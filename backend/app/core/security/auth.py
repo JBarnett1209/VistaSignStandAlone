@@ -31,10 +31,20 @@ class AuthHandler:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
-        # Optional pepper support: prepend/append a server-side secret
+        # Try with pepper (new scheme)
         pepper = (settings.ENCRYPTION_PEPPER or "")
-        candidate = f"{plain_password}{pepper}"
-        return pwd_context.verify(candidate, hashed_password)
+        if pepper:
+            candidate = f"{plain_password}{pepper}"
+            try:
+                if pwd_context.verify(candidate, hashed_password):
+                    return True
+            except Exception:
+                pass
+        # Fallback: legacy hashes without pepper
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except Exception:
+            return False
     
     @staticmethod
     def get_password_hash(password: str) -> str:
