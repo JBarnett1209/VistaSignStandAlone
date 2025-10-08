@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import secrets
@@ -43,8 +43,9 @@ async def login(
     try:
         # Normalize email and find user
         normalized_email = login_data.email.strip().lower()
+        # Case-insensitive lookup to support legacy mixed-case emails
         result = await db.execute(
-            select(User).where(User.email == normalized_email)
+            select(User).where(func.lower(User.email) == normalized_email)
         )
         user = result.scalar_one_or_none()
         
@@ -55,6 +56,14 @@ async def login(
                 detail="Invalid credentials"
             )
         
+        # If we found a legacy mixed-case email, normalize it now
+        try:
+            if user and user.email != normalized_email:
+                user.email = normalized_email
+                await db.commit()
+        except Exception:
+            pass
+
         # Verify password
         if not auth_handler.verify_password(login_data.password, user.password_hash):
             try:
