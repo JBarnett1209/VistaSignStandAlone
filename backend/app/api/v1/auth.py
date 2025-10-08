@@ -357,3 +357,34 @@ async def logout(response: Response):
     """User logout endpoint"""
     delete_auth_cookies(response)
     return {"message": "Successfully logged out"}
+
+
+@router.get("/session-check")
+async def session_check(
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Lightweight check to validate refresh cookie without rotating tokens.
+    Returns 204 if valid/active; 401 otherwise.
+    """
+    try:
+        refresh_token = request.cookies.get(REFRESH_COOKIE_NAME)
+        if not refresh_token:
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "No refresh"})
+
+        payload = auth_handler.verify_token(refresh_token)
+        if not payload or payload.get("type") != "refresh":
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Invalid"})
+
+        user_id = payload.get("sub")
+        if not user_id:
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Invalid"})
+
+        result = await db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user or user.status != UserStatus.ACTIVE:
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Inactive"})
+
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except Exception:
+        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Unauthorized"})
