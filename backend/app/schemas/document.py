@@ -26,6 +26,7 @@ class DocumentResponse(BaseModel):
     document_type: str
     status: str
     mime_type: str
+    file_url: Optional[str] = None  # URL to access the file
     created_at: datetime
     updated_at: datetime
     

@@ -3,6 +3,7 @@ VistaSign Documents API Endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import List, Optional
@@ -29,6 +30,54 @@ logger = logging.getLogger(__name__)
 async def test_documents_endpoint():
     """Test endpoint to verify routing works"""
     return {"message": "Documents API is working"}
+
+@router.get("/{document_id}/file")
+async def get_document_file(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Serve document file"""
+    try:
+        # Get document from database
+        result = await db.execute(
+            select(Document).where(
+                and_(
+                    Document.id == document_id,
+                    Document.owner_id == current_user["id"]
+                )
+            )
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Check if file exists
+        if not os.path.exists(document.file_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document file not found"
+            )
+        
+        # Return file
+        return FileResponse(
+            path=document.file_path,
+            filename=document.filename,
+            media_type=document.mime_type
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving document file: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to serve document file"
+        )
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
@@ -121,6 +170,7 @@ async def upload_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
+            file_url=f"/api/v1/documents/{document.id}/file",
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -193,9 +243,10 @@ async def list_documents(
                     file_size=doc.file_size,
                     document_type=doc.document_type.value,
                     status=doc.status.value,
-                    mime_type=doc.mime_type,
-                    created_at=doc.created_at,
-                    updated_at=doc.updated_at
+            mime_type=doc.mime_type,
+            file_url=f"/api/v1/documents/{doc.id}/file",
+            created_at=doc.created_at,
+            updated_at=doc.updated_at
                 ) for doc in documents
             ],
             total=total,
@@ -244,6 +295,7 @@ async def get_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
+            file_url=f"/api/v1/documents/{document.id}/file",
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -301,6 +353,7 @@ async def update_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
+            file_url=f"/api/v1/documents/{document.id}/file",
             created_at=document.created_at,
             updated_at=document.updated_at
         )

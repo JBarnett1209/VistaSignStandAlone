@@ -116,6 +116,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   // Load document fields and signers on mount
   useEffect(() => {
     console.log('DocumentEditor - Document data:', document);
+    console.log('DocumentEditor - Available file properties:', {
+      file_url: document?.file_url,
+      file_path: document?.file_path,
+      url: document?.url,
+      filename: document?.filename,
+      file_name: document?.file_name
+    });
     if (document?.fields) {
       setFields(document.fields);
     }
@@ -500,17 +507,33 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={(error) => {
                   console.error('PDF load error:', error);
-                  setError('Failed to load PDF document');
+                  console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
+                  setError(`Failed to load PDF document: ${error.message || 'Unknown error'}`);
                 }}
-                loading={<CircularProgress />}
+                loading={
+                  <Box sx={{ textAlign: 'center', p: 4 }}>
+                    <CircularProgress />
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                      Loading PDF document...
+                    </Typography>
+                  </Box>
+                }
                 error={
                   <Box sx={{ textAlign: 'center', p: 4 }}>
-                    <Typography color="error">
+                    <Typography color="error" variant="h6">
                       Failed to load PDF document
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      File URL: {document?.file_url || document?.file_path || document?.url || 'No URL found'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                       Please check if the document file exists and is accessible.
                     </Typography>
+                    <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Debug Info: Check browser console for detailed error information
+                      </Typography>
+                    </Box>
                   </Box>
                 }
               >
