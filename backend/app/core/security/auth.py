@@ -39,7 +39,7 @@ class AuthHandler:
             logger.info("Auth: could not identify hash scheme")
             scheme = None
         
-        # Try verifying with Argon2 (current scheme)
+        # Try verifying with Argon2 (current scheme) using pepper
         try:
             if pwd_context.verify(peppered_password, hashed_password):
                 logger.info("Auth: argon2+pepper verification succeeded")
@@ -47,15 +47,23 @@ class AuthHandler:
         except Exception:
             logger.debug("Auth: argon2 verify raised, will try legacy if applicable")
         
-        # If Argon2 fails, try verifying with bcrypt (legacy scheme)
+        # If Argon2+pepper fails, try verifying legacy variants
         # This is for transparently upgrading old hashes
         try:
-            if pwd_context.identify(hashed_password) == "bcrypt":
+            identified_scheme = pwd_context.identify(hashed_password)
+            if identified_scheme == "bcrypt":
                 if CryptContext(schemes=["bcrypt"]).verify(plain_password, hashed_password):
                     logger.info("Auth: legacy bcrypt verification succeeded (rehash will occur)")
                     return True
                 else:
                     logger.info("Auth: legacy bcrypt verification failed")
+            elif identified_scheme == "argon2":
+                # Legacy argon2 without pepper
+                if pwd_context.verify(plain_password, hashed_password):
+                    logger.info("Auth: legacy argon2 (no pepper) verification succeeded (rehash will occur)")
+                    return True
+                else:
+                    logger.info("Auth: legacy argon2 (no pepper) verification failed")
         except Exception:
             logger.debug("Auth: bcrypt verify raised")
         
