@@ -108,6 +108,7 @@ async def csrf_protect(request: Request, call_next):
         "/api/v1/auth/refresh",
         "/api/v1/documents/upload",
     ]:
+        logger.info(f"CSRF: exempting {request.method} {path}")
         return await call_next(request)
 
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
@@ -121,10 +122,10 @@ async def csrf_protect(request: Request, call_next):
         csrf_header = request.headers.get("x-csrf-token")
         
         # Debug logging
-        logger.info(f"CSRF validation - Cookie: {csrf_cookie}, Header: {csrf_header}")
+        logger.info(f"CSRF validation for {request.method} {path} - Cookie: {csrf_cookie}, Header: {csrf_header}")
         
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-            logger.warning(f"CSRF validation failed - Cookie: {csrf_cookie}, Header: {csrf_header}")
+            logger.warning(f"CSRF validation failed for {request.method} {path} - Cookie: {csrf_cookie}, Header: {csrf_header}")
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
 
