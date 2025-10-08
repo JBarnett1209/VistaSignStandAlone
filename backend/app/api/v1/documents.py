@@ -2,7 +2,7 @@
 VistaSign Documents API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import List, Optional
@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    title: str = Query(..., description="Document title"),
-    description: Optional[str] = Query(None, description="Document description"),
+    title: str = Form(..., description="Document title"),
+    description: Optional[str] = Form(None, description="Document description"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
