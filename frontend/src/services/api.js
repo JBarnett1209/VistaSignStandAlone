@@ -43,6 +43,11 @@ api.interceptors.response.use(
 
     // If request failed with 401, and it's not the refresh endpoint itself, try coordinated refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // If no refresh cookie present, do not attempt to refresh (anonymous visitor)
+      const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
+      if (!hasRefresh) {
+        return Promise.reject(error);
+      }
       // If refresh has been disabled, immediately fail and notify once
       if (refreshDisabled) {
         if (typeof window !== 'undefined') {

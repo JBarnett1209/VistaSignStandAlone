@@ -18,6 +18,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Attempt to refresh on load (cookie-based refresh)
     const attemptRefresh = async () => {
+      // Only try if refresh cookie exists to avoid 401 spam for anonymous users
+      const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
+      if (!hasRefresh) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
       try {
         const res = await api.post('/api/v1/auth/refresh', {});
         // Keep access token only in memory
