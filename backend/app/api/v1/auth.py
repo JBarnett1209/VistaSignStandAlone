@@ -49,6 +49,7 @@ async def login(
         user = result.scalar_one_or_none()
         
         if not user:
+            logger.info(f"Login failed: user not found for email={normalized_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
@@ -56,6 +57,12 @@ async def login(
         
         # Verify password
         if not auth_handler.verify_password(login_data.password, user.password_hash):
+            try:
+                from passlib.context import CryptContext
+                scheme = CryptContext(schemes=["argon2","bcrypt"]).identify(user.password_hash)
+            except Exception:
+                scheme = None
+            logger.info(f"Login failed: password verification failed (scheme={scheme}) for email={normalized_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
@@ -69,6 +76,7 @@ async def login(
         
         # Check if user is active
         if user.status != UserStatus.ACTIVE:
+            logger.info(f"Login failed: user inactive email={normalized_email} status={user.status}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Account is not active"
