@@ -29,6 +29,37 @@ class AuthHandler:
     """Authentication handler for JWT tokens and password operations"""
     
     @staticmethod
+    def verify_password_detailed(plain_password: str, hashed_password: str) -> tuple[bool, str]:
+        """
+        Verify password and return (verified, mode):
+          - mode = 'argon2_pepper' when new scheme succeeds
+          - mode = 'argon2_legacy' when argon2 without pepper succeeds
+          - mode = 'bcrypt_legacy' when bcrypt succeeds
+          - mode = 'fail' otherwise
+        """
+        peppered_password = plain_password + (settings.ENCRYPTION_PEPPER or "")
+        try:
+            if pwd_context.verify(peppered_password, hashed_password):
+                logger.info("Auth: argon2+pepper verification succeeded")
+                return True, "argon2_pepper"
+        except Exception:
+            logger.debug("Auth: argon2 verify raised, will try legacy if applicable")
+        # legacy checks
+        try:
+            identified_scheme = pwd_context.identify(hashed_password)
+            if identified_scheme == "bcrypt":
+                if CryptContext(schemes=["bcrypt"]).verify(plain_password, hashed_password):
+                    logger.info("Auth: legacy bcrypt verification succeeded (rehash will occur)")
+                    return True, "bcrypt_legacy"
+            elif identified_scheme == "argon2":
+                if pwd_context.verify(plain_password, hashed_password):
+                    logger.info("Auth: legacy argon2 (no pepper) verification succeeded (rehash will occur)")
+                    return True, "argon2_legacy"
+        except Exception:
+            logger.debug("Auth: legacy verify raised")
+        return False, "fail"
+
+    @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash, supporting legacy bcrypt and auto-upgrading"""
         peppered_password = plain_password + (settings.ENCRYPTION_PEPPER or "")

@@ -64,8 +64,9 @@ async def login(
         except Exception:
             pass
 
-        # Verify password
-        if not auth_handler.verify_password(login_data.password, user.password_hash):
+        # Verify password with detail (so we only rehash when truly legacy)
+        verified, mode = auth_handler.verify_password_detailed(login_data.password, user.password_hash)
+        if not verified:
             try:
                 from passlib.context import CryptContext
                 scheme = CryptContext(schemes=["argon2","bcrypt"]).identify(user.password_hash)
@@ -77,16 +78,13 @@ async def login(
                 detail="Invalid credentials"
             )
         
-        # If password was verified using a legacy hash (bcrypt or argon2 without pepper), rehash with current scheme
-        from passlib.context import CryptContext
-        scheme_now = CryptContext(schemes=["argon2","bcrypt"]).identify(user.password_hash)
-        # If the current hash doesn't match argon2+pepper semantics (i.e., anything not freshly generated here), rehash
-        try:
-            if scheme_now in ("bcrypt", "argon2"):
+        # Only rehash if login succeeded via legacy scheme
+        if mode in ("bcrypt_legacy", "argon2_legacy"):
+            try:
                 user.password_hash = auth_handler.get_password_hash(login_data.password)
-                logger.info(f"User {user.email} password rehashed to Argon2id+pepper (from {scheme_now}).")
-        except Exception as _:
-            pass
+                logger.info(f"User {user.email} password rehashed to Argon2id+pepper (from {mode}).")
+            except Exception:
+                pass
         
         # Check if user is active
         if user.status != UserStatus.ACTIVE:
