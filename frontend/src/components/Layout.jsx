@@ -55,7 +55,7 @@ export const Layout = () => {
         sx={{
           left: 0,
           width: '100%',
-          pl: `${drawerWidth + sidebarGutter}px`,
+          pl: { xs: 0, sm: `${drawerWidth + sidebarGutter}px` },
         }}
       >
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
@@ -93,8 +93,9 @@ export const Layout = () => {
       
       <Drawer
         sx={{
-          width: drawerWidth,
+          width: { xs: 0, sm: drawerWidth },
           flexShrink: 0,
+          display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
@@ -127,7 +128,10 @@ export const Layout = () => {
         </Box>
       </Drawer>
       
-      <Box component="main" className="app-main" sx={{ bgcolor: 'background.default', ml: `${drawerWidth + sidebarGutter}px` }}>
+      <Box component="main" className="app-main" sx={{ 
+        bgcolor: 'background.default', 
+        ml: { xs: 0, sm: `${drawerWidth + sidebarGutter}px` }
+      }}>
         <Toolbar />
         <Box className="app-content">
           <Outlet />

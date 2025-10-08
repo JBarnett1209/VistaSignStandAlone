@@ -141,15 +141,24 @@ export default function Documents() {
   };
 
   return (
-    <Box className="content-section">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%', maxWidth: 'none' }}>
-        <Typography variant="h4">
+    <Box className="content-section" sx={{ width: '100%', overflow: 'hidden' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 3, 
+        width: '100%',
+        flexWrap: 'wrap',
+        gap: 2
+      }}>
+        <Typography variant="h4" sx={{ minWidth: 0, flex: 1 }}>
           Documents
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setUploadDialogOpen(true)}
+          sx={{ flexShrink: 0 }}
         >
           Upload Document
         </Button>
@@ -161,16 +170,43 @@ export default function Documents() {
         </Alert>
       )}
 
-      <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
-        <Table stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: 0 }}>
+      <TableContainer 
+        component={Paper} 
+        elevation={0} 
+        square 
+        className="full-width-table" 
+        sx={{ 
+          width: '100%',
+          overflowX: 'auto',
+          '&::-webkit-scrollbar': {
+            height: 8,
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: '#f1f1f1',
+            borderRadius: 4,
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: '#c1c1c1',
+            borderRadius: 4,
+            '&:hover': {
+              backgroundColor: '#a8a8a8',
+            },
+          },
+        }}
+      >
+        <Table stickyHeader sx={{ 
+          tableLayout: 'auto', 
+          width: '100%', 
+          minWidth: 800 // Minimum width to ensure readability
+        }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: '40%' }}>Document</TableCell>
-              <TableCell sx={{ width: '12%' }}>Type</TableCell>
-              <TableCell sx={{ width: '10%' }}>Size</TableCell>
-              <TableCell sx={{ width: '12%' }}>Status</TableCell>
-              <TableCell sx={{ width: '16%' }}>Created</TableCell>
-              <TableCell sx={{ width: '10%' }}>Actions</TableCell>
+              <TableCell sx={{ minWidth: 200, width: 'auto' }}>Document</TableCell>
+              <TableCell sx={{ minWidth: 80, width: 'auto' }}>Type</TableCell>
+              <TableCell sx={{ minWidth: 80, width: 'auto' }}>Size</TableCell>
+              <TableCell sx={{ minWidth: 100, width: 'auto' }}>Status</TableCell>
+              <TableCell sx={{ minWidth: 150, width: 'auto' }}>Created</TableCell>
+              <TableCell sx={{ minWidth: 120, width: 'auto' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -247,18 +283,24 @@ export default function Documents() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                      <IconButton size="small" title="View">
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 0.5,
+                      flexWrap: 'nowrap',
+                      minWidth: 120
+                    }}>
+                      <IconButton size="small" title="View" sx={{ flexShrink: 0 }}>
                         <ViewIcon />
                       </IconButton>
                       <IconButton 
                         size="small" 
                         title="Edit"
                         onClick={() => handleEditDocument(doc)}
+                        sx={{ flexShrink: 0 }}
                       >
                         <EditIcon />
                       </IconButton>
-                      <IconButton size="small" title="Download">
+                      <IconButton size="small" title="Download" sx={{ flexShrink: 0 }}>
                         <DownloadIcon />
                       </IconButton>
                       <IconButton
@@ -266,6 +308,7 @@ export default function Documents() {
                         title="Delete"
                         onClick={() => handleDeleteDocument(doc.id)}
                         color="error"
+                        sx={{ flexShrink: 0 }}
                       >
                         <DeleteIcon />
                       </IconButton>

@@ -50,6 +50,19 @@
   align-items: stretch;
 }
 
+/* Responsive padding adjustments */
+@media (max-width: 768px) {
+  .app-content {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-content {
+    padding: 12px;
+  }
+}
+
 /* Uniform page header spacing */
 .page-header {
   display: flex;
@@ -91,11 +104,13 @@
 .full-width-table {
   width: 100% !important;
   flex: 1 1 auto;
+  overflow-x: auto;
 }
 
 .full-width-table .MuiTable-root {
   width: 100% !important;
-  table-layout: fixed;
+  table-layout: auto;
+  min-width: 800px;
 }
 
 
