@@ -306,8 +306,8 @@ async def register(
     await db.commit()
     
     # Generate tokens
-    access_token = auth_handler.encode_token(str(user.id), user.email, "access")
-    refresh_token = auth_handler.encode_token(str(user.id), user.email, "refresh")
+    access_token = auth_handler.create_access_token({"sub": str(user.id), "email": user.email})
+    refresh_token = auth_handler.create_refresh_token({"sub": str(user.id), "email": user.email})
     
     # Set cookies
     set_refresh_cookie(response, refresh_token)
