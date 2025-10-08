@@ -27,7 +27,8 @@ import {
   TextFields as TextIcon,
   GetApp as DownloadIcon,
   Delete as DeleteIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { documentsAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
