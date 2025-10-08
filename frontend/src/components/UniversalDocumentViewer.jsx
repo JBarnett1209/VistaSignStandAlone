@@ -43,6 +43,11 @@ const UniversalDocumentViewer = ({
       return;
     }
 
+    console.log('UniversalDocumentViewer - Document data:', document);
+    console.log('UniversalDocumentViewer - MIME type:', document?.mime_type);
+    console.log('UniversalDocumentViewer - Filename:', document?.filename);
+    console.log('UniversalDocumentViewer - File URL:', document?.file_url);
+
     setLoading(true);
     setError(null);
     setNumPages(null);
@@ -50,6 +55,7 @@ const UniversalDocumentViewer = ({
     
     // For non-PDF documents, we don't need to wait for loading
     const docType = getDocumentType(document?.mime_type, document?.filename);
+    console.log('UniversalDocumentViewer - Detected document type:', docType);
     if (docType !== 'pdf') {
       setLoading(false);
     }
