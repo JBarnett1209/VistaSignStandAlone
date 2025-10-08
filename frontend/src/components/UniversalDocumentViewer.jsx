@@ -47,6 +47,12 @@ const UniversalDocumentViewer = ({
     setError(null);
     setNumPages(null);
     setCurrentPage(1);
+    
+    // For non-PDF documents, we don't need to wait for loading
+    const docType = getDocumentType(document?.mime_type, document?.filename);
+    if (docType !== 'pdf') {
+      setLoading(false);
+    }
   }, [document]);
 
   const getDocumentType = (mimeType, filename) => {
@@ -101,7 +107,14 @@ const UniversalDocumentViewer = ({
   };
 
   const renderPDFViewer = () => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      gap: 2,
+      width: '100%',
+      flex: 1
+    }}>
       <Document
         file={document?.file_url || document?.file_path || document?.url}
         onLoadSuccess={(pdf) => {
@@ -157,7 +170,14 @@ const UniversalDocumentViewer = ({
   );
 
   const renderImageViewer = () => (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+    <Box sx={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: 400,
+      width: '100%',
+      flex: 1
+    }}>
       <img
         src={document?.file_url || document?.file_path || document?.url}
         alt={document?.title || 'Document'}
@@ -189,7 +209,9 @@ const UniversalDocumentViewer = ({
       justifyContent: 'center', 
       minHeight: 400,
       gap: 2,
-      p: 4
+      p: 4,
+      width: '100%',
+      flex: 1
     }}>
       <Box sx={{ fontSize: 64, color: 'text.secondary' }}>
         {getDocumentIcon(type)}
@@ -266,7 +288,9 @@ const UniversalDocumentViewer = ({
       height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
-      overflow: 'auto'
+      overflow: 'auto',
+      flex: 1,
+      minHeight: 0
     }}>
       {renderDocument()}
     </Paper>

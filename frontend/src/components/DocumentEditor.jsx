@@ -499,21 +499,21 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             overflow: 'auto', 
             p: 2,
             display: 'flex',
-            justifyContent: 'center',
-            backgroundColor: '#f5f5f5'
+            flexDirection: 'column',
+            backgroundColor: '#f5f5f5',
+            minHeight: 0 // Allow flex shrinking
           }}>
-            <Box sx={{ position: 'relative' }}>
-              <UniversalDocumentViewer
-                document={document}
-                zoom={scale}
-                onZoomChange={setScale}
-                onLoadSuccess={onDocumentLoadSuccess}
-                onLoadError={(error) => {
-                  console.error('Document load error:', error);
-                  console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
-                  setError(`Failed to load document: ${error.message || 'Unknown error'}`);
-                }}
-              />
+            <UniversalDocumentViewer
+              document={document}
+              zoom={scale}
+              onZoomChange={setScale}
+              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadError={(error) => {
+                console.error('Document load error:', error);
+                console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
+                setError(`Failed to load document: ${error.message || 'Unknown error'}`);
+              }}
+            />
               
               {/* Render fields for current page */}
               {fields
