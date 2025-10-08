@@ -5,6 +5,7 @@ let isRefreshing = false;
 let refreshPromise = null;
 let lastRefreshFailureAt = 0;
 const REFRESH_COOLDOWN_MS = 5000; // back off for 5s after a failed refresh
+let refreshDisabled = false; // hard-disable further refresh attempts until reload
 
 // Force same-origin requests to avoid mixed content. Nginx proxies /api → backend.
 const api = axios.create({
@@ -42,6 +43,14 @@ api.interceptors.response.use(
 
     // If request failed with 401, and it's not the refresh endpoint itself, try coordinated refresh
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // If refresh has been disabled, immediately fail and notify once
+      if (refreshDisabled) {
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = null;
+          window.dispatchEvent(new CustomEvent('auth-failed'));
+        }
+        return Promise.reject(error);
+      }
       // Never attempt to refresh for refresh endpoint to avoid recursion
       const isRefreshCall = (originalRequest?.url || '').includes('/api/v1/auth/refresh');
       if (isRefreshCall) {
@@ -91,6 +100,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Mark cooldown and broadcast auth-failed
         lastRefreshFailureAt = Date.now();
+        refreshDisabled = true;
         isRefreshing = false;
         refreshPromise = null;
         if (typeof window !== 'undefined') {
