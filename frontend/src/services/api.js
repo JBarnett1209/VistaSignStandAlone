@@ -134,9 +134,13 @@ export const authAPI = {
 
 // Documents API
 export const documentsAPI = {
-  upload: (formData) => api.post('/api/v1/documents/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  upload: (formData) => {
+    console.log('Uploading to:', '/api/v1/documents/upload');
+    console.log('FormData contents:', Array.from(formData.entries()));
+    return api.post('/api/v1/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
   list: (params) => api.get('/api/v1/documents/', { params }),
   get: (id) => api.get(`/api/v1/documents/${id}`),
   update: (id, data) => api.put(`/api/v1/documents/${id}`, data),
