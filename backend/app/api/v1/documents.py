@@ -286,47 +286,97 @@ async def upload_document(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
         
-        # Save file
+        # Save original file
         with open(file_path, "wb") as buffer:
             buffer.write(file_content)
         
         # Calculate file hash
         file_hash = hashlib.sha256(file_content).hexdigest()
         
-        # Determine document type based on MIME type
+        # Determine document type and convert to PDF if needed
         document_type = DocumentType.OTHER
         content_type = file.content_type.lower()
+        final_file_path = file_path
+        final_mime_type = file.content_type
+        final_filename = file.filename
         
         if content_type == "application/pdf":
             document_type = DocumentType.PDF
-        elif content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
-            document_type = DocumentType.WORD
-        elif content_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
-            document_type = DocumentType.EXCEL
-        elif content_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
-            document_type = DocumentType.POWERPOINT
-        elif content_type.startswith("image/"):
-            document_type = DocumentType.IMAGE
-        elif content_type in ["text/plain"]:
-            document_type = DocumentType.TEXT
-        elif content_type == "text/csv":
-            document_type = DocumentType.CSV
-        elif content_type == "application/rtf":
-            document_type = DocumentType.RTF
-        elif content_type in ["application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.presentation"]:
-            document_type = DocumentType.OPEN_DOCUMENT
+        else:
+            # Check if conversion is needed
+            if DocumentConverter.needs_conversion(content_type):
+                logger.info(f"Converting document to PDF: {file.filename}")
+                
+                # Generate PDF filename
+                pdf_filename = f"{uuid.uuid4()}.pdf"
+                pdf_path = os.path.join(settings.UPLOAD_DIR, pdf_filename)
+                
+                # Convert to PDF
+                conversion_success = await DocumentConverter.convert_to_pdf(
+                    file_path, pdf_path, content_type, title
+                )
+                
+                if conversion_success:
+                    # Use the converted PDF
+                    final_file_path = pdf_path
+                    final_mime_type = "application/pdf"
+                    final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
+                    document_type = DocumentType.PDF
+                    logger.info(f"Document converted successfully: {final_filename}")
+                else:
+                    logger.warning(f"Conversion failed for {file.filename}, using original file")
+                    # Keep original file if conversion fails
+                    if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+                        document_type = DocumentType.WORD
+                    elif content_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+                        document_type = DocumentType.EXCEL
+                    elif content_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
+                        document_type = DocumentType.POWERPOINT
+                    elif content_type.startswith("image/"):
+                        document_type = DocumentType.IMAGE
+                    elif content_type in ["text/plain"]:
+                        document_type = DocumentType.TEXT
+                    elif content_type == "text/csv":
+                        document_type = DocumentType.CSV
+                    elif content_type == "application/rtf":
+                        document_type = DocumentType.RTF
+                    elif content_type in ["application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.presentation"]:
+                        document_type = DocumentType.OPEN_DOCUMENT
+            else:
+                # No conversion needed, determine type
+                if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+                    document_type = DocumentType.WORD
+                elif content_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+                    document_type = DocumentType.EXCEL
+                elif content_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
+                    document_type = DocumentType.POWERPOINT
+                elif content_type.startswith("image/"):
+                    document_type = DocumentType.IMAGE
+                elif content_type in ["text/plain"]:
+                    document_type = DocumentType.TEXT
+                elif content_type == "text/csv":
+                    document_type = DocumentType.CSV
+                elif content_type == "application/rtf":
+                    document_type = DocumentType.RTF
+                elif content_type in ["application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.presentation"]:
+                    document_type = DocumentType.OPEN_DOCUMENT
+        
+        # Get final file size (for converted files)
+        final_file_size = len(file_content)
+        if final_file_path != file_path:
+            final_file_size = os.path.getsize(final_file_path)
         
         # Create document record
         document = Document(
             title=title,
             description=description,
-            filename=file.filename,
-            file_path=file_path,
-            file_size=len(file_content),
+            filename=final_filename,
+            file_path=final_file_path,
+            file_size=final_file_size,
             file_hash=file_hash,
             document_type=document_type,
             status=DocumentStatus.DRAFT,
-            mime_type=file.content_type,
+            mime_type=final_mime_type,
             created_by=current_user["user_id"],
             owner_id=current_user["user_id"]
         )

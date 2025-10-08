@@ -23,7 +23,6 @@ import {
   TextFields as TextIcon
 } from '@mui/icons-material';
 import { documentsAPI } from '../services/api';
-import documentConversionService from '../services/documentConversion';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ALLOWED_TYPES = [
@@ -75,8 +74,7 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [documentTitle, setDocumentTitle] = useState('');
   const [documentDescription, setDocumentDescription] = useState('');
-  const [converting, setConverting] = useState(false);
-  const [conversionProgress, setConversionProgress] = useState({});
+  const [uploading, setUploading] = useState(false);
 
   const validateFile = (file) => {
     // Basic file validation
@@ -166,40 +164,12 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
     if (selectedFiles.length === 0) return;
     
     setUploading(true);
-    setConverting(true);
     setError(null);
     setSuccess(null);
     
     try {
-      // First, convert files to PDF if needed
-      const convertedFiles = [];
-      
-      for (let i = 0; i < selectedFiles.length; i++) {
-        const file = selectedFiles[i];
-        setConversionProgress(prev => ({ ...prev, [i]: 0 }));
-        
-        if (documentConversionService.needsConversion(file.type, file.name)) {
-          setConversionProgress(prev => ({ ...prev, [i]: 50 }));
-          try {
-            // For now, just use the original file - conversion will happen on the backend
-            convertedFiles.push(file);
-            setConversionProgress(prev => ({ ...prev, [i]: 100 }));
-          } catch (conversionError) {
-            console.warn(`Failed to convert ${file.name}:`, conversionError);
-            // If conversion fails, try to upload original file
-            convertedFiles.push(file);
-            setConversionProgress(prev => ({ ...prev, [i]: 100 }));
-          }
-        } else {
-          convertedFiles.push(file);
-          setConversionProgress(prev => ({ ...prev, [i]: 100 }));
-        }
-      }
-      
-      setConverting(false);
-      
-      // Now upload the files
-      const uploadPromises = convertedFiles.map(async (file, index) => {
+      // Upload files directly - conversion happens on the backend
+      const uploadPromises = selectedFiles.map(async (file, index) => {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('title', documentTitle || file.name);
@@ -214,10 +184,11 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
       });
       
       const results = await Promise.all(uploadPromises);
-      setSuccess(`Successfully uploaded ${results.length} document(s)`);
+      setSuccess(`Successfully uploaded ${results.length} document(s). Documents will be automatically converted to PDF for editing.`);
       setSelectedFiles([]);
       setDocumentTitle('');
       setDocumentDescription('');
+      setUploadDialogOpen(false);
       
       if (onUploadSuccess) {
         onUploadSuccess(results);
@@ -227,9 +198,7 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
       setError(err.response?.data?.detail || 'Upload failed');
     } finally {
       setUploading(false);
-      setConverting(false);
       setUploadProgress({});
-      setConversionProgress({});
     }
   };
 
@@ -306,32 +275,16 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
                     {formatFileSize(file.size)} • {file.type}
                   </Typography>
                 </Box>
-                {(conversionProgress[index] !== undefined || uploadProgress[index] !== undefined) && (
+                {uploadProgress[index] !== undefined && (
                   <Box sx={{ width: 120, ml: 2 }}>
-                    {conversionProgress[index] !== undefined && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Converting...
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={conversionProgress[index]}
-                          sx={{ height: 4, borderRadius: 2 }}
-                        />
-                      </Box>
-                    )}
-                    {uploadProgress[index] !== undefined && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Uploading...
-                        </Typography>
-                        <LinearProgress
-                          variant="determinate"
-                          value={uploadProgress[index]}
-                          sx={{ height: 4, borderRadius: 2 }}
-                        />
-                      </Box>
-                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      Uploading...
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={uploadProgress[index]}
+                      sx={{ height: 4, borderRadius: 2 }}
+                    />
                   </Box>
                 )}
               </Box>
@@ -349,10 +302,10 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
             <Button
               variant="contained"
               onClick={openUploadDialog}
-              disabled={uploading || converting}
+              disabled={uploading}
               startIcon={<UploadIcon />}
             >
-              {converting ? 'Converting...' : uploading ? 'Uploading...' : 'Upload Documents'}
+              {uploading ? 'Uploading...' : 'Upload Documents'}
             </Button>
             <Button
               variant="outlined"
