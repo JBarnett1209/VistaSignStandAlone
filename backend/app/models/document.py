@@ -25,7 +25,13 @@ class DocumentType(str, PyEnum):
     """Document type"""
     PDF = "pdf"
     WORD = "word"
+    EXCEL = "excel"
+    POWERPOINT = "powerpoint"
     IMAGE = "image"
+    TEXT = "text"
+    CSV = "csv"
+    RTF = "rtf"
+    OPEN_DOCUMENT = "open_document"
     OTHER = "other"
 
 class Document(Base):

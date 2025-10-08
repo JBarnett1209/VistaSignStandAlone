@@ -46,8 +46,29 @@ class Settings(BaseSettings):
     
     # File Storage
     UPLOAD_DIR: str = "uploads"
-    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
-    ALLOWED_FILE_TYPES: str = "application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
+    ALLOWED_FILE_TYPES: str = (
+        "application/pdf,"
+        "application/msword,"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+        "application/vnd.ms-excel,"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+        "application/vnd.ms-powerpoint,"
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+        "text/plain,"
+        "text/csv,"
+        "image/jpeg,"
+        "image/jpg,"
+        "image/png,"
+        "image/gif,"
+        "image/bmp,"
+        "image/tiff,"
+        "image/webp,"
+        "application/rtf,"
+        "application/vnd.oasis.opendocument.text,"
+        "application/vnd.oasis.opendocument.spreadsheet,"
+        "application/vnd.oasis.opendocument.presentation"
+    )
     
     @field_validator('ALLOWED_FILE_TYPES', mode='after')
     @classmethod

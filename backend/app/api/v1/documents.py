@@ -65,12 +65,28 @@ async def upload_document(
         # Calculate file hash
         file_hash = hashlib.sha256(file_content).hexdigest()
         
-        # Determine document type
-        document_type = DocumentType.PDF
-        if file.content_type.startswith("image/"):
-            document_type = DocumentType.IMAGE
-        elif "word" in file.content_type:
+        # Determine document type based on MIME type
+        document_type = DocumentType.OTHER
+        content_type = file.content_type.lower()
+        
+        if content_type == "application/pdf":
+            document_type = DocumentType.PDF
+        elif content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
             document_type = DocumentType.WORD
+        elif content_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
+            document_type = DocumentType.EXCEL
+        elif content_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
+            document_type = DocumentType.POWERPOINT
+        elif content_type.startswith("image/"):
+            document_type = DocumentType.IMAGE
+        elif content_type in ["text/plain"]:
+            document_type = DocumentType.TEXT
+        elif content_type == "text/csv":
+            document_type = DocumentType.CSV
+        elif content_type == "application/rtf":
+            document_type = DocumentType.RTF
+        elif content_type in ["application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.presentation"]:
+            document_type = DocumentType.OPEN_DOCUMENT
         
         # Create document record
         document = Document(
