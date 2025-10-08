@@ -3,6 +3,7 @@ VistaSign Authentication API Endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Query
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -121,32 +122,32 @@ async def refresh_token(
         if request and not incoming_refresh:
             incoming_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
         if not incoming_refresh:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
+            # Clear cookies and return 401 without raising to ensure deletion is set
+            if response is not None:
+                delete_auth_cookies(response)
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Missing refresh token"})
 
         # Verify refresh token
         payload = auth_handler.verify_token(incoming_refresh)
         if not payload or payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token"
-            )
+            if response is not None:
+                delete_auth_cookies(response)
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Invalid refresh token"})
         
         user_id = payload.get("sub")
         if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
+            if response is not None:
+                delete_auth_cookies(response)
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Invalid token"})
         
         # Get user
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         
         if not user or user.status != UserStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found or inactive"
-            )
+            if response is not None:
+                delete_auth_cookies(response)
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "User not found or inactive"})
         
         # Generate new tokens
         access_token = auth_handler.create_access_token(
@@ -167,7 +168,11 @@ async def refresh_token(
             expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
         )
         
-    except HTTPException:
+    except HTTPException as e:
+        # On any explicit 401 during refresh, clear cookies
+        if e.status_code == status.HTTP_401_UNAUTHORIZED and response is not None:
+            delete_auth_cookies(response)
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": e.detail})
         raise
     except Exception as e:
         logger.error(f"Token refresh error: {str(e)}")

@@ -103,7 +103,7 @@ api.interceptors.response.use(
           }
         }
       } catch (refreshError) {
-        // Mark cooldown and broadcast auth-failed
+        // Mark cooldown and broadcast auth-failed, and call backend logout to clear cookies
         lastRefreshFailureAt = Date.now();
         refreshDisabled = true;
         isRefreshing = false;
@@ -112,6 +112,9 @@ api.interceptors.response.use(
           window.__vstAccessToken = null;
           window.dispatchEvent(new CustomEvent('auth-failed'));
         }
+        try {
+          await api.post('/api/v1/auth/logout');
+        } catch (_) {}
         return Promise.reject(refreshError);
       }
     }
