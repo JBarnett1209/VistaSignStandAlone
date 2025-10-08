@@ -21,19 +21,19 @@ services:
     networks:
       - web
 
-  # Certbot for Let's Encrypt
-  certbot:
-    image: certbot/dns-route53
-    volumes:
-      - letsencrypt_certs:/etc/letsencrypt
-      - letsencrypt_www:/var/www/certbot
-    environment:
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - AWS_REGION=${AWS_REGION}
-    command: certonly --dns-route53 -d ${SINGLE_HOSTNAME} --email ${ACME_EMAIL} --agree-tos --non-interactive --expand
-    networks:
-      - web
+  # Certbot for Let's Encrypt (disabled; ALB terminates TLS). Re-enable if terminating TLS here.
+  # certbot:
+  #   image: certbot/dns-route53
+  #   volumes:
+  #     - letsencrypt_certs:/etc/letsencrypt
+  #     - letsencrypt_www:/var/www/certbot
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+  #     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  #     - AWS_REGION=${AWS_REGION}
+  #   command: certonly --dns-route53 -d ${SINGLE_HOSTNAME} --email ${ACME_EMAIL} --agree-tos --non-interactive --expand
+  #   networks:
+  #     - web
 
 
   # PostgreSQL Database
@@ -97,8 +97,6 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
-  letsencrypt_certs:
-  letsencrypt_www:
   node_modules:
 
 networks:
