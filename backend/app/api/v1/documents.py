@@ -460,6 +460,10 @@ async def list_documents(
         result = await db.execute(query.offset(skip).limit(limit))
         documents = result.scalars().all()
         
+        # Debug: Log document details
+        for doc in documents:
+            logger.info(f"Document {doc.id}: filename={doc.filename}, mime_type={doc.mime_type}, document_type={doc.document_type.value}")
+        
         return DocumentListResponse(
             documents=[
                 DocumentResponse(
