@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { Document, Page, pdfjs } from 'react-pdf';
 import SignatureCreator from './SignatureCreator';
+import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { documentsAPI } from '../services/api';
 
 // Set up PDF.js worker
@@ -502,48 +503,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             backgroundColor: '#f5f5f5'
           }}>
             <Box sx={{ position: 'relative' }}>
-              <Document
-                file={document?.file_url || document?.file_path || document?.url}
+              <UniversalDocumentViewer
+                document={document}
+                zoom={scale}
+                onZoomChange={setScale}
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={(error) => {
-                  console.error('PDF load error:', error);
+                  console.error('Document load error:', error);
                   console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
-                  setError(`Failed to load PDF document: ${error.message || 'Unknown error'}`);
+                  setError(`Failed to load document: ${error.message || 'Unknown error'}`);
                 }}
-                loading={
-                  <Box sx={{ textAlign: 'center', p: 4 }}>
-                    <CircularProgress />
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                      Loading PDF document...
-                    </Typography>
-                  </Box>
-                }
-                error={
-                  <Box sx={{ textAlign: 'center', p: 4 }}>
-                    <Typography color="error" variant="h6">
-                      Failed to load PDF document
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      File URL: {document?.file_url || document?.file_path || document?.url || 'No URL found'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Please check if the document file exists and is accessible.
-                    </Typography>
-                    <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Debug Info: Check browser console for detailed error information
-                      </Typography>
-                    </Box>
-                  </Box>
-                }
-              >
-                <Page
-                  pageNumber={pageNumber}
-                  scale={scale}
-                  canvasRef={canvasRef}
-                  onClick={handleCanvasClick}
-                />
-              </Document>
+              />
               
               {/* Render fields for current page */}
               {fields
