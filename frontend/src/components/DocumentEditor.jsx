@@ -522,7 +522,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             </Box>
           </Box>
         </Box>
-        </Box>
       </DialogContent>
 
       {/* Signature Creator */}
