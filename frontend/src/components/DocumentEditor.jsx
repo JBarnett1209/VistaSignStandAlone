@@ -307,8 +307,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   if (!document) {
+    console.log('DocumentEditor - No document, returning null');
     return null;
   }
+
+  console.log('DocumentEditor - About to render UniversalDocumentViewer with document:', document);
 
   return (
     <Dialog
