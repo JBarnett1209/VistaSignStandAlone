@@ -81,6 +81,10 @@ async def get_document_file(
             )
         
         logger.info(f"Serving file: {document.file_path}")
+        logger.info(f"File exists: {os.path.exists(document.file_path)}")
+        logger.info(f"File size: {os.path.getsize(document.file_path) if os.path.exists(document.file_path) else 'N/A'}")
+        logger.info(f"MIME type: {document.mime_type}")
+        logger.info(f"Filename: {document.filename}")
         
         # Return file
         return FileResponse(
@@ -146,6 +150,10 @@ async def get_document_file_public(
             )
         
         logger.info(f"Serving file: {document.file_path}")
+        logger.info(f"File exists: {os.path.exists(document.file_path)}")
+        logger.info(f"File size: {os.path.getsize(document.file_path) if os.path.exists(document.file_path) else 'N/A'}")
+        logger.info(f"MIME type: {document.mime_type}")
+        logger.info(f"Filename: {document.filename}")
         
         # Return file
         return FileResponse(
