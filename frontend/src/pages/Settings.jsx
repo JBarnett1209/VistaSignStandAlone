@@ -157,6 +157,7 @@ export default function Settings() {
           } else if (action === 'delete') {
             return usersAPI.delete(id);
           }
+          return Promise.resolve();
         });
         await Promise.all(promises);
       }

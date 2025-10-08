@@ -27,7 +27,8 @@ import {
   CloudUpload as UploadIcon,
   Clear as ClearIcon,
   Save as SaveIcon,
-  Undo as UndoIcon
+  Undo as UndoIcon,
+  Edit as SignatureIcon
 } from '@mui/icons-material';
 import SignatureCanvas from 'react-signature-canvas';
 

@@ -6,17 +6,12 @@ import {
   Paper,
   LinearProgress,
   Alert,
-  Chip,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  TextField
 } from '@mui/material';
 import {
   CloudUpload as UploadIcon,

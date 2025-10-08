@@ -20,7 +20,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Signature as SignatureIcon
+  Edit as SignatureIcon
 } from '@mui/icons-material';
 import SignatureCreator from './SignatureCreator';
 import { authAPI } from '../services/api';

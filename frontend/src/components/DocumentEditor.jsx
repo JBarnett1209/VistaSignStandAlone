@@ -34,7 +34,7 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   FitScreen as FitScreenIcon,
-  Signature as SignatureIcon,
+  Edit as SignatureIcon,
   CalendarToday as DateIcon,
   TextFields as TextIcon,
   CheckCircle as InitialIcon,

@@ -63,13 +63,6 @@ const theme = createTheme({
         }
       }
     },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          width: '100%'
-        }
-      }
-    },
     MuiTableContainer: {
       styleOverrides: {
         root: {
@@ -115,6 +108,7 @@ const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
+          width: '100%',
           borderRadius: 12
         }
       }
