@@ -58,6 +58,22 @@ const UniversalDocumentViewer = ({
     console.log('UniversalDocumentViewer - Detected document type:', docType);
     if (docType !== 'pdf') {
       setLoading(false);
+    } else {
+      // Test if the PDF file URL is accessible
+      const fileUrl = document?.file_url || document?.file_path || document?.url;
+      if (fileUrl) {
+        console.log('UniversalDocumentViewer - Testing PDF file accessibility...');
+        fetch(fileUrl, { method: 'HEAD' })
+          .then(response => {
+            console.log('UniversalDocumentViewer - PDF file accessibility test:', response.status, response.statusText);
+            if (!response.ok) {
+              console.error('UniversalDocumentViewer - PDF file not accessible:', response.status, response.statusText);
+            }
+          })
+          .catch(error => {
+            console.error('UniversalDocumentViewer - PDF file accessibility test failed:', error);
+          });
+      }
     }
   }, [document]);
 
@@ -122,7 +138,11 @@ const UniversalDocumentViewer = ({
       flex: 1
     }}>
       <Document
-        file={document?.file_url || document?.file_path || document?.url}
+        file={(() => {
+          const fileUrl = document?.file_url || document?.file_path || document?.url;
+          console.log('UniversalDocumentViewer - PDF file URL being passed to react-pdf:', fileUrl);
+          return fileUrl;
+        })()}
         onLoadSuccess={(pdf) => {
           console.log('UniversalDocumentViewer - PDF loaded successfully:', pdf);
           console.log('UniversalDocumentViewer - Number of pages:', pdf.numPages);
