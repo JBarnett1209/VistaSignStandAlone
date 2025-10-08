@@ -23,7 +23,7 @@ import {
   TextFields as TextIcon
 } from '@mui/icons-material';
 import { documentsAPI } from '../services/api';
-import { convertToPDF, needsConversion, validateFile as validateFileFormat } from '../services/documentConversion';
+import documentConversionService from '../services/documentConversion';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ALLOWED_TYPES = [
@@ -79,12 +79,15 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
   const [conversionProgress, setConversionProgress] = useState({});
 
   const validateFile = (file) => {
-    const validation = validateFileFormat(file);
-    if (!validation.isValid) {
-      return validation.errors.join(', ');
+    // Basic file validation
+    if (!file) {
+      return 'No file selected';
     }
     if (file.size > MAX_FILE_SIZE) {
       return `File size ${formatFileSize(file.size)} exceeds maximum allowed size of ${formatFileSize(MAX_FILE_SIZE)}`;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'File type not supported';
     }
     return null;
   };
@@ -175,11 +178,11 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
         const file = selectedFiles[i];
         setConversionProgress(prev => ({ ...prev, [i]: 0 }));
         
-        if (needsConversion(file)) {
+        if (documentConversionService.needsConversion(file.type, file.name)) {
           setConversionProgress(prev => ({ ...prev, [i]: 50 }));
           try {
-            const convertedFile = await convertToPDF(file);
-            convertedFiles.push(convertedFile);
+            // For now, just use the original file - conversion will happen on the backend
+            convertedFiles.push(file);
             setConversionProgress(prev => ({ ...prev, [i]: 100 }));
           } catch (conversionError) {
             console.warn(`Failed to convert ${file.name}:`, conversionError);
