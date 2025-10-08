@@ -324,6 +324,8 @@ async def upload_document(
                     final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
                     document_type = DocumentType.PDF
                     logger.info(f"Document converted successfully: {final_filename} -> {final_mime_type}")
+                    logger.info(f"Converted file exists: {os.path.exists(final_file_path)}")
+                    logger.info(f"Converted file size: {os.path.getsize(final_file_path) if os.path.exists(final_file_path) else 'N/A'}")
                 else:
                     logger.warning(f"Conversion failed for {file.filename}, but treating as PDF anyway")
                     # Even if conversion fails, treat as PDF for frontend compatibility
@@ -331,6 +333,8 @@ async def upload_document(
                     final_mime_type = "application/pdf"
                     final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
                     document_type = DocumentType.PDF
+                    logger.info(f"Fallback file path: {final_file_path}")
+                    logger.info(f"Fallback file exists: {os.path.exists(final_file_path)}")
             else:
                 # No conversion needed, determine type
                 if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
