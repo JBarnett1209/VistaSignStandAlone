@@ -201,6 +201,262 @@ const UniversalDocumentViewer = ({
     </Box>
   );
 
+  const renderWordViewer = () => (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: 400,
+      gap: 2,
+      p: 4,
+      width: '100%',
+      flex: 1
+    }}>
+      <Box sx={{ fontSize: 64, color: 'primary.main' }}>
+        {getDocumentIcon('word')}
+      </Box>
+      <Typography variant="h6" color="text.primary">
+        {getDocumentTypeName('word')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        {document?.title || document?.filename || 'Document'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+        Word documents can be viewed and edited with signature fields.
+        <br />
+        The document will be converted to PDF for signing.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+        >
+          Download Original
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              console.log('Converting Word document to PDF for viewing...');
+              // Call the conversion API
+              const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.converted) {
+                  // Reload the page with the converted PDF
+                  window.location.reload();
+                } else {
+                  console.log('Document does not need conversion');
+                }
+              } else {
+                console.error('Conversion failed:', response.statusText);
+              }
+            } catch (error) {
+              console.error('Error converting document:', error);
+            }
+          }}
+        >
+          View as PDF
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  const renderExcelViewer = () => (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: 400,
+      gap: 2,
+      p: 4,
+      width: '100%',
+      flex: 1
+    }}>
+      <Box sx={{ fontSize: 64, color: 'success.main' }}>
+        {getDocumentIcon('excel')}
+      </Box>
+      <Typography variant="h6" color="text.primary">
+        {getDocumentTypeName('excel')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        {document?.title || document?.filename || 'Spreadsheet'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+        Excel spreadsheets can be viewed and edited with signature fields.
+        <br />
+        The document will be converted to PDF for signing.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+        >
+          Download Original
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              console.log('Converting Excel document to PDF for viewing...');
+              const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.converted) {
+                  window.location.reload();
+                }
+              }
+            } catch (error) {
+              console.error('Error converting document:', error);
+            }
+          }}
+        >
+          View as PDF
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  const renderPowerPointViewer = () => (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: 400,
+      gap: 2,
+      p: 4,
+      width: '100%',
+      flex: 1
+    }}>
+      <Box sx={{ fontSize: 64, color: 'warning.main' }}>
+        {getDocumentIcon('powerpoint')}
+      </Box>
+      <Typography variant="h6" color="text.primary">
+        {getDocumentTypeName('powerpoint')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        {document?.title || document?.filename || 'Presentation'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+        PowerPoint presentations can be viewed and edited with signature fields.
+        <br />
+        The document will be converted to PDF for signing.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+        >
+          Download Original
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              console.log('Converting PowerPoint document to PDF for viewing...');
+              const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.converted) {
+                  window.location.reload();
+                }
+              }
+            } catch (error) {
+              console.error('Error converting document:', error);
+            }
+          }}
+        >
+          View as PDF
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  const renderTextViewer = () => (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      minHeight: 400,
+      gap: 2,
+      p: 4,
+      width: '100%',
+      flex: 1
+    }}>
+      <Box sx={{ fontSize: 64, color: 'info.main' }}>
+        {getDocumentIcon('text')}
+      </Box>
+      <Typography variant="h6" color="text.primary">
+        {getDocumentTypeName('text')}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center">
+        {document?.title || document?.filename || 'Text Document'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+        Text documents can be viewed and edited with signature fields.
+        <br />
+        The document will be converted to PDF for signing.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+        >
+          Download Original
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              console.log('Converting text document to PDF for viewing...');
+              const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.converted) {
+                  window.location.reload();
+                }
+              }
+            } catch (error) {
+              console.error('Error converting document:', error);
+            }
+          }}
+        >
+          View as PDF
+        </Button>
+      </Box>
+    </Box>
+  );
+
   const renderUnsupportedViewer = (type) => (
     <Box sx={{ 
       display: 'flex', 
@@ -220,18 +476,46 @@ const UniversalDocumentViewer = ({
         {getDocumentTypeName(type)}
       </Typography>
       <Typography variant="body2" color="text.secondary" textAlign="center">
-        This document type is not directly viewable in the editor.
-        <br />
-        You can still add signature fields and send it for signing.
+        {document?.title || document?.filename || 'Document'}
       </Typography>
-      <Button
-        variant="contained"
-        startIcon={<DownloadIcon />}
-        onClick={handleDownload}
-        sx={{ mt: 2 }}
-      >
-        Download Document
-      </Button>
+      <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+        This document type can be viewed and edited with signature fields.
+        <br />
+        The document will be converted to PDF for signing.
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownload}
+        >
+          Download Original
+        </Button>
+        <Button
+          variant="contained"
+          onClick={async () => {
+            try {
+              console.log('Converting document to PDF for viewing...');
+              const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.converted) {
+                  window.location.reload();
+                }
+              }
+            } catch (error) {
+              console.error('Error converting document:', error);
+            }
+          }}
+        >
+          View as PDF
+        </Button>
+      </Box>
     </Box>
   );
 
@@ -273,9 +557,13 @@ const UniversalDocumentViewer = ({
       case 'image':
         return renderImageViewer();
       case 'word':
+        return renderWordViewer();
       case 'excel':
+        return renderExcelViewer();
       case 'powerpoint':
+        return renderPowerPointViewer();
       case 'text':
+        return renderTextViewer();
       case 'csv':
       default:
         return renderUnsupportedViewer(docType);

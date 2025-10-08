@@ -17,6 +17,7 @@ import logging
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security.auth import get_current_user
+from app.core.document_converter import DocumentConverter
 from app.models.document import Document, DocumentVersion, DocumentStatus, DocumentType
 from app.models.user import User
 from app.schemas.document import (
@@ -160,6 +161,96 @@ async def get_document_file_public(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to serve document file"
+        )
+
+@router.get("/{document_id}/convert")
+async def convert_document_to_pdf(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Convert document to PDF for viewing"""
+    try:
+        logger.info(f"Converting document {document_id} to PDF for user {current_user.get('id')}")
+        
+        # Get document from database
+        result = await db.execute(
+            select(Document).where(
+                and_(
+                    Document.id == document_id,
+                    Document.owner_id == current_user["user_id"]
+                )
+            )
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            logger.warning(f"Document {document_id} not found for user {current_user.get('id')}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Check if conversion is needed
+        if not DocumentConverter.needs_conversion(document.mime_type):
+            logger.info(f"Document {document_id} does not need conversion")
+            return {
+                "converted": False,
+                "message": "Document does not need conversion",
+                "file_url": f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}"
+            }
+        
+        # Create PDF version
+        pdf_filename = f"{os.path.splitext(document.filename)[0]}.pdf"
+        pdf_path = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}.pdf")
+        
+        # Convert to PDF
+        conversion_success = await DocumentConverter.convert_to_pdf(
+            document.file_path, pdf_path, document.mime_type, document.title
+        )
+        
+        if conversion_success:
+            # Create a new document record for the converted PDF
+            converted_document = Document(
+                title=f"{document.title} (PDF)",
+                description=f"PDF version of {document.title}",
+                filename=pdf_filename,
+                file_path=pdf_path,
+                file_size=os.path.getsize(pdf_path),
+                file_hash=hashlib.sha256(open(pdf_path, 'rb').read()).hexdigest(),
+                document_type=DocumentType.PDF,
+                status=DocumentStatus.DRAFT,
+                mime_type="application/pdf",
+                created_by=current_user["user_id"],
+                owner_id=current_user["user_id"]
+            )
+            
+            db.add(converted_document)
+            await db.commit()
+            await db.refresh(converted_document)
+            
+            logger.info(f"Document converted successfully: {pdf_filename}")
+            
+            return {
+                "converted": True,
+                "message": "Document converted to PDF successfully",
+                "document_id": str(converted_document.id),
+                "file_url": f"/api/v1/documents/public/{converted_document.id}/file?token={generate_file_access_token(str(converted_document.id), str(converted_document.owner_id))}"
+            }
+        else:
+            logger.error(f"Document conversion failed for {document_id}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document conversion failed"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Document conversion error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to convert document"
         )
 
 @router.post("/upload", response_model=DocumentResponse)
