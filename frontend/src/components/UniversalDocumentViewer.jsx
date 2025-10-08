@@ -124,11 +124,15 @@ const UniversalDocumentViewer = ({
       <Document
         file={document?.file_url || document?.file_path || document?.url}
         onLoadSuccess={(pdf) => {
+          console.log('UniversalDocumentViewer - PDF loaded successfully:', pdf);
+          console.log('UniversalDocumentViewer - Number of pages:', pdf.numPages);
           setNumPages(pdf.numPages);
           setLoading(false);
           onLoadSuccess?.(pdf);
         }}
         onLoadError={(error) => {
+          console.error('UniversalDocumentViewer - PDF load error:', error);
+          console.error('UniversalDocumentViewer - Error message:', error.message);
           setError(`Failed to load PDF: ${error.message}`);
           setLoading(false);
           onLoadError?.(error);
