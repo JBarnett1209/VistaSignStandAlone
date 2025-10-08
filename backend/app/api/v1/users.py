@@ -126,7 +126,7 @@ async def delete_user(user_id: str, db: AsyncSession = Depends(get_db), current_
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if str(user.id) == current_user["user_id"]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
-    db.delete(user)
+    await db.delete(user)
     await db.commit()
     return {"message": "User deleted"}
 
