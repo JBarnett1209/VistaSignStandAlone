@@ -225,11 +225,6 @@ async def validate_invite(
     """Validate an invite code and return invite details"""
     logger.info(f"Validating invite code: {code}")
     
-    # Debug: List all invites to see what's in the database
-    all_invites_result = await db.execute(select(Invite))
-    all_invites = all_invites_result.scalars().all()
-    logger.info(f"All invites in database: {[(inv.id, inv.code, inv.invited_email, inv.revoked) for inv in all_invites]}")
-    
     result = await db.execute(select(Invite).where(Invite.code == code))
     invite = result.scalar_one_or_none()
     
