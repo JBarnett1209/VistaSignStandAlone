@@ -80,6 +80,32 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Heartbeat: periodically verify session and force logout if deactivated/invalid
+  useEffect(() => {
+    if (!user) return;
+
+    let cancelled = false;
+    const checkSession = async () => {
+      try {
+        await api.get('/api/v1/auth/me');
+      } catch (e) {
+        // On any auth failure (e.g., 401 due to deactivation), immediately logout
+        if (!cancelled) {
+          await logout();
+        }
+      }
+    };
+
+    // Immediate check, then interval
+    checkSession();
+    const intervalId = setInterval(checkSession, 30000); // 30s
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [user]);
+
   const value = {
     user,
     login,
