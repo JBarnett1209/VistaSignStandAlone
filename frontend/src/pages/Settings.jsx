@@ -29,6 +29,7 @@ import {
 import { Delete as DeleteIcon, Block as BlockIcon, CheckCircle as AllowIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { usersAPI, invitesAPI } from '../services/api';
+import SignatureManager from '../components/SignatureManager';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -181,6 +182,13 @@ export default function Settings() {
       <Typography variant="h4" gutterBottom>
         Settings
       </Typography>
+
+      {/* Signature Management */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <SignatureManager />
+        </CardContent>
+      </Card>
 
       {/* Top row: Notifications, Security, Account */}
       <Grid container spacing={3} sx={{ mb: 3 }}>

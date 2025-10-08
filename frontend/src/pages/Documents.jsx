@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { documentsAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
+import DocumentEditor from '../components/DocumentEditor';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -90,6 +91,7 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState(null);
 
   const fetchDocuments = async () => {
     try {
@@ -124,6 +126,17 @@ export default function Documents() {
         console.error('Error deleting document:', err);
       }
     }
+  };
+
+  const handleEditDocument = (document) => {
+    setEditingDocument(document);
+  };
+
+  const handleDocumentSave = (updatedDocument) => {
+    setDocuments(prev => prev.map(doc => 
+      doc.id === updatedDocument.id ? updatedDocument : doc
+    ));
+    setEditingDocument(null);
   };
 
   return (
@@ -237,6 +250,13 @@ export default function Documents() {
                       <IconButton size="small" title="View">
                         <ViewIcon />
                       </IconButton>
+                      <IconButton 
+                        size="small" 
+                        title="Edit"
+                        onClick={() => handleEditDocument(doc)}
+                      >
+                        <EditIcon />
+                      </IconButton>
                       <IconButton size="small" title="Download">
                         <DownloadIcon />
                       </IconButton>
@@ -271,6 +291,15 @@ export default function Documents() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Document Editor */}
+      {editingDocument && (
+        <DocumentEditor
+          document={editingDocument}
+          onClose={() => setEditingDocument(null)}
+          onSave={handleDocumentSave}
+        />
+      )}
     </Box>
   );
 }
