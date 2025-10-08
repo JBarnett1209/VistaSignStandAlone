@@ -25,6 +25,11 @@ from app.schemas.document import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+@router.get("/test")
+async def test_documents_endpoint():
+    """Test endpoint to verify routing works"""
+    return {"message": "Documents API is working"}
+
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
