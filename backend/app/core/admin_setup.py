@@ -25,10 +25,10 @@ async def ensure_initial_admin():
             result = await db.execute(
                 select(User).where(User.role == UserRole.ADMIN)
             )
-            existing_admin = result.scalar_one_or_none()
+            existing_admins = result.scalars().all()
             
-            if existing_admin:
-                logger.info("Admin user already exists, skipping initial admin setup")
+            if existing_admins:
+                logger.info(f"Admin user(s) already exist ({len(existing_admins)} found), skipping initial admin setup")
                 return
 
             # Check if the specific email already exists

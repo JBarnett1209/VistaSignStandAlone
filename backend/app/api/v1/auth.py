@@ -61,20 +61,18 @@ async def login(
                 detail="Invalid credentials"
             )
         
+        # If password was verified using a legacy hash, rehash it with the current scheme
+        from passlib.context import CryptContext
+        if CryptContext(schemes=["bcrypt"]).identify(user.password_hash) == "bcrypt":
+            user.password_hash = auth_handler.get_password_hash(login_data.password)
+            logger.info(f"User {user.email} password rehashed to Argon2id+pepper.")
+        
         # Check if user is active
         if user.status != UserStatus.ACTIVE:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Account is not active"
             )
-        
-        # Optional: upgrade legacy hash to Argon2+pepper on successful login
-        try:
-            new_hash = auth_handler.get_password_hash(login_data.password)
-            if new_hash and new_hash != user.password_hash:
-                user.password_hash = new_hash
-        except Exception:
-            pass
 
         # Update last login
         user.last_login = datetime.now()

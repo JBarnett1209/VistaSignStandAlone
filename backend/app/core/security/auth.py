@@ -30,21 +30,21 @@ class AuthHandler:
     
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash"""
-        # Try with pepper (new scheme)
-        pepper = (settings.ENCRYPTION_PEPPER or "")
-        if pepper:
-            candidate = f"{plain_password}{pepper}"
-            try:
-                if pwd_context.verify(candidate, hashed_password):
-                    return True
-            except Exception:
-                pass
-        # Fallback: legacy hashes without pepper
-        try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except Exception:
-            return False
+        """Verify a password against its hash, supporting legacy bcrypt and auto-upgrading"""
+        peppered_password = plain_password + (settings.ENCRYPTION_PEPPER or "")
+        
+        # Try verifying with Argon2 (current scheme)
+        if pwd_context.verify(peppered_password, hashed_password):
+            return True
+        
+        # If Argon2 fails, try verifying with bcrypt (legacy scheme)
+        # This is for transparently upgrading old hashes
+        if pwd_context.identify(hashed_password) == "bcrypt":
+            if CryptContext(schemes=["bcrypt"]).verify(plain_password, hashed_password):
+                logger.info("Legacy bcrypt hash verified. User password will be rehashed on next login.")
+                return True
+        
+        return False
     
     @staticmethod
     def get_password_hash(password: str) -> str:
