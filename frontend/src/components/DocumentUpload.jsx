@@ -74,7 +74,6 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [documentTitle, setDocumentTitle] = useState('');
   const [documentDescription, setDocumentDescription] = useState('');
-  const [uploading, setUploading] = useState(false);
 
   const validateFile = (file) => {
     // Basic file validation
