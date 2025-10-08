@@ -138,7 +138,7 @@ export default function Register() {
           
           {inviteInfo && (
             <Alert severity="info" sx={{ mb: 3 }}>
-              You've been invited to join VistaSign as a <strong>{inviteInfo.role}</strong>
+              You've been invited to join VistaSign.
             </Alert>
           )}
 

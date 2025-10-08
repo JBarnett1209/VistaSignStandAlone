@@ -54,8 +54,7 @@ async def create_invite(
         <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #6B46C1;">Welcome to VistaSign!</h2>
-            <p>You've been invited to join VistaSign Digital Signature Platform.</p>
-            <p><strong>Role:</strong> {invite.role.title()}</p>
+            <p>You've been invited to join the VistaSign Digital Signature Platform.</p>
             <p><strong>Expires:</strong> {invite.expires_at.strftime('%B %d, %Y at %I:%M %p UTC')}</p>
             <p>Click the button below to accept your invitation:</p>
             <a href="{invite_url}" style="background-color: #6B46C1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">Accept Invitation</a>
@@ -70,9 +69,7 @@ async def create_invite(
         text_body = f"""
         Welcome to VistaSign!
         
-        You've been invited to join VistaSign Digital Signature Platform.
-        
-        Role: {invite.role.title()}
+        You've been invited to join the VistaSign Digital Signature Platform.
         Expires: {invite.expires_at.strftime('%B %d, %Y at %I:%M %p UTC')}
         
         Accept your invitation by visiting:
