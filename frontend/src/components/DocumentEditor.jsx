@@ -115,6 +115,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   // Load document fields and signers on mount
   useEffect(() => {
+    console.log('DocumentEditor - Document data:', document);
     if (document?.fields) {
       setFields(document.fields);
     }
@@ -301,25 +302,38 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     );
   };
 
+  if (!document) {
+    return null;
+  }
+
   return (
-    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Box sx={{ 
-        p: 2, 
-        borderBottom: 1, 
-        borderColor: 'divider',
+    <Dialog
+      open={!!document}
+      onClose={onClose}
+      maxWidth="xl"
+      fullWidth
+      PaperProps={{
+        sx: { 
+          height: '90vh',
+          maxHeight: '90vh'
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        pb: 1
       }}>
         <Typography variant="h6">
-          Edit Document: {document?.title}
+          Edit Document: {document?.title || 'Untitled Document'}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<UndoIcon />}
             disabled
+            size="small"
           >
             Undo
           </Button>
@@ -327,6 +341,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             variant="outlined"
             startIcon={<RedoIcon />}
             disabled
+            size="small"
           >
             Redo
           </Button>
@@ -335,24 +350,27 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             startIcon={<SaveIcon />}
             onClick={handleSave}
             disabled={loading}
+            size="small"
           >
-            {loading ? <CircularProgress size={20} /> : 'Save'}
+            {loading ? <CircularProgress size={16} /> : 'Save'}
           </Button>
           <Button
             variant="contained"
             startIcon={<SendIcon />}
             onClick={handleSendForSigning}
             disabled={loading || fields.length === 0}
+            size="small"
           >
             Send for Signing
           </Button>
-          <IconButton onClick={onClose}>
+          <IconButton onClick={onClose} size="small">
             <CloseIcon />
           </IconButton>
         </Box>
-      </Box>
+      </DialogTitle>
 
-      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <DialogContent sx={{ p: 0, display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
         {/* Field Palette */}
         <Paper sx={{ 
           width: 250, 
@@ -478,9 +496,23 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           }}>
             <Box sx={{ position: 'relative' }}>
               <Document
-                file={document?.file_url}
+                file={document?.file_url || document?.file_path || document?.url}
                 onLoadSuccess={onDocumentLoadSuccess}
+                onLoadError={(error) => {
+                  console.error('PDF load error:', error);
+                  setError('Failed to load PDF document');
+                }}
                 loading={<CircularProgress />}
+                error={
+                  <Box sx={{ textAlign: 'center', p: 4 }}>
+                    <Typography color="error">
+                      Failed to load PDF document
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Please check if the document file exists and is accessible.
+                    </Typography>
+                  </Box>
+                }
               >
                 <Page
                   pageNumber={pageNumber}
@@ -497,7 +529,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             </Box>
           </Box>
         </Box>
-      </Box>
+        </Box>
+      </DialogContent>
 
       {/* Signature Creator */}
       <SignatureCreator
@@ -646,7 +679,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           {error}
         </Alert>
       )}
-    </Box>
+    </Dialog>
   );
 }
 

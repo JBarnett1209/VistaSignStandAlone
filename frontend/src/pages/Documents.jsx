@@ -337,13 +337,11 @@ export default function Documents() {
       </Dialog>
 
       {/* Document Editor */}
-      {editingDocument && (
-        <DocumentEditor
-          document={editingDocument}
-          onClose={() => setEditingDocument(null)}
-          onSave={handleDocumentSave}
-        />
-      )}
+      <DocumentEditor
+        document={editingDocument}
+        onClose={() => setEditingDocument(null)}
+        onSave={handleDocumentSave}
+      />
     </Box>
   );
 }
