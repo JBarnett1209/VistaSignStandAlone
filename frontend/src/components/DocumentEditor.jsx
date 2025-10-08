@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -14,7 +14,6 @@ import {
   Chip,
   Alert,
   CircularProgress,
-  Tooltip,
   Divider,
   FormControl,
   InputLabel,
@@ -22,12 +21,10 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
-  Grid
+  ListItemSecondaryAction
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Edit as EditIcon,
   Save as SaveIcon,
   Undo as UndoIcon,
   Redo as RedoIcon,
@@ -40,10 +37,9 @@ import {
   CheckCircle as InitialIcon,
   Send as SendIcon,
   PersonAdd as PersonAddIcon,
-  Delete as DeleteIcon,
-  DragIndicator as DragIcon
+  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { pdfjs } from 'react-pdf';
 import SignatureCreator from './SignatureCreator';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import { documentsAPI } from '../services/api';

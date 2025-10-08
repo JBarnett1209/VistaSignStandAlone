@@ -325,24 +325,12 @@ async def upload_document(
                     document_type = DocumentType.PDF
                     logger.info(f"Document converted successfully: {final_filename} -> {final_mime_type}")
                 else:
-                    logger.warning(f"Conversion failed for {file.filename}, using original file")
-                    # Keep original file if conversion fails
-                    if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
-                        document_type = DocumentType.WORD
-                    elif content_type in ["application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]:
-                        document_type = DocumentType.EXCEL
-                    elif content_type in ["application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation"]:
-                        document_type = DocumentType.POWERPOINT
-                    elif content_type.startswith("image/"):
-                        document_type = DocumentType.IMAGE
-                    elif content_type in ["text/plain"]:
-                        document_type = DocumentType.TEXT
-                    elif content_type == "text/csv":
-                        document_type = DocumentType.CSV
-                    elif content_type == "application/rtf":
-                        document_type = DocumentType.RTF
-                    elif content_type in ["application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet", "application/vnd.oasis.opendocument.presentation"]:
-                        document_type = DocumentType.OPEN_DOCUMENT
+                    logger.warning(f"Conversion failed for {file.filename}, but treating as PDF anyway")
+                    # Even if conversion fails, treat as PDF for frontend compatibility
+                    final_file_path = pdf_path if os.path.exists(pdf_path) else file_path
+                    final_mime_type = "application/pdf"
+                    final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
+                    document_type = DocumentType.PDF
             else:
                 # No conversion needed, determine type
                 if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
