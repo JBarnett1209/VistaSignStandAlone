@@ -385,6 +385,7 @@ async def session_check(
         if not user or user.status != UserStatus.ACTIVE:
             return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Inactive"})
 
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        # Success for auth_request must be 2xx; use 200
+        return Response(status_code=status.HTTP_200_OK)
     except Exception:
         return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Unauthorized"})
