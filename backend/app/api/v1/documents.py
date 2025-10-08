@@ -2,8 +2,9 @@
 VistaSign Documents API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, Form, Request
 from fastapi.responses import FileResponse
+import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import List, Optional
@@ -26,6 +27,15 @@ from app.schemas.document import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+def generate_file_access_token(document_id: str, user_id: str) -> str:
+    """Generate a signed token for accessing a document file"""
+    payload = {
+        "sub": user_id,
+        "document_id": document_id,
+        "exp": datetime.utcnow().timestamp() + 3600  # 1 hour expiry
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
 @router.get("/test")
 async def test_documents_endpoint():
     """Test endpoint to verify routing works"""
@@ -39,6 +49,8 @@ async def get_document_file(
 ):
     """Serve document file"""
     try:
+        logger.info(f"Serving file for document {document_id}, user {current_user.get('id')}")
+        
         # Get document from database
         result = await db.execute(
             select(Document).where(
@@ -51,17 +63,88 @@ async def get_document_file(
         document = result.scalar_one_or_none()
         
         if not document:
+            logger.warning(f"Document {document_id} not found for user {current_user.get('id')}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found"
             )
         
+        logger.info(f"Found document: {document.filename}, path: {document.file_path}")
+        
         # Check if file exists
         if not os.path.exists(document.file_path):
+            logger.error(f"File not found at path: {document.file_path}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document file not found"
             )
+        
+        logger.info(f"Serving file: {document.file_path}")
+        
+        # Return file
+        return FileResponse(
+            path=document.file_path,
+            filename=document.filename,
+            media_type=document.mime_type
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving document file: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to serve document file"
+        )
+
+@router.get("/public/{document_id}/file")
+async def get_document_file_public(
+    document_id: str,
+    token: str = Query(..., description="Access token"),
+    db: AsyncSession = Depends(get_db)
+):
+    """Serve document file with public access using signed token"""
+    try:
+        # Verify the token
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            user_id = payload.get("sub")
+            if not user_id:
+                raise HTTPException(status_code=403, detail="Invalid token")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=403, detail="Invalid token")
+        
+        logger.info(f"Public file access for document {document_id}, user {user_id}")
+        
+        # Get document from database
+        result = await db.execute(
+            select(Document).where(
+                and_(
+                    Document.id == document_id,
+                    Document.owner_id == user_id
+                )
+            )
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            logger.warning(f"Document {document_id} not found for user {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        logger.info(f"Found document: {document.filename}, path: {document.file_path}")
+        
+        # Check if file exists
+        if not os.path.exists(document.file_path):
+            logger.error(f"File not found at path: {document.file_path}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document file not found"
+            )
+        
+        logger.info(f"Serving file: {document.file_path}")
         
         # Return file
         return FileResponse(
@@ -170,7 +253,7 @@ async def upload_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
-            file_url=f"/api/v1/documents/{document.id}/file",
+            file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -244,7 +327,7 @@ async def list_documents(
                     document_type=doc.document_type.value,
                     status=doc.status.value,
             mime_type=doc.mime_type,
-            file_url=f"/api/v1/documents/{doc.id}/file",
+            file_url=f"/api/v1/documents/public/{doc.id}/file?token={generate_file_access_token(str(doc.id), str(doc.owner_id))}",
             created_at=doc.created_at,
             updated_at=doc.updated_at
                 ) for doc in documents
@@ -295,7 +378,7 @@ async def get_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
-            file_url=f"/api/v1/documents/{document.id}/file",
+            file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -353,7 +436,7 @@ async def update_document(
             document_type=document.document_type.value,
             status=document.status.value,
             mime_type=document.mime_type,
-            file_url=f"/api/v1/documents/{document.id}/file",
+            file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
             created_at=document.created_at,
             updated_at=document.updated_at
         )
