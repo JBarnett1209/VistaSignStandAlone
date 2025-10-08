@@ -27,12 +27,29 @@ export const AuthProvider = ({ children }) => {
         const me = await api.get('/api/v1/auth/me');
         setUser(me.data);
       } catch (e) {
+        // Clear any stored tokens and user state on auth failure
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = null;
+        }
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
     attemptRefresh();
+
+    // Listen for auth failure events from API interceptor
+    const handleAuthFailed = () => {
+      setUser(null);
+      if (typeof window !== 'undefined') {
+        window.__vstAccessToken = null;
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('auth-failed', handleAuthFailed);
+      return () => window.removeEventListener('auth-failed', handleAuthFailed);
+    }
   }, []);
 
   const login = async (email, password) => {

@@ -134,6 +134,7 @@ async def get_current_user(
     # Fetch user from database
     try:
         from sqlalchemy import select
+        from app.models.user import UserStatus
         
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
@@ -142,6 +143,13 @@ async def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
+            )
+        
+        # Check if user is active
+        if user.status != UserStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is not active"
             )
         
         return {
@@ -181,11 +189,12 @@ async def get_current_user_optional(
         
         # Fetch user from database
         from sqlalchemy import select
+        from app.models.user import UserStatus
         
         result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         
-        if not user:
+        if not user or user.status != UserStatus.ACTIVE:
             return None
         
         return {

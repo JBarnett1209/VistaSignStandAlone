@@ -48,6 +48,12 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
+        // Clear tokens and redirect to login on refresh failure
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = null;
+          // Dispatch a custom event to notify AuthContext
+          window.dispatchEvent(new CustomEvent('auth-failed'));
+        }
         // fall through to reject
       }
     }
