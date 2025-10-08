@@ -77,6 +77,11 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [file_type.strip() for file_type in v.split(',')]
         return v
+
+    # Application-level encryption
+    ENCRYPTION_KEY: str | None = None
+    ENCRYPTION_SALT: str | None = None
+    ENCRYPTION_PEPPER: str | None = None
     
     # Digital Signatures
     SIGNATURE_CERT_PATH: Optional[str] = None

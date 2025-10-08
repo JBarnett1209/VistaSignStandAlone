@@ -41,9 +41,10 @@ async def login(
 ):
     """User login endpoint"""
     try:
-        # Find user by email
+        # Normalize email and find user
+        normalized_email = login_data.email.strip().lower()
         result = await db.execute(
-            select(User).where(User.email == login_data.email)
+            select(User).where(User.email == normalized_email)
         )
         user = result.scalar_one_or_none()
         
@@ -282,7 +283,9 @@ async def register(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been fully used")
     
     # Check if user already exists
-    existing_user = await db.execute(select(User).where(User.email == payload.email))
+    # Normalize email
+    normalized_email = payload.email.strip().lower()
+    existing_user = await db.execute(select(User).where(User.email == normalized_email))
     if existing_user.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
     
@@ -291,7 +294,7 @@ async def register(
     hashed_password = auth_handler.get_password_hash(payload.password)
     
     user = User(
-        email=payload.email,
+        email=normalized_email,
         password_hash=hashed_password,
         first_name=payload.first_name,
         last_name=payload.last_name,

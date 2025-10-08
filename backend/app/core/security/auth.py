@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.hash import argon2
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +19,8 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing (prefer Argon2id, allow bcrypt for legacy verification)
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
 # JWT token scheme
 security = HTTPBearer()
@@ -30,12 +31,17 @@ class AuthHandler:
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         """Verify a password against its hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        # Optional pepper support: prepend/append a server-side secret
+        pepper = (settings.ENCRYPTION_PEPPER or "")
+        candidate = f"{plain_password}{pepper}"
+        return pwd_context.verify(candidate, hashed_password)
     
     @staticmethod
     def get_password_hash(password: str) -> str:
         """Generate password hash"""
-        return pwd_context.hash(password)
+        pepper = (settings.ENCRYPTION_PEPPER or "")
+        candidate = f"{password}{pepper}"
+        return pwd_context.hash(candidate)
     
     @staticmethod
     def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
