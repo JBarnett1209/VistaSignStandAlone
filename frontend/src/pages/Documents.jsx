@@ -213,18 +213,18 @@ export default function Documents() {
         }}
       >
         <Table stickyHeader sx={{ 
-          tableLayout: 'auto', 
+          tableLayout: 'fixed', 
           width: '100%', 
-          minWidth: 800 // Minimum width to ensure readability
+          minWidth: 0
         }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ minWidth: 200, width: 'auto' }}>Document</TableCell>
-              <TableCell sx={{ minWidth: 80, width: 'auto' }}>Type</TableCell>
-              <TableCell sx={{ minWidth: 80, width: 'auto' }}>Size</TableCell>
-              <TableCell sx={{ minWidth: 100, width: 'auto' }}>Status</TableCell>
-              <TableCell sx={{ minWidth: 150, width: 'auto' }}>Created</TableCell>
-              <TableCell sx={{ minWidth: 120, width: 'auto' }}>Actions</TableCell>
+              <TableCell>Document</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Size</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -304,8 +304,7 @@ export default function Documents() {
                     <Box sx={{ 
                       display: 'flex', 
                       gap: 0.5,
-                      flexWrap: 'nowrap',
-                      minWidth: 120
+                      flexWrap: 'nowrap'
                     }}>
                       <IconButton size="small" title="View" sx={{ flexShrink: 0 }}>
                         <ViewIcon />
