@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import List, Optional
 import logging
+import json
 from datetime import datetime
 
 from app.core.database import get_db
@@ -190,7 +191,7 @@ async def create_signature_template(
             id=str(template.id),
             name=template.name,
             description=template.description,
-            template_data=template.template_data,
+            template_data=template.template_data if isinstance(template.template_data, dict) else json.loads(template.template_data),
             signature_style=template.signature_style,
             is_default=template.is_default,
             is_active=template.is_active,
@@ -226,6 +227,7 @@ async def list_signature_templates(
                 id=str(template.id),
                 name=template.name,
                 description=template.description,
+                template_data=template.template_data if isinstance(template.template_data, dict) else json.loads(template.template_data),
                 signature_style=template.signature_style,
                 is_default=template.is_default,
                 is_active=template.is_active,
@@ -277,7 +279,7 @@ async def update_signature_template(
             id=str(template.id),
             name=template.name,
             description=template.description,
-            template_data=template.template_data,
+            template_data=template.template_data if isinstance(template.template_data, dict) else json.loads(template.template_data),
             signature_style=template.signature_style,
             is_default=template.is_default,
             is_active=template.is_active,
