@@ -365,6 +365,96 @@ async def list_signature_templates(
             detail="Failed to list signature templates"
         )
 
+@router.put("/templates/{template_id}", response_model=SignatureTemplateResponse)
+async def update_signature_template(
+    template_id: str,
+    template_data: SignatureTemplateCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a signature template"""
+    try:
+        result = await db.execute(
+            select(SignatureTemplate).where(
+                and_(
+                    SignatureTemplate.id == template_id,
+                    SignatureTemplate.created_by == current_user["user_id"]
+                )
+            )
+        )
+        template = result.scalar_one_or_none()
+        
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature template not found"
+            )
+        
+        template.name = template_data.name
+        template.description = template_data.description
+        template.template_data = template_data.template_data
+        template.signature_style = template_data.signature_style
+        
+        await db.commit()
+        await db.refresh(template)
+        
+        return SignatureTemplateResponse(
+            id=str(template.id),
+            name=template.name,
+            description=template.description,
+            signature_style=template.signature_style,
+            is_default=template.is_default,
+            is_active=template.is_active,
+            created_at=template.created_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update signature template error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update signature template"
+        )
+
+@router.delete("/templates/{template_id}")
+async def delete_signature_template(
+    template_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a signature template"""
+    try:
+        result = await db.execute(
+            select(SignatureTemplate).where(
+                and_(
+                    SignatureTemplate.id == template_id,
+                    SignatureTemplate.created_by == current_user["user_id"]
+                )
+            )
+        )
+        template = result.scalar_one_or_none()
+        
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature template not found"
+            )
+        
+        await db.delete(template)
+        await db.commit()
+        
+        return {"message": "Signature template deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete signature template error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete signature template"
+        )
+
 @router.get("/{signature_id}/verify", response_model=SignatureVerificationResponse)
 async def verify_signature(
     signature_id: str,

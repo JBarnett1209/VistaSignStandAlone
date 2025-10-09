@@ -50,7 +50,7 @@ import {
 import { pdfjs } from 'react-pdf';
 import SignatureCreator from './SignatureCreator';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
-import { documentsAPI } from '../services/api';
+import { documentsAPI, signaturesAPI } from '../services/api';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -163,6 +163,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [error, setError] = useState(null);
   const [signers, setSigners] = useState([]);
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
+  const [signatureTemplates, setSignatureTemplates] = useState([]);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -183,7 +184,19 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     if (document?.signers) {
       setSigners(document.signers);
     }
+    
+    // Load signature templates
+    loadSignatureTemplates();
   }, [document]);
+
+  const loadSignatureTemplates = async () => {
+    try {
+      const response = await signaturesAPI.templates.list();
+      setSignatureTemplates(response.data || []);
+    } catch (err) {
+      console.error('Error loading signature templates:', err);
+    }
+  };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -260,10 +273,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     if (field) {
       setEditingField(field);
       if (field.type === FIELD_TYPES.SIGNATURE && !field.completed) {
-        const stored = localStorage.getItem('adoptedSignature');
-        if (stored) {
-          let sig = stored;
-          try { sig = stored.startsWith('data:') ? stored : JSON.parse(stored); } catch (_) {}
+        // Check if user has signature templates
+        if (signatureTemplates.length > 0) {
+          // Use the first available signature template
+          const template = signatureTemplates[0];
+          const sig = template.template_data || template.signature_data;
           setFields(prev => prev.map(f => f.id === field.id ? { ...f, value: sig, completed: true } : f));
           return;
         } else {
@@ -282,10 +296,23 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     }
   };
 
-  const handleSignatureSave = (signatureData) => {
+  const handleSignatureSave = async (signatureData) => {
     try {
-      localStorage.setItem('adoptedSignature', typeof signatureData === 'string' ? signatureData : JSON.stringify(signatureData));
-    } catch (_) {}
+      // Save as signature template for future use
+      const templateData = {
+        name: `Adopted Signature ${new Date().toLocaleDateString()}`,
+        template_data: signatureData,
+        signature_style: typeof signatureData === 'string' ? 'drawn' : 'typed'
+      };
+      
+      await signaturesAPI.templates.create(templateData);
+      
+      // Reload signature templates
+      await loadSignatureTemplates();
+    } catch (err) {
+      console.error('Error saving signature template:', err);
+    }
+    
     if (editingField) {
       setFields(prev => prev.map(f => 
         f.id === editingField.id 

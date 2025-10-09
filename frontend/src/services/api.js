@@ -161,7 +161,9 @@ export const signaturesAPI = {
   createHybrid: (data) => api.post('/api/v1/signatures/hybrid', data),
   templates: {
     create: (data) => api.post('/api/v1/signatures/templates', data),
-    list: () => api.get('/api/v1/signatures/templates')
+    list: () => api.get('/api/v1/signatures/templates'),
+    update: (id, data) => api.put(`/api/v1/signatures/templates/${id}`, data),
+    delete: (id) => api.delete(`/api/v1/signatures/templates/${id}`)
   },
   // Admin endpoints
   admin: {

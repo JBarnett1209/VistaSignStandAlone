@@ -26,7 +26,7 @@ import {
   Edit as SignatureIcon
 } from '@mui/icons-material';
 import SignatureCreator from './SignatureCreator';
-import { authAPI } from '../services/api';
+import { authAPI, signaturesAPI } from '../services/api';
 import ConfirmationDialog from './ConfirmationDialog';
 
 export default function SignatureManager() {
@@ -50,10 +50,8 @@ export default function SignatureManager() {
   const loadSignatures = async () => {
     try {
       setLoading(true);
-      // This would be an API call to get user's saved signatures
-      // For now, we'll use localStorage as a placeholder
-      const savedSignatures = JSON.parse(localStorage.getItem('userSignatures') || '[]');
-      setSignatures(savedSignatures);
+      const response = await signaturesAPI.templates.list();
+      setSignatures(response.data || []);
     } catch (err) {
       setError('Failed to load signatures');
       console.error('Error loading signatures:', err);
@@ -64,19 +62,23 @@ export default function SignatureManager() {
 
   const handleSaveSignature = async (signatureData) => {
     try {
-      const newSignature = {
-        id: Date.now().toString(),
-        data: signatureData,
-        createdAt: new Date().toISOString(),
-        name: `Signature ${signatures.length + 1}`
+      // Create signature template data for the API
+      const templateData = {
+        name: `Signature ${signatures.length + 1}`,
+        signature_data: signatureData,
+        signature_type: typeof signatureData === 'string' ? 'drawn' : 'typed'
       };
 
-      const updatedSignatures = editingSignature
-        ? signatures.map(sig => sig.id === editingSignature.id ? { ...sig, data: signatureData } : sig)
-        : [...signatures, newSignature];
+      if (editingSignature) {
+        // Update existing signature template - need to add this endpoint
+        await signaturesAPI.templates.update(editingSignature.id, templateData);
+      } else {
+        // Create new signature template
+        await signaturesAPI.templates.create(templateData);
+      }
 
-      setSignatures(updatedSignatures);
-      localStorage.setItem('userSignatures', JSON.stringify(updatedSignatures));
+      // Reload signatures from API
+      await loadSignatures();
       
       setSignatureCreatorOpen(false);
       setEditingSignature(null);
@@ -88,9 +90,8 @@ export default function SignatureManager() {
 
   const handleDeleteSignature = async () => {
     try {
-      const updatedSignatures = signatures.filter(sig => sig.id !== signatureToDelete.id);
-      setSignatures(updatedSignatures);
-      localStorage.setItem('userSignatures', JSON.stringify(updatedSignatures));
+      await signaturesAPI.templates.delete(signatureToDelete.id);
+      await loadSignatures(); // Reload from API
       setDeleteDialogOpen(false);
       setSignatureToDelete(null);
     } catch (err) {
@@ -105,11 +106,13 @@ export default function SignatureManager() {
   };
 
   const renderSignaturePreview = (signature) => {
-    if (typeof signature.data === 'string' && signature.data.startsWith('data:image')) {
+    const signatureData = signature.signature_data || signature.data;
+    
+    if (typeof signatureData === 'string' && signatureData.startsWith('data:image')) {
       // Drawn or uploaded signature
       return (
         <img
-          src={signature.data}
+          src={signatureData}
           alt="Signature preview"
           style={{
             maxWidth: '100%',
@@ -120,14 +123,14 @@ export default function SignatureManager() {
           }}
         />
       );
-    } else if (signature.data && signature.data.type === 'typed') {
+    } else if (signatureData && signatureData.type === 'typed') {
       // Typed signature
       return (
         <Box
           sx={{
-            fontFamily: `'${signature.data.font}', cursive`,
-            fontSize: Math.min(24, signature.data.size || 20),
-            color: signature.data.color,
+            fontFamily: `'${signatureData.font}', cursive`,
+            fontSize: Math.min(24, signatureData.size || 20),
+            color: signatureData.color,
             fontStyle: 'italic',
             textAlign: 'center',
             py: 1,
@@ -140,7 +143,7 @@ export default function SignatureManager() {
             whiteSpace: 'nowrap'
           }}
         >
-          {signature.data.text}
+          {signatureData.text}
         </Box>
       );
     }
@@ -224,14 +227,14 @@ export default function SignatureManager() {
                           whiteSpace: 'nowrap',
                           maxWidth: '100%'
                         }}>
-                          {signature.name}
+                          {signature.name || `Signature ${signature.id}`}
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={typeof signature.data === 'string' ? 'Drawn' : 'Typed'}
+                      label={signature.signature_type || (typeof (signature.signature_data || signature.data) === 'string' ? 'Drawn' : 'Typed')}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -239,7 +242,7 @@ export default function SignatureManager() {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {new Date(signature.createdAt).toLocaleDateString()}
+                      {new Date(signature.created_at || signature.createdAt).toLocaleDateString()}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -286,7 +289,7 @@ export default function SignatureManager() {
           setEditingSignature(null);
         }}
         onSave={handleSaveSignature}
-        existingSignature={editingSignature?.data}
+        existingSignature={editingSignature?.signature_data || editingSignature?.data}
       />
 
       {/* Delete Confirmation Dialog */}
