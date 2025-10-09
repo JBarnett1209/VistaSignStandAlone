@@ -156,7 +156,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [scale, setScale] = useState(1.0);
   const [fields, setFields] = useState([]);
   const [selectedField, setSelectedField] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [dragField, setDragField] = useState(null);
   const [signatureCreatorOpen, setSignatureCreatorOpen] = useState(false);
   const [adoptDialogOpen, setAdoptDialogOpen] = useState(false);
@@ -188,7 +187,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   // Drag over state
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const canvasRef = useRef(null);
 
   // Load document fields and signers on mount
   useEffect(() => {
@@ -397,6 +395,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           newX = fieldStartPos.x + (fieldStartSize.width - newWidth);
           newY = fieldStartPos.y + (fieldStartSize.height - newHeight);
           break;
+        default:
+          // No resize for unknown handles
+          break;
       }
       
       return { ...field, width: newWidth, height: newHeight, x: newX, y: newY };
@@ -491,7 +492,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         window.document.removeEventListener('mouseup', handleGlobalMouseUp);
       };
     }
-  }, [isDraggingField, isResizing, isDrawingWhiteout, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale, whiteoutStartPos]);
+  }, [isDraggingField, isResizing, isDrawingWhiteout, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale, whiteoutStartPos, handleFieldMouseMove, handleResizeMouseMove, handleWhiteoutMouseMove, handleWhiteoutMouseUp]);
 
   const handleSignatureSave = async (signatureData) => {
     try {
@@ -1285,7 +1286,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               // TODO: Implement sending workflow
               setWorkflowDialogOpen(false);
             }}
-            disabled={signers.length === 0}
+            disabled={fields.length === 0}
           >
             Send Document
           </Button>

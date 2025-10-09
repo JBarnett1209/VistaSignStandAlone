@@ -169,3 +169,22 @@ class AdminSignatureListResponse(BaseModel):
     limit: int
     has_more: bool
     deleted_count: int = 0
+
+class DocumentSigningRequest(BaseModel):
+    """Request to sign a document with cryptographic signature"""
+    document_id: str
+    field_id: str
+    signature_data: str  # Base64 encoded signature data
+    signing_reason: Optional[str] = None
+    signing_location: Optional[str] = None
+    signature_level: str = "simple"  # simple, advanced, qualified
+
+class DocumentSigningResponse(BaseModel):
+    """Response after signing a document"""
+    signature_id: str
+    document_hash: str
+    digital_signature: str
+    certificate_thumbprint: str
+    verification_status: str
+    signed_at: datetime
+    is_legally_binding: bool

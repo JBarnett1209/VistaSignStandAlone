@@ -2,7 +2,7 @@
 VistaSign Signatures API Endpoints
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import List, Optional
@@ -19,7 +19,8 @@ from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
     SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse,
     LegalSignatureVerificationResponse, SignatureLevelsResponse, HybridSignatureCreate,
-    SignatureDeleteRequest, AdminSignatureResponse, AdminSignatureListResponse
+    SignatureDeleteRequest, AdminSignatureResponse, AdminSignatureListResponse,
+    DocumentSigningRequest, DocumentSigningResponse
 )
 from app.core.digital_signature import digital_signature_service
 from app.core.legal_signature import legal_signature_service, SignatureLevel
@@ -1182,4 +1183,120 @@ async def admin_restore_signature(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to restore signature"
+        )
+
+@router.post("/sign-document", response_model=DocumentSigningResponse)
+async def sign_document(
+    signing_request: DocumentSigningRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Sign a document field with cryptographic signature using certificates"""
+    try:
+        # Get document
+        result = await db.execute(
+            select(Document).where(Document.id == signing_request.document_id)
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Check if user has access to this document
+        if document.owner_id != current_user["user_id"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this document"
+            )
+        
+        # Get document content (this would need to be implemented based on your document storage)
+        # For now, we'll use the document metadata as the content to sign
+        document_content = f"{document.id}:{document.title}:{document.filename}".encode('utf-8')
+        
+        # Create signing context
+        signing_context = {
+            "user_id": current_user["user_id"],
+            "user_email": current_user.get("email", ""),
+            "document_id": signing_request.document_id,
+            "field_id": signing_request.field_id,
+            "signing_reason": signing_request.signing_reason,
+            "signing_location": signing_request.signing_location,
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Determine signature level
+        signature_level = SignatureLevel.SIMPLE
+        if signing_request.signature_level == "advanced":
+            signature_level = SignatureLevel.ADVANCED
+        elif signing_request.signature_level == "qualified":
+            signature_level = SignatureLevel.QUALIFIED
+        
+        # Create legal signature using certificates
+        signature_metadata = legal_signature_service.create_legal_signature(
+            document_content=document_content,
+            user_id=current_user["user_id"],
+            signature_data=signing_request.signature_data,
+            signing_context=signing_context,
+            signature_level=signature_level
+        )
+        
+        if not signature_metadata:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create cryptographic signature"
+            )
+        
+        # Create signature record in database
+        signature = Signature(
+            document_id=signing_request.document_id,
+            signer_id=current_user["user_id"],
+            signature_type=SignatureType.DIGITAL,
+            status=SignatureStatus.SIGNED,
+            signature_data=signing_request.signature_data,
+            signature_position={"field_id": signing_request.field_id},
+            signing_reason=signing_request.signing_reason,
+            signing_location=signing_request.signing_location,
+            ip_address=signing_context["ip_address"],
+            user_agent=signing_context["user_agent"],
+            signed_at=datetime.utcnow(),
+            # Cryptographic data
+            digital_signature=signature_metadata["digital_signature"],
+            document_hash=signature_metadata["document_hash"],
+            signature_metadata=signature_metadata,
+            verification_status="verified",
+            signature_level=signing_request.signature_level,
+            is_legally_binding=signature_metadata.get("is_legally_binding", True),
+            compliance_standard=signature_metadata.get("compliance_standard", "ESIGN_UETA"),
+            certificate_chain=signature_metadata.get("certificate_chain", []),
+            timestamp_data=signature_metadata.get("timestamp_data", {}),
+            legal_metadata=signature_metadata.get("legal_metadata", {})
+        )
+        
+        db.add(signature)
+        await db.commit()
+        await db.refresh(signature)
+        
+        return DocumentSigningResponse(
+            signature_id=str(signature.id),
+            document_hash=signature.document_hash,
+            digital_signature=signature.digital_signature,
+            certificate_thumbprint=signature_metadata.get("certificate_thumbprint", ""),
+            verification_status=signature.verification_status,
+            signed_at=signature.signed_at,
+            is_legally_binding=signature.is_legally_binding
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Document signing error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sign document"
         )

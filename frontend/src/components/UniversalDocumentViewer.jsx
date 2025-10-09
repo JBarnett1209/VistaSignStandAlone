@@ -5,8 +5,6 @@ import {
   Alert,
   CircularProgress,
   Button,
-  IconButton,
-  Tooltip,
   Paper
 } from '@mui/material';
 import {
@@ -15,9 +13,6 @@ import {
   TableChart as ExcelIcon,
   Image as ImageIcon,
   Download as DownloadIcon,
-  ZoomIn as ZoomInIcon,
-  ZoomOut as ZoomOutIcon,
-  FitScreen as FitScreenIcon
 } from '@mui/icons-material';
 import { Document, Page, pdfjs } from 'react-pdf';
 

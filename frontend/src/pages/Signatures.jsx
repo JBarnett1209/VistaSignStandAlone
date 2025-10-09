@@ -1,6 +1,5 @@
 import React from 'react';
-import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
+import { Typography, Box } from '@mui/material';
 import SignatureManager from '../components/SignatureManager';
 
 export default function Signatures() {

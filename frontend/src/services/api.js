@@ -159,6 +159,7 @@ export const signaturesAPI = {
   verifyHybrid: (id) => api.get(`/api/v1/signatures/${id}/verify-hybrid`),
   getLevels: () => api.get('/api/v1/signatures/levels'),
   createHybrid: (data) => api.post('/api/v1/signatures/hybrid', data),
+  signDocument: (data) => api.post('/api/v1/signatures/sign-document', data),
   templates: {
     create: (data) => api.post('/api/v1/signatures/templates', data),
     list: () => api.get('/api/v1/signatures/templates'),
