@@ -169,7 +169,7 @@ async def create_signature(
 async def list_signatures(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
     document_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -185,8 +185,8 @@ async def list_signatures(
         )
         
         # Apply filters
-        if status:
-            query = query.where(Signature.status == status)
+        if status_filter:
+            query = query.where(Signature.status == status_filter)
         if document_id:
             query = query.where(Signature.document_id == document_id)
         
@@ -197,8 +197,8 @@ async def list_signatures(
                 Signature.is_deleted == False
             )
         )
-        if status:
-            count_query = count_query.where(Signature.status == status)
+        if status_filter:
+            count_query = count_query.where(Signature.status == status_filter)
         if document_id:
             count_query = count_query.where(Signature.document_id == document_id)
         
@@ -817,7 +817,7 @@ async def admin_list_all_signatures(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     include_deleted: bool = Query(False),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None),
     document_id: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),
     signature_level: Optional[str] = Query(None),
@@ -850,8 +850,8 @@ async def admin_list_all_signatures(
         if not include_deleted:
             query = query.where(Signature.is_deleted == False)
         
-        if status:
-            query = query.where(Signature.status == status)
+        if status_filter:
+            query = query.where(Signature.status == status_filter)
         if document_id:
             query = query.where(Signature.document_id == document_id)
         if user_id:
@@ -863,8 +863,8 @@ async def admin_list_all_signatures(
         count_query = select(Signature)
         if not include_deleted:
             count_query = count_query.where(Signature.is_deleted == False)
-        if status:
-            count_query = count_query.where(Signature.status == status)
+        if status_filter:
+            count_query = count_query.where(Signature.status == status_filter)
         if document_id:
             count_query = count_query.where(Signature.document_id == document_id)
         if user_id:
