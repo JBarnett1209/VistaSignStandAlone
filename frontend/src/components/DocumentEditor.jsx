@@ -499,12 +499,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     if (isDraggingField || isResizing || isDrawingWhiteout) {
       document.addEventListener('mousemove', handleGlobalMouseMove);
       document.addEventListener('mouseup', handleGlobalMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
     }
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
   }, [isDraggingField, isResizing, isDrawingWhiteout, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale, whiteoutStartPos]);
 
   const handleSignatureSave = async (signatureData) => {
@@ -743,11 +743,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   if (!document) {
-    console.log('DocumentEditor - No document, returning null');
-    return null;
+  return null;
   }
 
-  console.log('DocumentEditor - About to render UniversalDocumentViewer with document:', document);
 
   return (
     <Dialog

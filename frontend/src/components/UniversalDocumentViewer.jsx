@@ -43,10 +43,6 @@ const UniversalDocumentViewer = ({
       return;
     }
 
-    console.log('UniversalDocumentViewer - Document data:', document);
-    console.log('UniversalDocumentViewer - MIME type:', document?.mime_type);
-    console.log('UniversalDocumentViewer - Filename:', document?.filename);
-    console.log('UniversalDocumentViewer - File URL:', document?.file_url);
 
     setLoading(true);
     setError(null);
@@ -55,23 +51,20 @@ const UniversalDocumentViewer = ({
     
     // For non-PDF documents, we don't need to wait for loading
     const docType = getDocumentType(document?.mime_type, document?.filename);
-    console.log('UniversalDocumentViewer - Detected document type:', docType);
     if (docType !== 'pdf') {
       setLoading(false);
     } else {
       // Test if the PDF file URL is accessible
       const fileUrl = document?.file_url || document?.file_path || document?.url;
       if (fileUrl) {
-        console.log('UniversalDocumentViewer - Testing PDF file accessibility...');
         fetch(fileUrl, { method: 'GET' })
           .then(response => {
-            console.log('UniversalDocumentViewer - PDF file accessibility test:', response.status, response.statusText);
             if (!response.ok) {
-              console.error('UniversalDocumentViewer - PDF file not accessible:', response.status, response.statusText);
+              console.error('PDF file not accessible:', response.status, response.statusText);
             }
           })
           .catch(error => {
-            console.error('UniversalDocumentViewer - PDF file accessibility test failed:', error);
+            console.error('PDF file accessibility test failed:', error);
           });
       }
     }
@@ -129,7 +122,6 @@ const UniversalDocumentViewer = ({
   };
 
   const renderPDFViewer = () => {
-    console.log('UniversalDocumentViewer - renderPDFViewer called');
     return (
     <Box sx={{ 
       display: 'flex', 
@@ -140,17 +132,12 @@ const UniversalDocumentViewer = ({
       flex: 1
     }}>
       <Document
-        file={(() => {
-          const fileUrl = document?.file_url || document?.file_path || document?.url;
-          console.log('UniversalDocumentViewer - PDF file URL being passed to react-pdf:', fileUrl);
-          return fileUrl;
-        })()}
+        file={document?.file_url || document?.file_path || document?.url}
         onLoadSuccess={(payload) => {
           // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
           const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
             ? payload.numPages
             : (payload?.numPages ?? null);
-          console.log('UniversalDocumentViewer - PDF loaded successfully. Pages:', pages, 'payload:', payload);
           if (pages) {
             setNumPages(pages);
           }
@@ -158,22 +145,16 @@ const UniversalDocumentViewer = ({
           onLoadSuccess?.(payload);
         }}
         onLoadError={(error) => {
-          console.error('UniversalDocumentViewer - PDF load error:', error);
-          console.error('UniversalDocumentViewer - Error message:', error.message);
+          console.error('PDF load error:', error);
           setError(`Failed to load PDF: ${error.message}`);
           setLoading(false);
           onLoadError?.(error);
         }}
         onSourceError={(error) => {
-          console.error('UniversalDocumentViewer - PDF source error:', error);
+          console.error('PDF source error:', error);
         }}
         onLoadProgress={({ loaded, total }) => {
-          if (total) {
-            const pct = Math.round((loaded / total) * 100);
-            console.log(`UniversalDocumentViewer - PDF loading: ${pct}% (${loaded}/${total})`);
-          } else {
-            console.log(`UniversalDocumentViewer - PDF loading: ${loaded} bytes`);
-          }
+          // Progress tracking can be added here if needed
         }}
         loading={
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
@@ -288,7 +269,6 @@ const UniversalDocumentViewer = ({
           variant="contained"
           onClick={async () => {
             try {
-              console.log('Converting Word document to PDF for viewing...');
               // Call the conversion API
               const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
                 method: 'GET',
@@ -304,7 +284,6 @@ const UniversalDocumentViewer = ({
                   // Reload the page with the converted PDF
                   window.location.reload();
                 } else {
-                  console.log('Document does not need conversion');
                 }
               } else {
                 console.error('Conversion failed:', response.statusText);
@@ -358,7 +337,6 @@ const UniversalDocumentViewer = ({
           variant="contained"
           onClick={async () => {
             try {
-              console.log('Converting Excel document to PDF for viewing...');
               const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
                 method: 'GET',
                 credentials: 'include',
@@ -420,7 +398,6 @@ const UniversalDocumentViewer = ({
           variant="contained"
           onClick={async () => {
             try {
-              console.log('Converting PowerPoint document to PDF for viewing...');
               const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
                 method: 'GET',
                 credentials: 'include',
@@ -482,7 +459,6 @@ const UniversalDocumentViewer = ({
           variant="contained"
           onClick={async () => {
             try {
-              console.log('Converting text document to PDF for viewing...');
               const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
                 method: 'GET',
                 credentials: 'include',
@@ -544,7 +520,6 @@ const UniversalDocumentViewer = ({
           variant="contained"
           onClick={async () => {
             try {
-              console.log('Converting document to PDF for viewing...');
               const response = await fetch(`/api/v1/documents/${document.id}/convert`, {
                 method: 'GET',
                 credentials: 'include',
@@ -569,13 +544,9 @@ const UniversalDocumentViewer = ({
   );
 
   const renderDocument = () => {
-    console.log('UniversalDocumentViewer - renderDocument called');
-    console.log('UniversalDocumentViewer - renderDocument - loading:', loading);
-    console.log('UniversalDocumentViewer - renderDocument - error:', error);
     
     // For PDFs we allow the viewer to render while loading so it can report success/error
     if (loading && getDocumentType(document?.mime_type, document?.filename) !== 'pdf') {
-      console.log('UniversalDocumentViewer - renderDocument - showing loading state');
       return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
           <CircularProgress />
@@ -605,30 +576,22 @@ const UniversalDocumentViewer = ({
     }
 
     const docType = getDocumentType(document?.mime_type, document?.filename);
-    console.log('UniversalDocumentViewer - Switch statement - docType:', docType);
 
     switch (docType) {
       case 'pdf':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderPDFViewer');
         return renderPDFViewer();
       case 'image':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderImageViewer');
         return renderImageViewer();
       case 'word':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderWordViewer');
         return renderWordViewer();
       case 'excel':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderExcelViewer');
         return renderExcelViewer();
       case 'powerpoint':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderPowerPointViewer');
         return renderPowerPointViewer();
       case 'text':
-        console.log('UniversalDocumentViewer - Switch statement - calling renderTextViewer');
         return renderTextViewer();
       case 'csv':
       default:
-        console.log('UniversalDocumentViewer - Switch statement - calling renderUnsupportedViewer for type:', docType);
         return renderUnsupportedViewer(docType);
     }
   };
