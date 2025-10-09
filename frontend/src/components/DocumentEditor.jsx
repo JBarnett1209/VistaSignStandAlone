@@ -287,19 +287,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const field = fields.find(f => f.id === fieldId);
     if (field) {
       setEditingField(field);
-      if (field.type === FIELD_TYPES.SIGNATURE && !field.completed) {
-        // Check if user has signature templates
-        if (signatureTemplates.length > 0) {
-          // Use the first available signature template
-          const template = signatureTemplates[0];
-          const sig = template.template_data || template.signature_data;
-          setFields(prev => prev.map(f => f.id === field.id ? { ...f, value: sig, completed: true } : f));
-          return;
-        } else {
-          setAdoptDialogOpen(true);
-          return;
-        }
-      }
+      // Always open the field dialog for editing properties
       setFieldDialogOpen(true);
     }
   };
@@ -1200,16 +1188,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                   />
                 }
                 label="Required"
-                sx={{ mb: 2 }}
-              />
-
-              <TextField
-                fullWidth
-                label="Signing Order"
-                type="number"
-                value={editingField?.signingOrder || 1}
-                onChange={(e) => setEditingField(prev => ({ ...prev, signingOrder: parseInt(e.target.value) || 1 }))}
-                inputProps={{ min: 1 }}
                 sx={{ mb: 2 }}
               />
             </Box>
