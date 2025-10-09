@@ -130,7 +130,9 @@ export const Layout = () => {
       
       <Box component="main" className="app-main" sx={{ 
         bgcolor: 'background.default', 
-        ml: { xs: 0, sm: `${drawerWidth + sidebarGutter}px` }
+        ml: { xs: 0, sm: `${drawerWidth + sidebarGutter}px` },
+        width: '100%',
+        minWidth: 0
       }}>
         <Toolbar />
         <Box className="app-content">
