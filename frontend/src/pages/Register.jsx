@@ -132,7 +132,18 @@ export default function Register() {
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Card>
         <CardContent sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom align="center" sx={{ mb: 3, color: 'primary.main' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <img 
+              src="/VistaSign_Logo.svg" 
+              alt="VistaSign" 
+              style={{ 
+                height: '80px', 
+                width: 'auto',
+                maxWidth: '300px'
+              }} 
+            />
+          </Box>
+          <Typography variant="h5" gutterBottom align="center" sx={{ mb: 3, color: 'primary.main' }}>
             Join VistaSign
           </Typography>
           

@@ -40,9 +40,17 @@ export default function Login() {
     <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
       <Paper elevation={8} sx={{ p: 4, width: '100%', borderRadius: 3 }}>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Typography component="h1" variant="h5" sx={{ fontWeight: 800, color: 'primary.main' }}>
-            VistaSign
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <img 
+              src="/VistaSign_Logo.svg" 
+              alt="VistaSign" 
+              style={{ 
+                height: '60px', 
+                width: 'auto',
+                maxWidth: '250px'
+              }} 
+            />
+          </Box>
           <Typography variant="body2" color="text.secondary">
             Sign in to continue
           </Typography>

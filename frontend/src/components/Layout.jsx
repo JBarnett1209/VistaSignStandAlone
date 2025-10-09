@@ -68,9 +68,17 @@ export const Layout = () => {
         }}
       >
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
-          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600 }}>
-            VistaSign
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <img 
+              src="/VistaSign_Logo.svg" 
+              alt="VistaSign" 
+              style={{ 
+                height: '40px', 
+                width: 'auto',
+                maxWidth: '200px'
+              }} 
+            />
+          </Box>
           <Box sx={{
             ml: 2,
             flex: 1,
