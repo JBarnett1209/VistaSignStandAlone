@@ -310,3 +310,161 @@ async def add_workflow_participant(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add workflow participant"
         )
+
+@router.post("/{workflow_id}/send")
+async def send_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send workflow to participants for signing"""
+    try:
+        # Verify workflow exists and user has access
+        result = await db.execute(
+            select(Workflow).where(
+                and_(
+                    Workflow.id == workflow_id,
+                    Workflow.created_by == current_user["user_id"]
+                )
+            )
+        )
+        workflow = result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        if workflow.status != WorkflowStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only draft workflows can be sent"
+            )
+        
+        # Update workflow status to active
+        workflow.status = WorkflowStatus.ACTIVE
+        workflow.started_at = datetime.utcnow()
+        
+        await db.commit()
+        await db.refresh(workflow)
+        
+        # TODO: Send emails to participants
+        # This would integrate with the email service to send signing invitations
+        
+        return {"message": "Workflow sent successfully", "workflow_id": workflow_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Send workflow error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send workflow"
+        )
+
+@router.put("/{workflow_id}")
+async def update_workflow(
+    workflow_id: str,
+    workflow_data: WorkflowCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update workflow"""
+    try:
+        # Verify workflow exists and user has access
+        result = await db.execute(
+            select(Workflow).where(
+                and_(
+                    Workflow.id == workflow_id,
+                    Workflow.created_by == current_user["user_id"]
+                )
+            )
+        )
+        workflow = result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        if workflow.status != WorkflowStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only draft workflows can be updated"
+            )
+        
+        # Update workflow fields
+        workflow.name = workflow_data.name
+        workflow.description = workflow_data.description
+        workflow.workflow_data = workflow_data.workflow_data
+        
+        await db.commit()
+        await db.refresh(workflow)
+        
+        return WorkflowResponse(
+            id=str(workflow.id),
+            name=workflow.name,
+            description=workflow.description,
+            status=workflow.status.value,
+            document_id=str(workflow.document_id),
+            created_by=str(workflow.created_by),
+            created_at=workflow.created_at,
+            started_at=workflow.started_at,
+            completed_at=workflow.completed_at
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update workflow error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update workflow"
+        )
+
+@router.delete("/{workflow_id}")
+async def delete_workflow(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete workflow"""
+    try:
+        # Verify workflow exists and user has access
+        result = await db.execute(
+            select(Workflow).where(
+                and_(
+                    Workflow.id == workflow_id,
+                    Workflow.created_by == current_user["user_id"]
+                )
+            )
+        )
+        workflow = result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        if workflow.status == WorkflowStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete active workflows"
+            )
+        
+        await db.delete(workflow)
+        await db.commit()
+        
+        return {"message": "Workflow deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete workflow error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete workflow"
+        )

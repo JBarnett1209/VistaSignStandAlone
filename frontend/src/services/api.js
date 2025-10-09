@@ -178,8 +178,12 @@ export const workflowsAPI = {
   create: (data) => api.post('/api/v1/workflows/', data),
   list: (params) => api.get('/api/v1/workflows/', { params }),
   get: (id) => api.get(`/api/v1/workflows/${id}`),
+  update: (id, data) => api.put(`/api/v1/workflows/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/workflows/${id}`),
   addStep: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/steps`, data),
-  addParticipant: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data)
+  addParticipant: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
+  send: (workflowId) => api.post(`/api/v1/workflows/${workflowId}/send`),
+  cancel: (workflowId) => api.post(`/api/v1/workflows/${workflowId}/cancel`)
 };
 
 // Users API
