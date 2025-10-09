@@ -3,6 +3,7 @@ VistaSign Document Models
 """
 
 from sqlalchemy import Column, String, Text, DateTime, Boolean, ForeignKey, Integer, JSON, Enum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -58,7 +59,7 @@ class Document(Base):
     requires_signature = Column(Boolean, default=True)
     signature_positions = Column(JSON, nullable=True)  # Positions where signatures are required
     signing_deadline = Column(DateTime(timezone=True), nullable=True)
-    fields = Column(JSON, nullable=True)  # Document fields (signature fields, text fields, etc.)
+    fields = Column(JSONB, nullable=True)  # Document fields (signature fields, text fields, etc.)
     
     # Security and encryption
     is_encrypted = Column(Boolean, default=False)

@@ -31,8 +31,8 @@ async def apply_migration():
         if result:
             print("⏭️ Column 'fields' already exists")
         else:
-            # Add the fields column
-            await conn.execute("ALTER TABLE documents ADD COLUMN fields JSON")
+            # Add the fields column as JSONB for better indexing
+            await conn.execute("ALTER TABLE documents ADD COLUMN fields JSONB")
             print("✅ Added 'fields' column to documents table")
         
         # Check if index already exists
@@ -45,7 +45,7 @@ async def apply_migration():
         if index_result:
             print("⏭️ Index 'idx_documents_fields' already exists")
         else:
-            # Add the index
+            # Add the index for JSONB (no operator class needed for JSONB)
             await conn.execute("CREATE INDEX idx_documents_fields ON documents USING GIN (fields)")
             print("✅ Added GIN index for fields column")
         
