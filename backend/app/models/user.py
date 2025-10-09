@@ -64,7 +64,8 @@ class User(Base):
     
     # Relationships
     documents = relationship("Document", foreign_keys="Document.owner_id", back_populates="owner")
-    signatures = relationship("Signature", back_populates="signer")
+    signatures = relationship("Signature", foreign_keys="Signature.signer_id", back_populates="signer")
+    deleted_signatures = relationship("Signature", foreign_keys="Signature.deleted_by", back_populates="deleted_by_user")
     workflows = relationship("Workflow", back_populates="creator")
     workflow_participants = relationship("WorkflowParticipant", back_populates="user")
     subscription = relationship("Subscription", back_populates="user", uselist=False)
