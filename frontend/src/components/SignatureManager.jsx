@@ -118,8 +118,8 @@ export default function SignatureManager() {
       return (
         <Box
           sx={{
-            fontFamily: `'${signature.data.font}', ${signature.data.font.includes(' ') ? 'cursive' : 'cursive'}`,
-            fontSize: signature.data.size,
+            fontFamily: `'${signature.data.font}', cursive`,
+            fontSize: Math.min(48, signature.data.size || 40),
             color: signature.data.color,
             fontStyle: 'italic',
             textAlign: 'center',
@@ -137,7 +137,7 @@ export default function SignatureManager() {
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ width: '100%', flex: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
         <Typography variant="h5">
           My Signatures
@@ -177,10 +177,10 @@ export default function SignatureManager() {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={2} alignItems="stretch" sx={{ width: '100%' }}>
+        <Grid container spacing={2} alignItems="stretch" justifyContent="flex-start" sx={{ width: '100%' }}>
           {signatures.map((signature) => (
-            <Grid item xs={12} sm={12} md={6} lg={4} xl={3} key={signature.id}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Grid item xs={12} sm={6} md={4} lg={3} xl={3} key={signature.id}>
+              <Card sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">
@@ -194,7 +194,7 @@ export default function SignatureManager() {
                     />
                   </Box>
                   
-                  <Box sx={{ mb: 2, minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <Box sx={{ mb: 2, minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                     {renderSignaturePreview(signature)}
                   </Box>
 
