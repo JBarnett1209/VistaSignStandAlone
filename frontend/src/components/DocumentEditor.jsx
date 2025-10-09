@@ -497,9 +497,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     }
     
     if (editingField) {
+      // In document editing mode, only store the signature template reference
+      // Don't mark as completed - that should only happen during actual signing workflow
       setFields(prev => prev.map(f => 
         f.id === editingField.id 
-          ? { ...f, value: signatureData, completed: true }
+          ? { ...f, signatureTemplate: signatureData }
           : f
       ));
       setSignatureCreatorOpen(false);
@@ -512,7 +514,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const handleFieldValueChange = (fieldId, value) => {
     setFields(prev => prev.map(f => 
       f.id === fieldId 
-        ? { ...f, value, completed: !!value }
+        ? { ...f, value }
         : f
     ));
   };
@@ -592,7 +594,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           height: field.height * scale,
           border: `2px solid ${isSelected ? '#1976d2' : config.color}`,
           borderRadius: 1,
-          backgroundColor: field.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: field.value && field.value !== '' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(255, 255, 255, 0.9)',
           cursor: isDraggingField ? 'grabbing' : 'grab',
           display: 'flex',
           alignItems: 'center',
@@ -619,11 +621,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           }}
         />
         
-        {field.completed ? (
+        {/* In document editing mode, show field type and any configured values */}
+        {field.value && field.value !== '' ? (
           <Chip
-            label={field.type === FIELD_TYPES.SIGNATURE ? 'Signed' : field.value}
+            label={field.type === FIELD_TYPES.SIGNATURE ? 'Template Set' : field.value}
             size="small"
-            color="success"
+            color="info"
             variant="outlined"
           />
         ) : (
