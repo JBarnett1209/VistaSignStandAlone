@@ -177,9 +177,9 @@ export default function SignatureManager() {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={2} alignItems="stretch" sx={{ width: '100%', maxWidth: '1200px' }}>
+        <Grid container spacing={2} alignItems="stretch" sx={{ width: '100%' }}>
           {signatures.map((signature) => (
-            <Grid item xs={12} sm={6} md={4} key={signature.id}>
+            <Grid item xs={12} sm={10} md={8} lg={6} xl={4} key={signature.id}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
