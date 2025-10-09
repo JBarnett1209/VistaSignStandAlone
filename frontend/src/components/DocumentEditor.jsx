@@ -243,7 +243,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const handleFieldDragStart = (fieldType, event) => {
-    console.log('Drag start:', fieldType);
     event.dataTransfer.setData('text/plain', fieldType);
     event.dataTransfer.effectAllowed = 'copy';
     setIsDragging(true);
@@ -256,13 +255,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const addFieldAtPosition = (event, containerRef) => {
-    console.log('addFieldAtPosition called with dragField:', dragField);
     if (!dragField) return;
 
     const rect = containerRef.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    console.log('Adding field at position:', x, y);
 
     const defaultValueByType = (type) => {
       switch (type) {
@@ -836,10 +833,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             <Box
               key={type}
               draggable={type !== FIELD_TYPES.WHITEOUT}
-              onDragStart={type !== FIELD_TYPES.WHITEOUT ? (e) => {
-                console.log('Field palette drag start for type:', type);
-                handleFieldDragStart(type, e);
-              } : undefined}
+              onDragStart={type !== FIELD_TYPES.WHITEOUT ? (e) => handleFieldDragStart(type, e) : undefined}
               onDragEnd={type !== FIELD_TYPES.WHITEOUT ? handleFieldDragEnd : undefined}
               onClick={type === FIELD_TYPES.WHITEOUT ? () => {
                 setIsWhiteoutMode(!isWhiteoutMode);
@@ -1003,7 +997,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             }
           }}
           onDragOver={(e) => {
-            console.log('Drag over document');
             e.preventDefault();
             e.dataTransfer.dropEffect = 'copy';
             setIsDragOver(true);
@@ -1014,12 +1007,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             }
           }}
           onDrop={(e) => {
-            console.log('Drop on document');
             e.preventDefault();
             setIsDragOver(false);
             const fieldType = e.dataTransfer.getData('text/plain');
-            console.log('Field type from drop:', fieldType);
-            if (fieldType && e.target === e.currentTarget) {
+            if (fieldType) {
               setDragField(fieldType);
               addFieldAtPosition(e, e.currentTarget);
             }
