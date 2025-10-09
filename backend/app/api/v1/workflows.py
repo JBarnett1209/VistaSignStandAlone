@@ -355,6 +355,69 @@ async def add_workflow_participant(
             detail="Failed to add workflow participant"
         )
 
+@router.delete("/{workflow_id}/participants/{participant_id}")
+async def remove_workflow_participant(
+    workflow_id: str,
+    participant_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Remove a participant from a workflow"""
+    try:
+        # Verify workflow exists and user has access
+        result = await db.execute(
+            select(Workflow).where(
+                and_(
+                    Workflow.id == workflow_id,
+                    Workflow.created_by == current_user["user_id"]
+                )
+            )
+        )
+        workflow = result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        if workflow.status != WorkflowStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only draft workflows can be modified"
+            )
+        
+        # Find and remove the participant
+        participant_result = await db.execute(
+            select(WorkflowParticipant).where(
+                and_(
+                    WorkflowParticipant.id == participant_id,
+                    WorkflowParticipant.workflow_id == workflow_id
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        
+        if not participant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Participant not found"
+            )
+        
+        await db.delete(participant)
+        await db.commit()
+        
+        return {"message": "Participant removed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Remove workflow participant error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove workflow participant"
+        )
+
 @router.post("/{workflow_id}/send")
 async def send_workflow(
     workflow_id: str,

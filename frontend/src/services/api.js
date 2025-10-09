@@ -183,6 +183,7 @@ export const workflowsAPI = {
   delete: (id) => api.delete(`/api/v1/workflows/${id}`),
   addStep: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/steps`, data),
   addParticipant: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
+  removeParticipant: (workflowId, participantId) => api.delete(`/api/v1/workflows/${workflowId}/participants/${participantId}`),
   send: (workflowId) => api.post(`/api/v1/workflows/${workflowId}/send`),
   cancel: (workflowId) => api.post(`/api/v1/workflows/${workflowId}/cancel`)
 };

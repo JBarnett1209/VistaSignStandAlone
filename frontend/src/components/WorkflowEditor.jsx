@@ -195,7 +195,17 @@ export default function WorkflowEditor({
         workflow = await workflowsAPI.create(newWorkflowData);
       }
 
-      // Add participants
+      // Handle participants
+      if (initialWorkflow) {
+        // For existing workflows, remove all existing participants first
+        if (initialWorkflow.participants && initialWorkflow.participants.length > 0) {
+          for (const existingParticipant of initialWorkflow.participants) {
+            await workflowsAPI.removeParticipant(workflow.data.id, existingParticipant.id);
+          }
+        }
+      }
+      
+      // Add new participants
       for (const participant of validParticipants) {
         await workflowsAPI.addParticipant(workflow.data.id, {
           email: participant.email.trim(),
