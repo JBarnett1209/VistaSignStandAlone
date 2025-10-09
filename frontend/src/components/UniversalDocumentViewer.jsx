@@ -63,7 +63,7 @@ const UniversalDocumentViewer = ({
       const fileUrl = document?.file_url || document?.file_path || document?.url;
       if (fileUrl) {
         console.log('UniversalDocumentViewer - Testing PDF file accessibility...');
-        fetch(fileUrl, { method: 'HEAD' })
+        fetch(fileUrl, { method: 'GET' })
           .then(response => {
             console.log('UniversalDocumentViewer - PDF file accessibility test:', response.status, response.statusText);
             if (!response.ok) {
