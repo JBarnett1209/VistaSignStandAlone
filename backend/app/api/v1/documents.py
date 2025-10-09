@@ -551,6 +551,8 @@ async def update_document(
 ):
     """Update document"""
     try:
+        logger.info(f"Update document request - ID: {document_id}, User: {current_user.get('user_id')}")
+        logger.info(f"Update data: {document_update.dict()}")
         result = await db.execute(
             select(Document).where(
                 and_(
@@ -562,33 +564,44 @@ async def update_document(
         document = result.scalar_one_or_none()
         
         if not document:
+            logger.error(f"Document not found - ID: {document_id}, User: {current_user.get('user_id')}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found"
             )
         
+        logger.info(f"Found document: {document.title}, Current fields: {document.fields}")
+        
         # Update fields
+        logger.info("Starting field updates...")
         if document_update.title is not None:
+            logger.info(f"Updating title: {document_update.title}")
             document.title = document_update.title
         if document_update.description is not None:
+            logger.info(f"Updating description: {document_update.description}")
             document.description = document_update.description
         if document_update.fields is not None:
+            logger.info(f"Updating fields: {document_update.fields}")
             document.fields = document_update.fields
         if document_update.status is not None:
+            logger.info(f"Updating status: {document_update.status}")
             # Convert string status to enum
             try:
                 document.status = DocumentStatus(document_update.status)
-            except ValueError:
+            except ValueError as e:
+                logger.error(f"Invalid status error: {e}")
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid status: {document_update.status}"
                 )
         
+        logger.info("Committing changes to database...")
         document.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(document)
+        logger.info(f"Document updated successfully. New fields: {document.fields}")
         
-        return DocumentResponse(
+        response = DocumentResponse(
             id=str(document.id),
             title=document.title,
             description=document.description,
@@ -602,11 +615,14 @@ async def update_document(
             created_at=document.created_at,
             updated_at=document.updated_at
         )
+        logger.info(f"Returning response: {response.dict()}")
+        return response
         
-    except HTTPException:
+    except HTTPException as e:
+        logger.error(f"HTTP Exception in update document: {e.detail}")
         raise
     except Exception as e:
-        logger.error(f"Update document error: {str(e)}")
+        logger.error(f"Update document error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update document"
