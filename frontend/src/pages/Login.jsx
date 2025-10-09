@@ -48,10 +48,10 @@ export default function Login() {
                   <stop offset="100%" stopColor="#A855F7"/>
                 </linearGradient>
               </defs>
-              <text x="10" y="75" fontFamily="Poppins, Inter, Arial, sans-serif" fontSize="60" fontWeight="600" fill="url(#uvGradient)">
+              <text x="240" y="75" fontFamily="Poppins, Inter, Arial, sans-serif" fontSize="60" fontWeight="600" fill="url(#uvGradient)" textAnchor="middle">
                 VistaSign
               </text>
-              <text x="15" y="115" fontFamily="Inter, Arial, sans-serif" fontSize="20" fill="#888">
+              <text x="240" y="115" fontFamily="Inter, Arial, sans-serif" fontSize="20" fill="#888" textAnchor="middle">
                 powered by UnitVista
               </text>
             </svg>
