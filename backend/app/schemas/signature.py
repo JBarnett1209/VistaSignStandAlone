@@ -65,6 +65,7 @@ class SignatureTemplateResponse(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    template_data: Dict[str, Any]
     signature_style: str
     is_default: bool
     is_active: bool
