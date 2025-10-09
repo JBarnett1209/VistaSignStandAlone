@@ -193,6 +193,8 @@ export default function Documents() {
         className="full-width-table" 
         sx={{ 
           width: '100%',
+          maxWidth: 'none',
+          flex: 1,
           overflowX: 'auto',
           '&::-webkit-scrollbar': {
             height: 8,

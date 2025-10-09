@@ -181,58 +181,64 @@ export default function SignatureManager() {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={2} alignItems="stretch" justifyContent="flex-start" sx={{ width: '100%' }}>
+        <Box
+          sx={{
+            width: '100%',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 2,
+            alignItems: 'stretch'
+          }}
+        >
           {signatures.map((signature) => (
-            <Grid item xs={12} sm={6} md={4} lg={3} xl={3} key={signature.id}>
-              <Card sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h6" sx={{ fontSize: '1rem' }}>
-                      {signature.name}
-                    </Typography>
-                    <Chip
-                      label={typeof signature.data === 'string' ? 'Drawn' : 'Typed'}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
-                  
-                  <Box sx={{ mb: 2, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
-                    {renderSignaturePreview(signature)}
-                  </Box>
-
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto' }}>
-                    Created: {new Date(signature.createdAt).toLocaleDateString()}
+            <Card key={signature.id} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+                    {signature.name}
                   </Typography>
-                </CardContent>
-                
-                <Divider sx={{ mt: 'auto' }} />
-                
-                <CardActions>
-                  <Button
+                  <Chip
+                    label={typeof signature.data === 'string' ? 'Drawn' : 'Typed'}
                     size="small"
-                    startIcon={<EditIcon />}
-                    onClick={() => {
-                      setEditingSignature(signature);
-                      setSignatureCreatorOpen(true);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    color="error"
-                    startIcon={<DeleteIcon />}
-                    onClick={() => openDeleteDialog(signature)}
-                  >
-                    Delete
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
+                    color="primary"
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ mb: 2, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
+                  {renderSignaturePreview(signature)}
+                </Box>
+
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto' }}>
+                  Created: {new Date(signature.createdAt).toLocaleDateString()}
+                </Typography>
+              </CardContent>
+
+              <Divider sx={{ mt: 'auto' }} />
+
+              <CardActions>
+                <Button
+                  size="small"
+                  startIcon={<EditIcon />}
+                  onClick={() => {
+                    setEditingSignature(signature);
+                    setSignatureCreatorOpen(true);
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => openDeleteDialog(signature)}
+                >
+                  Delete
+                </Button>
+              </CardActions>
+            </Card>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {/* Signature Creator */}
