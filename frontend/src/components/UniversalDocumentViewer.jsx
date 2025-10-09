@@ -583,22 +583,30 @@ const UniversalDocumentViewer = ({
     }
 
     const docType = getDocumentType(document?.mime_type, document?.filename);
+    console.log('UniversalDocumentViewer - Switch statement - docType:', docType);
 
     switch (docType) {
       case 'pdf':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderPDFViewer');
         return renderPDFViewer();
       case 'image':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderImageViewer');
         return renderImageViewer();
       case 'word':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderWordViewer');
         return renderWordViewer();
       case 'excel':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderExcelViewer');
         return renderExcelViewer();
       case 'powerpoint':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderPowerPointViewer');
         return renderPowerPointViewer();
       case 'text':
+        console.log('UniversalDocumentViewer - Switch statement - calling renderTextViewer');
         return renderTextViewer();
       case 'csv':
       default:
+        console.log('UniversalDocumentViewer - Switch statement - calling renderUnsupportedViewer for type:', docType);
         return renderUnsupportedViewer(docType);
     }
   };
