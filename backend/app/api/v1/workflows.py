@@ -324,7 +324,8 @@ async def add_workflow_participant(
             role=participant.role,
             user_id=str(participant.user_id) if participant.user_id else None,
             permissions=participant.permissions,
-            created_at=participant.created_at
+            created_at=participant.created_at,
+            updated_at=participant.updated_at
         )
         
     except HTTPException:
