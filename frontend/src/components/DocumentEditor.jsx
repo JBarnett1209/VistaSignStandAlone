@@ -554,7 +554,29 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
       await documentsAPI.update(document.id, updatedDocument);
       onSave(updatedDocument);
-      onClose();
+      // Don't close the editor - just save
+    } catch (err) {
+      setError('Failed to save document');
+      console.error('Error saving document:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAndClose = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const updatedDocument = {
+        ...document,
+        fields: fields,
+        status: 'pending'
+      };
+
+      await documentsAPI.update(document.id, updatedDocument);
+      onSave(updatedDocument);
+      onClose(); // Close after saving
     } catch (err) {
       setError('Failed to save document');
       console.error('Error saving document:', err);
@@ -1239,9 +1261,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       <WorkflowEditor
         open={workflowEditorOpen}
         onClose={() => setWorkflowEditorOpen(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
+          // Save the document first, then close
+          await handleSaveAndClose();
           setWorkflowEditorOpen(false);
-          onClose(); // Close the document editor after successful workflow creation
         }}
         initialDocument={document}
       />

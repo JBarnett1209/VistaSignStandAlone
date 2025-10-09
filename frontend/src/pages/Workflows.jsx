@@ -91,6 +91,19 @@ export default function Workflows() {
     }
   };
 
+  const handleDeleteWorkflow = async (workflowId) => {
+    if (window.confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) {
+      try {
+        await workflowsAPI.delete(workflowId);
+        await loadWorkflows();
+        setError(null);
+      } catch (err) {
+        setError('Failed to delete workflow');
+        console.error('Error deleting workflow:', err);
+      }
+    }
+  };
+
   const handleAddParticipants = async () => {
     try {
       // Validate participants
@@ -283,7 +296,12 @@ export default function Workflows() {
                       <IconButton size="small" title="Edit">
                         <EditIcon />
                       </IconButton>
-                      <IconButton size="small" title="Delete" color="error">
+                      <IconButton 
+                        size="small" 
+                        title="Delete" 
+                        color="error"
+                        onClick={() => handleDeleteWorkflow(workflow.id)}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Box>
