@@ -141,7 +141,7 @@ export default function SignatureManager() {
   };
 
   return (
-    <Box sx={{ width: '100%', flex: 1 }}>
+    <Box sx={{ width: '100%', height: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
         <Typography variant="h5">
           My Signatures

@@ -131,11 +131,20 @@ export const Layout = () => {
       <Box component="main" className="app-main" sx={{ 
         bgcolor: 'background.default', 
         ml: { xs: 0, sm: `${drawerWidth + sidebarGutter}px` },
-        width: '100%',
-        minWidth: 0
+        width: { xs: '100%', sm: `calc(100% - ${drawerWidth + sidebarGutter}px)` },
+        minWidth: 0,
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         <Toolbar />
-        <Box className="app-content">
+        <Box className="app-content" sx={{ 
+          flex: 1,
+          width: '100%',
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           <Outlet />
         </Box>
       </Box>
