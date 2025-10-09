@@ -32,39 +32,69 @@ async def apply_migration():
         
         print("📝 Adding signature table columns...")
         
-        # Add cryptographic signature data fields
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS digital_signature TEXT;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS document_hash VARCHAR(64);")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS signature_metadata JSON;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS verification_status VARCHAR(20) DEFAULT 'pending';")
+        # Define columns to add
+        columns_to_add = [
+            ("digital_signature", "TEXT"),
+            ("document_hash", "VARCHAR(64)"),
+            ("signature_metadata", "JSON"),
+            ("verification_status", "VARCHAR(20) DEFAULT 'pending'"),
+            ("signature_level", "VARCHAR(20) DEFAULT 'simple'"),
+            ("is_legally_binding", "BOOLEAN DEFAULT false"),
+            ("compliance_standard", "VARCHAR(20) DEFAULT 'ESIGN'"),
+            ("certificate_chain", "JSON"),
+            ("timestamp_data", "JSON"),
+            ("legal_metadata", "JSON"),
+            ("is_deleted", "BOOLEAN DEFAULT false"),
+            ("deleted_at", "TIMESTAMP WITH TIME ZONE"),
+            ("deleted_by", "UUID"),
+            ("deletion_reason", "TEXT"),
+            ("certificate_type", "VARCHAR(20) DEFAULT 'system'"),
+            ("user_metadata", "JSON"),
+            ("qualified_metadata", "JSON")
+        ]
         
-        # Add legal compliance fields
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS signature_level VARCHAR(20) DEFAULT 'simple';")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS is_legally_binding BOOLEAN DEFAULT false;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS compliance_standard VARCHAR(20) DEFAULT 'ESIGN';")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS certificate_chain JSON;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS timestamp_data JSON;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS legal_metadata JSON;")
-        
-        # Add soft delete fields
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS deleted_by UUID;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS deletion_reason TEXT;")
-        
-        # Add hybrid signature fields
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS certificate_type VARCHAR(20) DEFAULT 'system';")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS user_metadata JSON;")
-        await conn.execute("ALTER TABLE signatures ADD COLUMN IF NOT EXISTS qualified_metadata JSON;")
+        # Add columns one by one, checking if they exist first
+        for column_name, column_type in columns_to_add:
+            try:
+                # Check if column exists
+                exists = await conn.fetchval("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name = 'signatures' AND column_name = $1
+                    )
+                """, column_name)
+                
+                if not exists:
+                    await conn.execute(f"ALTER TABLE signatures ADD COLUMN {column_name} {column_type};")
+                    print(f"✅ Added column: {column_name}")
+                else:
+                    print(f"⏭️  Column already exists: {column_name}")
+            except Exception as e:
+                print(f"⚠️  Error adding column {column_name}: {e}")
+                # Continue with other columns even if one fails
         
         # Add foreign key constraint for deleted_by (if users table exists)
         users_exists = await conn.fetchval("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users');")
         if users_exists:
-            await conn.execute("""
-                ALTER TABLE signatures ADD CONSTRAINT IF NOT EXISTS fk_signatures_deleted_by_users 
-                FOREIGN KEY (deleted_by) REFERENCES users(id);
-            """)
-            print("🔗 Added foreign key constraint for deleted_by")
+            try:
+                # Check if constraint already exists
+                constraint_exists = await conn.fetchval("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE table_name = 'signatures' AND constraint_name = 'fk_signatures_deleted_by_users'
+                    )
+                """)
+                
+                if not constraint_exists:
+                    await conn.execute("""
+                        ALTER TABLE signatures ADD CONSTRAINT fk_signatures_deleted_by_users 
+                        FOREIGN KEY (deleted_by) REFERENCES users(id);
+                    """)
+                    print("🔗 Added foreign key constraint for deleted_by")
+                else:
+                    print("⏭️  Foreign key constraint already exists")
+            except Exception as e:
+                print(f"⚠️  Error adding foreign key constraint: {e}")
         
         await conn.close()
         print("✅ Signature table migration completed successfully!")
