@@ -190,6 +190,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [whiteoutStartPos, setWhiteoutStartPos] = useState({ x: 0, y: 0 });
   const [whiteoutBoxes, setWhiteoutBoxes] = useState([]);
   const [currentWhiteoutBox, setCurrentWhiteoutBox] = useState(null);
+  
+  // Drag over state
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const canvasRef = useRef(null);
 
@@ -240,16 +243,21 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const handleFieldDragStart = (fieldType, event) => {
-    event.preventDefault();
+    event.dataTransfer.setData('text/plain', fieldType);
+    event.dataTransfer.effectAllowed = 'copy';
     setIsDragging(true);
     setDragField(fieldType);
   };
 
-  // eslint-disable-next-line no-unused-vars
-  const handleCanvasClick = (event) => {
-    if (!isDragging || !dragField) return;
+  const handleFieldDragEnd = () => {
+    setIsDragging(false);
+    setDragField(null);
+  };
 
-    const rect = canvasRef.current.getBoundingClientRect();
+  const addFieldAtPosition = (event, containerRef) => {
+    if (!dragField) return;
+
+    const rect = containerRef.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
@@ -826,6 +834,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               key={type}
               draggable={type !== FIELD_TYPES.WHITEOUT}
               onDragStart={type !== FIELD_TYPES.WHITEOUT ? (e) => handleFieldDragStart(type, e) : undefined}
+              onDragEnd={type !== FIELD_TYPES.WHITEOUT ? handleFieldDragEnd : undefined}
               onClick={type === FIELD_TYPES.WHITEOUT ? () => {
                 setIsWhiteoutMode(!isWhiteoutMode);
                 setDragField(null); // Clear any selected field type
@@ -964,28 +973,46 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           </Box>
 
           {/* PDF Viewer */}
-          <Box sx={{ 
+          <Box           sx={{ 
             flex: 1, 
             overflow: 'auto', 
             p: 2,
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: '#f5f5f5',
+            backgroundColor: isDragOver ? 'rgba(25, 118, 210, 0.1)' : '#f5f5f5',
             minHeight: 0, // Allow flex shrinking
-            position: 'relative'
+            position: 'relative',
+            border: isDragOver ? '2px dashed #1976d2' : 'none',
+            transition: 'all 0.2s ease'
           }}
           onClick={(e) => {
             // Only add field if we're not dragging/resizing, not in whiteout mode, and have a field type selected
             if (!isDraggingField && !isResizing && !isWhiteoutMode && dragField && e.target === e.currentTarget) {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const x = e.clientX - rect.left;
-              const y = e.clientY - rect.top;
-              handleCanvasClick({ clientX: e.clientX, clientY: e.clientY });
+              addFieldAtPosition(e, e.currentTarget);
             }
           }}
           onMouseDown={(e) => {
             if (isWhiteoutMode && e.target === e.currentTarget) {
               handleWhiteoutMouseDown(e);
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            setIsDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const fieldType = e.dataTransfer.getData('text/plain');
+            if (fieldType && e.target === e.currentTarget) {
+              setDragField(fieldType);
+              addFieldAtPosition(e, e.currentTarget);
             }
           }}
           >
