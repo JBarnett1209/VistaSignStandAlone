@@ -188,6 +188,11 @@ async def get_workflow(
                 detail="Workflow not found"
             )
         
+        # Get participants for this workflow
+        participants_query = select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow.id)
+        participants_result = await db.execute(participants_query)
+        participants = participants_result.scalars().all()
+        
         return WorkflowResponse(
             id=str(workflow.id),
             name=workflow.name,
@@ -197,7 +202,20 @@ async def get_workflow(
             created_by=str(workflow.created_by),
             created_at=workflow.created_at,
             started_at=workflow.started_at,
-            completed_at=workflow.completed_at
+            completed_at=workflow.completed_at,
+            participants=[
+                WorkflowParticipantResponse(
+                    id=str(participant.id),
+                    email=participant.email,
+                    signingOrder=participant.signingOrder,
+                    role=participant.role,
+                    permissions=participant.permissions,
+                    workflow_id=str(participant.workflow_id),
+                    user_id=str(participant.user_id) if participant.user_id else None,
+                    created_at=participant.created_at,
+                    updated_at=participant.updated_at
+                ) for participant in participants
+            ]
         )
         
     except HTTPException:
