@@ -145,12 +145,17 @@ const UniversalDocumentViewer = ({
           console.log('UniversalDocumentViewer - PDF file URL being passed to react-pdf:', fileUrl);
           return fileUrl;
         })()}
-        onLoadSuccess={(pdf) => {
-          console.log('UniversalDocumentViewer - PDF loaded successfully:', pdf);
-          console.log('UniversalDocumentViewer - Number of pages:', pdf.numPages);
-          setNumPages(pdf.numPages);
+        onLoadSuccess={(payload) => {
+          // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
+          const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
+            ? payload.numPages
+            : (payload?.numPages ?? null);
+          console.log('UniversalDocumentViewer - PDF loaded successfully. Pages:', pages, 'payload:', payload);
+          if (pages) {
+            setNumPages(pages);
+          }
           setLoading(false);
-          onLoadSuccess?.(pdf);
+          onLoadSuccess?.(payload);
         }}
         onLoadError={(error) => {
           console.error('UniversalDocumentViewer - PDF load error:', error);
@@ -158,6 +163,17 @@ const UniversalDocumentViewer = ({
           setError(`Failed to load PDF: ${error.message}`);
           setLoading(false);
           onLoadError?.(error);
+        }}
+        onSourceError={(error) => {
+          console.error('UniversalDocumentViewer - PDF source error:', error);
+        }}
+        onLoadProgress={({ loaded, total }) => {
+          if (total) {
+            const pct = Math.round((loaded / total) * 100);
+            console.log(`UniversalDocumentViewer - PDF loading: ${pct}% (${loaded}/${total})`);
+          } else {
+            console.log(`UniversalDocumentViewer - PDF loading: ${loaded} bytes`);
+          }
         }}
         loading={
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
