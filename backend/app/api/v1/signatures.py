@@ -165,133 +165,7 @@ async def create_signature(
             detail="Failed to create signature"
         )
 
-@router.get("/", response_model=SignatureListResponse)
-async def list_signatures(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    status_filter: Optional[str] = Query(None),
-    document_id: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """List signatures"""
-    try:
-        # Build query (excluding soft-deleted signatures)
-        query = select(Signature).where(
-            and_(
-                Signature.signer_id == current_user["user_id"],
-                Signature.is_deleted == False
-            )
-        )
-        
-        # Apply filters
-        if status_filter:
-            query = query.where(Signature.status == status_filter)
-        if document_id:
-            query = query.where(Signature.document_id == document_id)
-        
-        # Get total count (excluding soft-deleted signatures)
-        count_query = select(Signature).where(
-            and_(
-                Signature.signer_id == current_user["user_id"],
-                Signature.is_deleted == False
-            )
-        )
-        if status_filter:
-            count_query = count_query.where(Signature.status == status_filter)
-        if document_id:
-            count_query = count_query.where(Signature.document_id == document_id)
-        
-        total_result = await db.execute(count_query)
-        total = len(total_result.scalars().all())
-        
-        # Get signatures with pagination
-        result = await db.execute(query.offset(skip).limit(limit))
-        signatures = result.scalars().all()
-        
-        return SignatureListResponse(
-            signatures=[
-                SignatureResponse(
-                    id=str(sig.id),
-                    document_id=str(sig.document_id),
-                    signer_id=str(sig.signer_id),
-                    signature_type=sig.signature_type.value,
-                    status=sig.status.value,
-                    signature_position=sig.signature_position,
-                    signing_reason=sig.signing_reason,
-                    signing_location=sig.signing_location,
-                    created_at=sig.created_at,
-                    signed_at=sig.signed_at
-                ) for sig in signatures
-            ],
-            total=total,
-            skip=skip,
-            limit=limit,
-            has_more=(skip + limit) < total
-        )
-        
-    except Exception as e:
-        logger.error(f"List signatures error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list signatures"
-        )
-
-@router.get("/{signature_id}", response_model=SignatureResponse)
-async def get_signature(
-    signature_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Get signature by ID"""
-    try:
-        result = await db.execute(
-            select(Signature).where(
-                and_(
-                    Signature.id == signature_id,
-                    Signature.signer_id == current_user["user_id"]
-                )
-            )
-        )
-        signature = result.scalar_one_or_none()
-        
-        if not signature:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Signature not found"
-            )
-        
-        return SignatureResponse(
-            id=str(signature.id),
-            document_id=str(signature.document_id),
-            signer_id=str(signature.signer_id),
-            signature_type=signature.signature_type.value,
-            status=signature.status.value,
-            signature_position=signature.signature_position,
-            signing_reason=signature.signing_reason,
-            signing_location=signature.signing_location,
-            created_at=signature.created_at,
-            signed_at=signature.signed_at,
-            # Digital signature fields
-            digital_signature=signature.digital_signature,
-            document_hash=signature.document_hash,
-            certificate_thumbprint=signature.certificate_thumbprint,
-            verification_status=signature.verification_status,
-            # Legal compliance fields
-            signature_level=signature.signature_level,
-            is_legally_binding=signature.is_legally_binding,
-            compliance_standard=signature.compliance_standard
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get signature error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get signature"
-        )
-
+# Signature Template Routes (must come before parameterized routes)
 @router.post("/templates", response_model=SignatureTemplateResponse)
 async def create_signature_template(
     template_data: SignatureTemplateCreate,
@@ -453,6 +327,133 @@ async def delete_signature_template(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete signature template"
+        )
+
+@router.get("/", response_model=SignatureListResponse)
+async def list_signatures(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    status_filter: Optional[str] = Query(None),
+    document_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List signatures"""
+    try:
+        # Build query (excluding soft-deleted signatures)
+        query = select(Signature).where(
+            and_(
+                Signature.signer_id == current_user["user_id"],
+                Signature.is_deleted == False
+            )
+        )
+        
+        # Apply filters
+        if status_filter:
+            query = query.where(Signature.status == status_filter)
+        if document_id:
+            query = query.where(Signature.document_id == document_id)
+        
+        # Get total count (excluding soft-deleted signatures)
+        count_query = select(Signature).where(
+            and_(
+                Signature.signer_id == current_user["user_id"],
+                Signature.is_deleted == False
+            )
+        )
+        if status_filter:
+            count_query = count_query.where(Signature.status == status_filter)
+        if document_id:
+            count_query = count_query.where(Signature.document_id == document_id)
+        
+        total_result = await db.execute(count_query)
+        total = len(total_result.scalars().all())
+        
+        # Get signatures with pagination
+        result = await db.execute(query.offset(skip).limit(limit))
+        signatures = result.scalars().all()
+        
+        return SignatureListResponse(
+            signatures=[
+                SignatureResponse(
+                    id=str(sig.id),
+                    document_id=str(sig.document_id),
+                    signer_id=str(sig.signer_id),
+                    signature_type=sig.signature_type.value,
+                    status=sig.status.value,
+                    signature_position=sig.signature_position,
+                    signing_reason=sig.signing_reason,
+                    signing_location=sig.signing_location,
+                    created_at=sig.created_at,
+                    signed_at=sig.signed_at
+                ) for sig in signatures
+            ],
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=(skip + limit) < total
+        )
+        
+    except Exception as e:
+        logger.error(f"List signatures error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list signatures"
+        )
+
+@router.get("/{signature_id}", response_model=SignatureResponse)
+async def get_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get signature by ID"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"]
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        return SignatureResponse(
+            id=str(signature.id),
+            document_id=str(signature.document_id),
+            signer_id=str(signature.signer_id),
+            signature_type=signature.signature_type.value,
+            status=signature.status.value,
+            signature_position=signature.signature_position,
+            signing_reason=signature.signing_reason,
+            signing_location=signature.signing_location,
+            created_at=signature.created_at,
+            signed_at=signature.signed_at,
+            # Digital signature fields
+            digital_signature=signature.digital_signature,
+            document_hash=signature.document_hash,
+            certificate_thumbprint=signature.certificate_thumbprint,
+            verification_status=signature.verification_status,
+            # Legal compliance fields
+            signature_level=signature.signature_level,
+            is_legally_binding=signature.is_legally_binding,
+            compliance_standard=signature.compliance_standard
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get signature"
         )
 
 @router.get("/{signature_id}/verify", response_model=SignatureVerificationResponse)
