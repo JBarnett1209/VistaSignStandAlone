@@ -1248,8 +1248,8 @@ async def sign_document(
         
         if not signature_metadata:
             # No signature metadata returned
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create cryptographic signature"
             )
         
