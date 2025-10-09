@@ -3,7 +3,7 @@ VistaSign Document Schemas
 """
 
 from pydantic import BaseModel, validator
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 class DocumentCreate(BaseModel):
@@ -15,6 +15,8 @@ class DocumentUpdate(BaseModel):
     """Document update schema"""
     title: Optional[str] = None
     description: Optional[str] = None
+    fields: Optional[List[Dict[str, Any]]] = None
+    status: Optional[str] = None
 
 class DocumentResponse(BaseModel):
     """Document response schema"""
@@ -27,6 +29,7 @@ class DocumentResponse(BaseModel):
     status: str
     mime_type: str
     file_url: Optional[str] = None  # URL to access the file
+    fields: Optional[List[Dict[str, Any]]] = None  # Document fields
     created_at: datetime
     updated_at: datetime
     

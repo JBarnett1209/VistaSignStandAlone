@@ -570,6 +570,17 @@ async def update_document(
             document.title = document_update.title
         if document_update.description is not None:
             document.description = document_update.description
+        if document_update.fields is not None:
+            document.fields = document_update.fields
+        if document_update.status is not None:
+            # Convert string status to enum
+            try:
+                document.status = DocumentStatus(document_update.status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid status: {document_update.status}"
+                )
         
         document.updated_at = datetime.utcnow()
         await db.commit()
