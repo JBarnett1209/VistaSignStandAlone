@@ -398,6 +398,7 @@ async def upload_document(
             status=document.status.value,
             mime_type=document.mime_type,
             file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
+            fields=document.fields,
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -527,6 +528,7 @@ async def get_document(
             status=document.status.value,
             mime_type=document.mime_type,
             file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
+            fields=document.fields,
             created_at=document.created_at,
             updated_at=document.updated_at
         )
@@ -596,6 +598,7 @@ async def update_document(
             status=document.status.value,
             mime_type=document.mime_type,
             file_url=f"/api/v1/documents/public/{document.id}/file?token={generate_file_access_token(str(document.id), str(document.owner_id))}",
+            fields=document.fields,
             created_at=document.created_at,
             updated_at=document.updated_at
         )
