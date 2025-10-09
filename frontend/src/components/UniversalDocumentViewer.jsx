@@ -557,7 +557,8 @@ const UniversalDocumentViewer = ({
     console.log('UniversalDocumentViewer - renderDocument - loading:', loading);
     console.log('UniversalDocumentViewer - renderDocument - error:', error);
     
-    if (loading) {
+    // For PDFs we allow the viewer to render while loading so it can report success/error
+    if (loading && getDocumentType(document?.mime_type, document?.filename) !== 'pdf') {
       console.log('UniversalDocumentViewer - renderDocument - showing loading state');
       return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
