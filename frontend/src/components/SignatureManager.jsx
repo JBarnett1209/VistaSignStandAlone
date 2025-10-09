@@ -172,7 +172,7 @@ export default function SignatureManager() {
               startIcon={<AddIcon />}
               onClick={() => setSignatureCreatorOpen(true)}
             >
-              Create Signature
+              Add Signature
             </Button>
           </CardContent>
         </Card>

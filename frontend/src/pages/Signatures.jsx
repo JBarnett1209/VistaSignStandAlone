@@ -10,12 +10,6 @@ export default function Signatures() {
         <Typography variant="h4">
           Signatures
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => {
-          const event = new CustomEvent('open-signature-creator');
-          window.dispatchEvent(event);
-        }}>
-          Create Signature
-        </Button>
       </Box>
       <SignatureManager />
     </Box>
