@@ -128,7 +128,9 @@ const UniversalDocumentViewer = ({
     }
   };
 
-  const renderPDFViewer = () => (
+  const renderPDFViewer = () => {
+    console.log('UniversalDocumentViewer - renderPDFViewer called');
+    return (
     <Box sx={{ 
       display: 'flex', 
       flexDirection: 'column', 
@@ -197,7 +199,8 @@ const UniversalDocumentViewer = ({
         )}
       </Document>
     </Box>
-  );
+    );
+  };
 
   const renderImageViewer = () => (
     <Box sx={{ 
