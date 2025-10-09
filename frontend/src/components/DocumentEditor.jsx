@@ -45,6 +45,7 @@ import {
 import { pdfjs } from 'react-pdf';
 import SignatureCreator from './SignatureCreator';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
+import WorkflowEditor from './WorkflowEditor';
 import { documentsAPI, signaturesAPI } from '../services/api';
 
 // Set up PDF.js worker
@@ -163,7 +164,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [editingField, setEditingField] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
+  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [signatureTemplates, setSignatureTemplates] = useState([]);
   
   // Drag and drop state
@@ -562,8 +563,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     }
   };
 
-  const handleSendForSigning = () => {
-    setWorkflowDialogOpen(true);
+  const handleCreateWorkflow = () => {
+    setWorkflowEditorOpen(true);
   };
 
 
@@ -788,11 +789,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Button
             variant="contained"
             startIcon={<SendIcon />}
-            onClick={handleSendForSigning}
+            onClick={handleCreateWorkflow}
             disabled={loading || fields.length === 0}
             size="small"
           >
-            Send for Signing
+            Create Workflow
           </Button>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
@@ -1234,63 +1235,16 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         </DialogActions>
       </Dialog>
 
-      {/* Workflow Dialog */}
-      <Dialog
-        open={workflowDialogOpen}
-        onClose={() => setWorkflowDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Send Document for Signing</DialogTitle>
-        <DialogContent>
-            <Box sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Signing Order Summary
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Fields are assigned signing order numbers. In the workflow, you'll map email addresses to these signing order numbers.
-              </Typography>
-              {fields.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No fields added yet. Drag and drop fields onto the document to create signing order.
-                </Typography>
-              ) : (
-                <Box>
-                  {fields
-                    .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
-                    .map((field, index) => (
-                    <Box key={field.id} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Chip 
-                        label={`Order ${field.signingOrder || 1}`} 
-                        size="small" 
-                        color="primary" 
-                        sx={{ mr: 1, minWidth: 60 }}
-                      />
-                      <Typography variant="body2">
-                        {FIELD_TYPE_CONFIG[field.type]?.label || field.type} field
-                      </Typography>
-                    </Box>
-                  ))}
-                </Box>
-              )}
-            </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setWorkflowDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            variant="contained" 
-            onClick={() => {
-              // TODO: Implement sending workflow
-              setWorkflowDialogOpen(false);
-            }}
-            disabled={fields.length === 0}
-          >
-            Send Document
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Workflow Editor */}
+      <WorkflowEditor
+        open={workflowEditorOpen}
+        onClose={() => setWorkflowEditorOpen(false)}
+        onSuccess={() => {
+          setWorkflowEditorOpen(false);
+          onClose(); // Close the document editor after successful workflow creation
+        }}
+        initialDocument={document}
+      />
 
       {error && (
         <Alert severity="error" sx={{ m: 2 }}>

@@ -14,22 +14,18 @@ import {
   PersonAdd as PersonAddIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI } from '../services/api';
+import WorkflowEditor from '../components/WorkflowEditor';
 
 export default function Workflows() {
   const [workflows, setWorkflows] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
   const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
-  const [newWorkflow, setNewWorkflow] = useState({
-    name: '',
-    description: '',
-    document_id: ''
-  });
 
   useEffect(() => {
     loadWorkflows();
@@ -79,28 +75,9 @@ export default function Workflows() {
     }
   };
 
-  const handleCreateWorkflow = async () => {
-    try {
-      const workflowData = {
-        ...newWorkflow,
-        workflow_data: {
-          steps: [],
-          participants: [],
-          settings: {
-            email_notifications: true,
-            reminder_frequency: 'daily'
-          }
-        }
-      };
-      
-      await workflowsAPI.create(workflowData);
-      await loadWorkflows();
-      setCreateDialogOpen(false);
-      setNewWorkflow({ name: '', description: '', document_id: '' });
-    } catch (err) {
-      setError('Failed to create workflow');
-      console.error('Error creating workflow:', err);
-    }
+  const handleWorkflowSuccess = () => {
+    loadWorkflows();
+    setWorkflowEditorOpen(false);
   };
 
   const handleSendWorkflow = async (workflowId) => {
@@ -206,7 +183,7 @@ export default function Workflows() {
         <Button 
           variant="contained" 
           startIcon={<AddIcon />}
-          onClick={() => setCreateDialogOpen(true)}
+          onClick={() => setWorkflowEditorOpen(true)}
         >
           Create Workflow
         </Button>
@@ -318,59 +295,12 @@ export default function Workflows() {
         </Table>
       </TableContainer>
 
-      {/* Create Workflow Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Create New Workflow</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Workflow Name"
-                value={newWorkflow.name}
-                onChange={(e) => setNewWorkflow({ ...newWorkflow, name: e.target.value })}
-                required
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                value={newWorkflow.description}
-                onChange={(e) => setNewWorkflow({ ...newWorkflow, description: e.target.value })}
-                multiline
-                rows={3}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <FormControl fullWidth required>
-                <InputLabel>Document</InputLabel>
-                <Select
-                  value={newWorkflow.document_id}
-                  onChange={(e) => setNewWorkflow({ ...newWorkflow, document_id: e.target.value })}
-                  label="Document"
-                >
-                  {documents.map((doc) => (
-                    <MenuItem key={doc.id} value={doc.id}>
-                      {doc.title}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleCreateWorkflow}
-            variant="contained"
-            disabled={!newWorkflow.name || !newWorkflow.document_id}
-          >
-            Create Workflow
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Workflow Editor */}
+      <WorkflowEditor
+        open={workflowEditorOpen}
+        onClose={() => setWorkflowEditorOpen(false)}
+        onSuccess={handleWorkflowSuccess}
+      />
 
       {/* Add Participants Dialog */}
       <Dialog open={participantDialogOpen} onClose={() => setParticipantDialogOpen(false)} maxWidth="md" fullWidth>
