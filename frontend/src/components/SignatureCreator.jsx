@@ -68,7 +68,7 @@ export default function SignatureCreator({ open, onClose, onSave, existingSignat
   // Initialize with existing signature if provided
   React.useEffect(() => {
     if (existingSignature && open) {
-      if (existingSignature.startsWith('data:image')) {
+      if (typeof existingSignature === 'string' && existingSignature.startsWith('data:image')) {
         // It's a drawn signature
         setSignatureMethod(SIGNATURE_METHODS.DRAW);
         setActiveTab(0);
@@ -78,8 +78,16 @@ export default function SignatureCreator({ open, onClose, onSave, existingSignat
             signatureCanvasRef.current.fromDataURL(existingSignature);
           }
         }, 100);
-      } else {
-        // It's a typed signature
+      } else if (existingSignature && existingSignature.type === 'typed') {
+        // It's a typed signature object
+        setSignatureMethod(SIGNATURE_METHODS.TYPE);
+        setActiveTab(1);
+        setTypedSignature(existingSignature.text);
+        setSelectedFont(existingSignature.font);
+        setFontSize(existingSignature.size);
+        setSignatureColor(existingSignature.color);
+      } else if (typeof existingSignature === 'string') {
+        // It's a typed signature string (legacy format)
         setSignatureMethod(SIGNATURE_METHODS.TYPE);
         setActiveTab(1);
         setTypedSignature(existingSignature);

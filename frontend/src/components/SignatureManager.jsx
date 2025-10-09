@@ -108,6 +108,10 @@ export default function SignatureManager() {
   const renderSignaturePreview = (signature) => {
     const signatureData = signature.template_data || signature.signature_data || signature.data;
     
+    if (!signatureData) {
+      return null;
+    }
+    
     if (typeof signatureData === 'string' && signatureData.startsWith('data:image')) {
       // Drawn or uploaded signature
       return (
