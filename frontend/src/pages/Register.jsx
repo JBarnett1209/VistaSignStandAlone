@@ -132,8 +132,8 @@ export default function Register() {
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Card>
         <CardContent sx={{ p: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '80px', width: 'auto', maxWidth: '300px' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '140px', width: 'auto', maxWidth: '450px' }}>
               <defs>
                 <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#7E3AF2"/>

@@ -40,8 +40,8 @@ export default function Login() {
     <Container component="main" maxWidth="xs" sx={{ display: 'flex', alignItems: 'center', minHeight: '100vh' }}>
       <Paper elevation={8} sx={{ p: 4, width: '100%', borderRadius: 3 }}>
         <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '60px', width: 'auto', maxWidth: '250px' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '120px', width: 'auto', maxWidth: '400px' }}>
               <defs>
                 <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#7E3AF2"/>
