@@ -61,6 +61,15 @@ export default function WorkflowEditor({
           document_id: initialWorkflow.document_id
         });
         loadDocumentSigningOrders(initialWorkflow.document_id);
+        // Load existing participants for editing
+        if (initialWorkflow.participants && initialWorkflow.participants.length > 0) {
+          setParticipants(initialWorkflow.participants.map(p => ({
+            email: p.email,
+            signingOrder: p.signingOrder
+          })));
+        } else {
+          setParticipants([{ email: '', signingOrder: 1 }]);
+        }
       } else {
         setWorkflowData({ name: '', description: '', document_id: '' });
         setParticipants([{ email: '', signingOrder: 1 }]);
