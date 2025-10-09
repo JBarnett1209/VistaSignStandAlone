@@ -5,13 +5,15 @@ import SignatureManager from '../components/SignatureManager';
 
 export default function Signatures() {
   return (
-    <Box className="content-section">
+    <Box className="content-section" sx={{ width: '100%', overflowX: 'hidden' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
           Signatures
         </Typography>
       </Box>
-      <SignatureManager />
+      <Box sx={{ width: '100%' }}>
+        <SignatureManager />
+      </Box>
     </Box>
   );
 }

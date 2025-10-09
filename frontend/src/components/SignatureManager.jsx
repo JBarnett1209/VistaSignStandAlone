@@ -137,8 +137,8 @@ export default function SignatureManager() {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
         <Typography variant="h5">
           My Signatures
         </Typography>
@@ -158,7 +158,7 @@ export default function SignatureManager() {
       )}
 
       {signatures.length === 0 ? (
-        <Card>
+        <Card sx={{ width: '100%' }}>
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
             <SignatureIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" gutterBottom>
@@ -177,10 +177,10 @@ export default function SignatureManager() {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={2}>
+        <Grid container spacing={2} alignItems="stretch" sx={{ width: '100%' }}>
           {signatures.map((signature) => (
             <Grid item xs={12} sm={6} md={4} key={signature.id}>
-              <Card>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">
@@ -194,7 +194,7 @@ export default function SignatureManager() {
                     />
                   </Box>
                   
-                  <Box sx={{ mb: 2, minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Box sx={{ mb: 2, minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                     {renderSignaturePreview(signature)}
                   </Box>
 
@@ -203,7 +203,7 @@ export default function SignatureManager() {
                   </Typography>
                 </CardContent>
                 
-                <Divider />
+                <Divider sx={{ mt: 'auto' }} />
                 
                 <CardActions>
                   <Button
