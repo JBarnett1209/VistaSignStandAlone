@@ -164,6 +164,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [signers, setSigners] = useState([]);
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
   const [signatureTemplates, setSignatureTemplates] = useState([]);
+  
+  // Drag and drop state
+  const [isDraggingField, setIsDraggingField] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [fieldStartPos, setFieldStartPos] = useState({ x: 0, y: 0 });
+  
+  // Resize state
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState(null);
+  const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
+  const [fieldStartSize, setFieldStartSize] = useState({ width: 0, height: 0 });
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -296,6 +307,127 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     }
   };
 
+  // Drag and drop handlers for fields
+  const handleFieldMouseDown = (e, fieldId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const field = fields.find(f => f.id === fieldId);
+    if (!field) return;
+    
+    setSelectedField(fieldId);
+    setIsDraggingField(true);
+    setDragStartPos({ x: e.clientX, y: e.clientY });
+    setFieldStartPos({ x: field.x, y: field.y });
+  };
+
+  const handleFieldMouseMove = (e) => {
+    if (!isDraggingField || !selectedField) return;
+    
+    const deltaX = (e.clientX - dragStartPos.x) / scale;
+    const deltaY = (e.clientY - dragStartPos.y) / scale;
+    
+    setFields(prev => prev.map(field => 
+      field.id === selectedField 
+        ? { ...field, x: Math.max(0, fieldStartPos.x + deltaX), y: Math.max(0, fieldStartPos.y + deltaY) }
+        : field
+    ));
+  };
+
+  const handleFieldMouseUp = () => {
+    setIsDraggingField(false);
+  };
+
+  // Resize handlers for fields
+  const handleResizeMouseDown = (e, fieldId, handle) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const field = fields.find(f => f.id === fieldId);
+    if (!field) return;
+    
+    setIsResizing(true);
+    setResizeHandle(handle);
+    setResizeStartPos({ x: e.clientX, y: e.clientY });
+    setFieldStartSize({ width: field.width, height: field.height });
+    setFieldStartPos({ x: field.x, y: field.y });
+  };
+
+  const handleResizeMouseMove = (e) => {
+    if (!isResizing || !selectedField) return;
+    
+    const deltaX = (e.clientX - resizeStartPos.x) / scale;
+    const deltaY = (e.clientY - resizeStartPos.y) / scale;
+    
+    setFields(prev => prev.map(field => {
+      if (field.id !== selectedField) return field;
+      
+      let newWidth = fieldStartSize.width;
+      let newHeight = fieldStartSize.height;
+      let newX = fieldStartPos.x;
+      let newY = fieldStartPos.y;
+      
+      switch (resizeHandle) {
+        case 'se': // Southeast
+          newWidth = Math.max(50, fieldStartSize.width + deltaX);
+          newHeight = Math.max(20, fieldStartSize.height + deltaY);
+          break;
+        case 'sw': // Southwest
+          newWidth = Math.max(50, fieldStartSize.width - deltaX);
+          newHeight = Math.max(20, fieldStartSize.height + deltaY);
+          newX = fieldStartPos.x + (fieldStartSize.width - newWidth);
+          break;
+        case 'ne': // Northeast
+          newWidth = Math.max(50, fieldStartSize.width + deltaX);
+          newHeight = Math.max(20, fieldStartSize.height - deltaY);
+          newY = fieldStartPos.y + (fieldStartSize.height - newHeight);
+          break;
+        case 'nw': // Northwest
+          newWidth = Math.max(50, fieldStartSize.width - deltaX);
+          newHeight = Math.max(20, fieldStartSize.height - deltaY);
+          newX = fieldStartPos.x + (fieldStartSize.width - newWidth);
+          newY = fieldStartPos.y + (fieldStartSize.height - newHeight);
+          break;
+      }
+      
+      return { ...field, width: newWidth, height: newHeight, x: newX, y: newY };
+    }));
+  };
+
+  const handleResizeMouseUp = () => {
+    setIsResizing(false);
+    setResizeHandle(null);
+  };
+
+  // Add event listeners for mouse events
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (isDraggingField) {
+        handleFieldMouseMove(e);
+      } else if (isResizing) {
+        handleResizeMouseMove(e);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDraggingField) {
+        handleFieldMouseUp();
+      } else if (isResizing) {
+        handleResizeMouseUp();
+      }
+    };
+
+    if (isDraggingField || isResizing) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDraggingField, isResizing, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale]);
+
   const handleSignatureSave = async (signatureData) => {
     try {
       // Save as signature template for future use
@@ -390,7 +522,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     return (
       <Box
         key={field.id}
-        onClick={() => handleFieldClick(field.id)}
+        onMouseDown={(e) => handleFieldMouseDown(e, field.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleFieldClick(field.id);
+        }}
         sx={{
           position: 'absolute',
           left: field.x * scale,
@@ -400,10 +536,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           border: `2px solid ${isSelected ? '#1976d2' : config.color}`,
           borderRadius: 1,
           backgroundColor: field.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 255, 255, 0.9)',
-          cursor: 'pointer',
+          cursor: isDraggingField ? 'grabbing' : 'grab',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          userSelect: 'none',
           '&:hover': {
             backgroundColor: 'rgba(25, 118, 210, 0.1)'
           }
@@ -420,6 +557,79 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Typography variant="caption" color="text.secondary">
             {config.label}
           </Typography>
+        )}
+        
+        {/* Resize handles - only show when selected */}
+        {isSelected && (
+          <>
+            {/* Southeast handle */}
+            <Box
+              onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'se')}
+              sx={{
+                position: 'absolute',
+                bottom: -4,
+                right: -4,
+                width: 8,
+                height: 8,
+                backgroundColor: '#1976d2',
+                border: '1px solid white',
+                borderRadius: '50%',
+                cursor: 'se-resize',
+                zIndex: 10
+              }}
+            />
+            
+            {/* Southwest handle */}
+            <Box
+              onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'sw')}
+              sx={{
+                position: 'absolute',
+                bottom: -4,
+                left: -4,
+                width: 8,
+                height: 8,
+                backgroundColor: '#1976d2',
+                border: '1px solid white',
+                borderRadius: '50%',
+                cursor: 'sw-resize',
+                zIndex: 10
+              }}
+            />
+            
+            {/* Northeast handle */}
+            <Box
+              onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'ne')}
+              sx={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                width: 8,
+                height: 8,
+                backgroundColor: '#1976d2',
+                border: '1px solid white',
+                borderRadius: '50%',
+                cursor: 'ne-resize',
+                zIndex: 10
+              }}
+            />
+            
+            {/* Northwest handle */}
+            <Box
+              onMouseDown={(e) => handleResizeMouseDown(e, field.id, 'nw')}
+              sx={{
+                position: 'absolute',
+                top: -4,
+                left: -4,
+                width: 8,
+                height: 8,
+                backgroundColor: '#1976d2',
+                border: '1px solid white',
+                borderRadius: '50%',
+                cursor: 'nw-resize',
+                zIndex: 10
+              }}
+            />
+          </>
         )}
       </Box>
     );
@@ -619,8 +829,19 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             display: 'flex',
             flexDirection: 'column',
             backgroundColor: '#f5f5f5',
-            minHeight: 0 // Allow flex shrinking
-          }}>
+            minHeight: 0, // Allow flex shrinking
+            position: 'relative'
+          }}
+          onClick={(e) => {
+            // Only add field if we're not dragging/resizing and have a field type selected
+            if (!isDraggingField && !isResizing && dragField && e.target === e.currentTarget) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              addField(x, y);
+            }
+          }}
+          >
             <UniversalDocumentViewer
               document={document}
               zoom={scale}
