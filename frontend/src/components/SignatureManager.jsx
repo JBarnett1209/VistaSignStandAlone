@@ -10,7 +10,14 @@ import {
   Alert,
   Grid,
   Chip,
-  Divider
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -161,85 +168,115 @@ export default function SignatureManager() {
         </Alert>
       )}
 
-      {signatures.length === 0 ? (
-        <Card sx={{ width: '100%' }}>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <SignatureIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" gutterBottom>
-              No signatures yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Create your first signature to get started with document signing
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setSignatureCreatorOpen(true)}
-            >
-              Add Signature
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Box
-          sx={{
-            width: '100%',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 2,
-            alignItems: 'stretch'
-          }}
-        >
-          {signatures.map((signature) => (
-            <Card key={signature.id} sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                  <Typography variant="h6" sx={{ fontSize: '1rem' }}>
-                    {signature.name}
+      <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
+        <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed', minWidth: 0 }}>
+          <TableHead>
+            <TableRow>
+              <TableCell>Signature</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {signatures.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                  <SignatureIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    No signatures yet
                   </Typography>
-                  <Chip
-                    label={typeof signature.data === 'string' ? 'Drawn' : 'Typed'}
-                    size="small"
-                    color="primary"
-                    variant="outlined"
-                  />
-                </Box>
-
-                <Box sx={{ mb: 2, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
-                  {renderSignaturePreview(signature)}
-                </Box>
-
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto' }}>
-                  Created: {new Date(signature.createdAt).toLocaleDateString()}
-                </Typography>
-              </CardContent>
-
-              <Divider sx={{ mt: 'auto' }} />
-
-              <CardActions>
-                <Button
-                  size="small"
-                  startIcon={<EditIcon />}
-                  onClick={() => {
-                    setEditingSignature(signature);
-                    setSignatureCreatorOpen(true);
-                  }}
-                >
-                  Edit
-                </Button>
-                <Button
-                  size="small"
-                  color="error"
-                  startIcon={<DeleteIcon />}
-                  onClick={() => openDeleteDialog(signature)}
-                >
-                  Delete
-                </Button>
-              </CardActions>
-            </Card>
-          ))}
-        </Box>
-      )}
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Create your first signature to get started with document signing
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setSignatureCreatorOpen(true)}
+                  >
+                    Add Signature
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ) : (
+              signatures.map((signature) => (
+                <TableRow key={signature.id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                      <Box sx={{ 
+                        width: 60, 
+                        height: 40, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        mr: 2,
+                        border: '1px solid #ddd',
+                        borderRadius: 1,
+                        backgroundColor: '#f9f9f9',
+                        overflow: 'hidden'
+                      }}>
+                        {renderSignaturePreview(signature)}
+                      </Box>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="body1" sx={{ 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '100%'
+                        }}>
+                          {signature.name}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={typeof signature.data === 'string' ? 'Drawn' : 'Typed'}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {new Date(signature.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 0.5,
+                      flexWrap: 'nowrap',
+                      minWidth: 120
+                    }}>
+                      <Button
+                        size="small"
+                        startIcon={<EditIcon />}
+                        onClick={() => {
+                          setEditingSignature(signature);
+                          setSignatureCreatorOpen(true);
+                        }}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={() => openDeleteDialog(signature)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {/* Signature Creator */}
       <SignatureCreator
