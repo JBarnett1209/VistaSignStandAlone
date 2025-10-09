@@ -156,6 +156,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragField, setDragField] = useState(null);
   const [signatureCreatorOpen, setSignatureCreatorOpen] = useState(false);
+  const [adoptDialogOpen, setAdoptDialogOpen] = useState(false);
   const [fieldDialogOpen, setFieldDialogOpen] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -258,6 +259,18 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const field = fields.find(f => f.id === fieldId);
     if (field) {
       setEditingField(field);
+      if (field.type === FIELD_TYPES.SIGNATURE && !field.completed) {
+        const stored = localStorage.getItem('adoptedSignature');
+        if (stored) {
+          let sig = stored;
+          try { sig = stored.startsWith('data:') ? stored : JSON.parse(stored); } catch (_) {}
+          setFields(prev => prev.map(f => f.id === field.id ? { ...f, value: sig, completed: true } : f));
+          return;
+        } else {
+          setAdoptDialogOpen(true);
+          return;
+        }
+      }
       setFieldDialogOpen(true);
     }
   };
@@ -270,6 +283,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const handleSignatureSave = (signatureData) => {
+    try {
+      localStorage.setItem('adoptedSignature', typeof signatureData === 'string' ? signatureData : JSON.stringify(signatureData));
+    } catch (_) {}
     if (editingField) {
       setFields(prev => prev.map(f => 
         f.id === editingField.id 
@@ -277,6 +293,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           : f
       ));
       setSignatureCreatorOpen(false);
+      setAdoptDialogOpen(false);
       setFieldDialogOpen(false);
       setEditingField(null);
     }
@@ -600,8 +617,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
       {/* Signature Creator */}
       <SignatureCreator
-        open={signatureCreatorOpen}
-        onClose={() => setSignatureCreatorOpen(false)}
+        open={signatureCreatorOpen || adoptDialogOpen}
+        onClose={() => { setSignatureCreatorOpen(false); setAdoptDialogOpen(false); }}
         onSave={handleSignatureSave}
         existingSignature={editingField?.value}
       />
