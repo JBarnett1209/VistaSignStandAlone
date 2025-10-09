@@ -69,15 +69,20 @@ export const Layout = () => {
       >
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <img 
-              src="/VistaSign_Logo.svg" 
-              alt="VistaSign" 
-              style={{ 
-                height: '40px', 
-                width: 'auto',
-                maxWidth: '200px'
-              }} 
-            />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '40px', width: 'auto', maxWidth: '200px' }}>
+              <defs>
+                <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#7E3AF2"/>
+                  <stop offset="100%" stopColor="#A855F7"/>
+                </linearGradient>
+              </defs>
+              <text x="10" y="75" fontFamily="Poppins, Inter, Arial, sans-serif" fontSize="60" fontWeight="600" fill="url(#uvGradient)">
+                VistaSign
+              </text>
+              <text x="15" y="115" fontFamily="Inter, Arial, sans-serif" fontSize="20" fill="#888">
+                powered by UnitVista
+              </text>
+            </svg>
           </Box>
           <Box sx={{
             ml: 2,
