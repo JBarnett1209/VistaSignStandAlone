@@ -118,12 +118,14 @@ class WorkflowParticipant(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # Participant information
+    email = Column(String(255), nullable=False)  # Email address of participant
+    signingOrder = Column(Integer, nullable=False)  # Signing order number
     role = Column(String(50), nullable=False)  # signer, approver, reviewer, etc.
     permissions = Column(JSON, nullable=True)  # Participant-specific permissions
     
     # Relationships
     workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Optional - may be null if user doesn't exist yet
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -134,4 +136,4 @@ class WorkflowParticipant(Base):
     user = relationship("User", back_populates="workflow_participants")
     
     def __repr__(self):
-        return f"<WorkflowParticipant(id={self.id}, role='{self.role}', user='{self.user_id}')>"
+        return f"<WorkflowParticipant(id={self.id}, email='{self.email}', signingOrder={self.signingOrder}, role='{self.role}')>"

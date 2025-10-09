@@ -284,9 +284,11 @@ async def add_workflow_participant(
         # Create workflow participant
         participant = WorkflowParticipant(
             workflow_id=workflow_id,
-            user_id=participant_data.user_id,
+            email=participant_data.email,
+            signingOrder=participant_data.signingOrder,
             role=participant_data.role,
-            permissions=participant_data.permissions
+            permissions=participant_data.permissions,
+            user_id=None  # Will be set when user signs up or is found
         )
         
         db.add(participant)
@@ -296,8 +298,10 @@ async def add_workflow_participant(
         return WorkflowParticipantResponse(
             id=str(participant.id),
             workflow_id=str(participant.workflow_id),
-            user_id=str(participant.user_id),
+            email=participant.email,
+            signingOrder=participant.signingOrder,
             role=participant.role,
+            user_id=str(participant.user_id) if participant.user_id else None,
             permissions=participant.permissions,
             created_at=participant.created_at
         )

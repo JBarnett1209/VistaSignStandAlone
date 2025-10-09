@@ -23,7 +23,8 @@ export default function Workflows() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
-  const [participantEmails, setParticipantEmails] = useState('');
+  const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
+  const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
   const [newWorkflow, setNewWorkflow] = useState({
     name: '',
     description: '',
@@ -54,6 +55,27 @@ export default function Workflows() {
       setDocuments(response.data.documents || []);
     } catch (err) {
       console.error('Error loading documents:', err);
+    }
+  };
+
+  const loadDocumentSigningOrders = async (documentId) => {
+    try {
+      const response = await documentsAPI.get(documentId);
+      const document = response.data;
+      if (document.fields) {
+        // Extract unique signing orders from document fields
+        const signingOrders = [...new Set(
+          document.fields
+            .map(field => field.signingOrder || 1)
+            .filter(order => order > 0)
+        )].sort((a, b) => a - b);
+        setAvailableSigningOrders(signingOrders);
+      } else {
+        setAvailableSigningOrders([1]); // Default if no fields
+      }
+    } catch (err) {
+      console.error('Error loading document signing orders:', err);
+      setAvailableSigningOrders([1]); // Fallback
     }
   };
 
@@ -94,32 +116,34 @@ export default function Workflows() {
 
   const handleAddParticipants = async () => {
     try {
-      if (!participantEmails.trim()) {
-        setError('Please enter at least one email address');
+      // Validate participants
+      const validParticipants = participants.filter(p => p.email.trim() && p.signingOrder);
+      
+      if (validParticipants.length === 0) {
+        setError('Please add at least one participant with a valid email and signing order');
         return;
       }
 
-      const emails = participantEmails
-        .split(',')
-        .map(email => email.trim())
-        .filter(email => email.length > 0);
-
-      if (emails.length === 0) {
-        setError('Please enter valid email addresses');
+      // Check for duplicate emails
+      const emails = validParticipants.map(p => p.email.toLowerCase());
+      const uniqueEmails = [...new Set(emails)];
+      if (emails.length !== uniqueEmails.length) {
+        setError('Duplicate email addresses are not allowed');
         return;
       }
 
       // Add each participant
-      for (const email of emails) {
+      for (const participant of validParticipants) {
         await workflowsAPI.addParticipant(selectedWorkflow.id, {
-          email: email,
+          email: participant.email.trim(),
+          signingOrder: participant.signingOrder,
           role: 'signer'
         });
       }
 
       await loadWorkflows();
       setParticipantDialogOpen(false);
-      setParticipantEmails('');
+      setParticipants([{ email: '', signingOrder: 1 }]);
       setSelectedWorkflow(null);
       setError(null);
     } catch (err) {
@@ -141,6 +165,29 @@ export default function Workflows() {
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const addParticipantRow = () => {
+    setParticipants([...participants, { email: '', signingOrder: 1 }]);
+  };
+
+  const removeParticipantRow = (index) => {
+    if (participants.length > 1) {
+      setParticipants(participants.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateParticipant = (index, field, value) => {
+    const updated = [...participants];
+    updated[index] = { ...updated[index], [field]: value };
+    setParticipants(updated);
+  };
+
+  const openParticipantDialog = async (workflow) => {
+    setSelectedWorkflow(workflow);
+    await loadDocumentSigningOrders(workflow.document_id);
+    setParticipants([{ email: '', signingOrder: 1 }]);
+    setParticipantDialogOpen(true);
   };
 
   return (
@@ -243,10 +290,7 @@ export default function Workflows() {
                       <IconButton 
                         size="small" 
                         title="Add Participants"
-                        onClick={() => {
-                          setSelectedWorkflow(workflow);
-                          setParticipantDialogOpen(true);
-                        }}
+                        onClick={() => openParticipantDialog(workflow)}
                       >
                         <PersonAddIcon />
                       </IconButton>
@@ -333,25 +377,68 @@ export default function Workflows() {
         <DialogTitle>Add Participants to Workflow</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add email addresses of people who need to sign this document. They will receive an email with a link to sign.
+            Add email addresses and assign them to signing orders. Each person will receive an email with a link to sign their assigned fields.
           </Typography>
-          <TextField
-            fullWidth
-            label="Email Addresses"
-            placeholder="Enter email addresses separated by commas"
-            multiline
-            rows={4}
-            value={participantEmails}
-            onChange={(e) => setParticipantEmails(e.target.value)}
-            helperText="Example: john@example.com, jane@example.com"
-          />
+          
+          {availableSigningOrders.length > 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Available signing orders: {availableSigningOrders.join(', ')}
+            </Typography>
+          )}
+
+          {participants.map((participant, index) => (
+            <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+              <TextField
+                fullWidth
+                label="Email Address"
+                type="email"
+                value={participant.email}
+                onChange={(e) => updateParticipant(index, 'email', e.target.value)}
+                placeholder="participant@example.com"
+                required
+              />
+              
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel>Signing Order</InputLabel>
+                <Select
+                  value={participant.signingOrder}
+                  onChange={(e) => updateParticipant(index, 'signingOrder', e.target.value)}
+                  label="Signing Order"
+                >
+                  {availableSigningOrders.map(order => (
+                    <MenuItem key={order} value={order}>
+                      Order {order}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <IconButton
+                onClick={() => removeParticipantRow(index)}
+                disabled={participants.length === 1}
+                color="error"
+                size="small"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </Box>
+          ))}
+
+          <Button
+            startIcon={<AddIcon />}
+            onClick={addParticipantRow}
+            variant="outlined"
+            sx={{ mb: 2 }}
+          >
+            Add Another Participant
+          </Button>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setParticipantDialogOpen(false)}>Cancel</Button>
           <Button 
             variant="contained"
             onClick={handleAddParticipants}
-            disabled={!participantEmails.trim()}
+            disabled={participants.every(p => !p.email.trim())}
           >
             Add Participants
           </Button>

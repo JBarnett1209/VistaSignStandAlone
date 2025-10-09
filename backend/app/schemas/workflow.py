@@ -67,16 +67,19 @@ class WorkflowStepResponse(BaseModel):
 
 class WorkflowParticipantCreate(BaseModel):
     """Workflow participant creation schema"""
-    user_id: str
-    role: str
+    email: str
+    signingOrder: int
+    role: str = "signer"
     permissions: Optional[Dict[str, Any]] = None
 
 class WorkflowParticipantResponse(BaseModel):
     """Workflow participant response schema"""
     id: str
     workflow_id: str
-    user_id: str
+    email: str
+    signingOrder: int
     role: str
+    user_id: Optional[str] = None
     permissions: Optional[Dict[str, Any]] = None
     created_at: datetime
     
