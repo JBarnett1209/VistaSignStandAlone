@@ -226,12 +226,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const handleFieldDragStart = (fieldType, event) => {
     event.dataTransfer.setData('text/plain', fieldType);
     event.dataTransfer.effectAllowed = 'copy';
-    setIsDragging(true);
     setDragField(fieldType);
   };
 
   const handleFieldDragEnd = () => {
-    setIsDragging(false);
     setDragField(null);
   };
 
@@ -280,7 +278,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     };
 
     setFields(prev => [...prev, newField]);
-    setIsDragging(false);
     setDragField(null);
     setSelectedField(newField.id);
   };
