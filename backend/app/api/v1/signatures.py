@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.core.security.auth import get_current_user
 from app.models.signature import Signature, SignatureTemplate, SignatureStatus, SignatureType
 from app.models.document import Document
+from app.models.user import User
 from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
     SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse,
@@ -833,7 +834,6 @@ async def admin_list_all_signatures(
             )
         
         # Build query with joins for user and document info
-        from app.models.user import User
         query = select(
             Signature,
             User.email.label("signer_email"),
@@ -966,7 +966,6 @@ async def admin_get_signature(
             )
         
         # Get signature with user and document info
-        from app.models.user import User
         result = await db.execute(
             select(
                 Signature,
