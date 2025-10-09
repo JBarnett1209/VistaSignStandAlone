@@ -158,7 +158,7 @@ export default function SignatureManager() {
     <Box sx={{ width: '100%', height: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, width: '100%' }}>
         <Typography variant="h5">
-          My Signatures
+          My Signature Templates
         </Typography>
         <Button
           variant="contained"
@@ -191,10 +191,10 @@ export default function SignatureManager() {
                 <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
                   <SignatureIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
                   <Typography variant="h6" gutterBottom>
-                    No signatures yet
+                    No signature templates yet
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Create your first signature to get started with document signing
+                    Create your first signature template to get started with document signing
                   </Typography>
                   <Button
                     variant="contained"

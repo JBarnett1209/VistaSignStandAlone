@@ -48,13 +48,13 @@ export const Layout = () => {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
-    { text: 'Signatures', icon: <EditIcon />, path: '/signatures' },
+    { text: 'Signature Templates', icon: <EditIcon />, path: '/signatures' },
     { text: 'Workflows', icon: <AssignmentIcon />, path: '/workflows' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
   
   const adminMenuItems = [
-    { text: 'Admin Signatures', icon: <AdminPanelSettingsIcon />, path: '/admin/signatures' },
+    { text: 'Document Signatures', icon: <AdminPanelSettingsIcon />, path: '/admin/signatures' },
   ];
 
   return (

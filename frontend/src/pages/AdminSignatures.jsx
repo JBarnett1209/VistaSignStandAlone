@@ -197,7 +197,7 @@ export default function AdminSignatures() {
       overflowX: 'hidden'
     }}>
       <Typography variant="h4" gutterBottom>
-        Admin Signature Management
+        Document Signatures Management
       </Typography>
 
       {/* Statistics Cards */}

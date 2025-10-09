@@ -15,7 +15,7 @@ export default function Signatures() {
     }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
-          Signatures
+          Signature Templates
         </Typography>
       </Box>
       <Box sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
