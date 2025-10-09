@@ -123,10 +123,9 @@ export const Layout = () => {
           display: 'flex', 
           alignItems: 'center',
           justifyContent: 'center', 
-          py: 2, 
           px: 1,
           borderBottom: '1px solid #E5E7EB',
-          minHeight: '80px'
+          height: '90px'
         }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '70px', width: '100%', maxWidth: '240px' }}>
             <defs>
