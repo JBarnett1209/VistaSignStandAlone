@@ -16,7 +16,8 @@ from app.models.document import Document
 from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
     SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse,
-    LegalSignatureVerificationResponse, SignatureLevelsResponse, HybridSignatureCreate
+    LegalSignatureVerificationResponse, SignatureLevelsResponse, HybridSignatureCreate,
+    SignatureDeleteRequest, AdminSignatureResponse, AdminSignatureListResponse
 )
 from app.core.digital_signature import digital_signature_service
 from app.core.legal_signature import legal_signature_service, SignatureLevel
@@ -174,8 +175,13 @@ async def list_signatures(
 ):
     """List signatures"""
     try:
-        # Build query
-        query = select(Signature).where(Signature.signer_id == current_user["user_id"])
+        # Build query (excluding soft-deleted signatures)
+        query = select(Signature).where(
+            and_(
+                Signature.signer_id == current_user["user_id"],
+                Signature.is_deleted == False
+            )
+        )
         
         # Apply filters
         if status:
@@ -183,8 +189,13 @@ async def list_signatures(
         if document_id:
             query = query.where(Signature.document_id == document_id)
         
-        # Get total count
-        count_query = select(Signature).where(Signature.signer_id == current_user["user_id"])
+        # Get total count (excluding soft-deleted signatures)
+        count_query = select(Signature).where(
+            and_(
+                Signature.signer_id == current_user["user_id"],
+                Signature.is_deleted == False
+            )
+        )
         if status:
             count_query = count_query.where(Signature.status == status)
         if document_id:
@@ -708,4 +719,373 @@ async def verify_hybrid_signature(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to verify hybrid signature"
+        )
+
+@router.delete("/{signature_id}")
+async def soft_delete_signature(
+    signature_id: str,
+    delete_request: SignatureDeleteRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Soft delete a signature (admin can still access)"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"],
+                    Signature.is_deleted == False
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        # Soft delete the signature
+        signature.is_deleted = True
+        signature.deleted_at = datetime.now(timezone.utc)
+        signature.deleted_by = current_user["user_id"]
+        signature.deletion_reason = delete_request.deletion_reason
+        
+        await db.commit()
+        
+        return {"message": "Signature deleted successfully", "signature_id": signature_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Soft delete signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete signature"
+        )
+
+@router.post("/{signature_id}/restore")
+async def restore_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Restore a soft-deleted signature"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"],
+                    Signature.is_deleted == True
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Deleted signature not found"
+            )
+        
+        # Restore the signature
+        signature.is_deleted = False
+        signature.deleted_at = None
+        signature.deleted_by = None
+        signature.deletion_reason = None
+        
+        await db.commit()
+        
+        return {"message": "Signature restored successfully", "signature_id": signature_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Restore signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to restore signature"
+        )
+
+# Admin endpoints
+@router.get("/admin/all", response_model=AdminSignatureListResponse)
+async def admin_list_all_signatures(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    include_deleted: bool = Query(False),
+    status: Optional[str] = Query(None),
+    document_id: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    signature_level: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Admin endpoint to list all signatures with full details"""
+    try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required"
+            )
+        
+        # Build query with joins for user and document info
+        from app.models.user import User
+        query = select(
+            Signature,
+            User.email.label("signer_email"),
+            User.first_name.label("signer_first_name"),
+            User.last_name.label("signer_last_name"),
+            Document.title.label("document_title")
+        ).join(
+            User, Signature.signer_id == User.id
+        ).join(
+            Document, Signature.document_id == Document.id
+        )
+        
+        # Apply filters
+        if not include_deleted:
+            query = query.where(Signature.is_deleted == False)
+        
+        if status:
+            query = query.where(Signature.status == status)
+        if document_id:
+            query = query.where(Signature.document_id == document_id)
+        if user_id:
+            query = query.where(Signature.signer_id == user_id)
+        if signature_level:
+            query = query.where(Signature.signature_level == signature_level)
+        
+        # Get total count
+        count_query = select(Signature)
+        if not include_deleted:
+            count_query = count_query.where(Signature.is_deleted == False)
+        if status:
+            count_query = count_query.where(Signature.status == status)
+        if document_id:
+            count_query = count_query.where(Signature.document_id == document_id)
+        if user_id:
+            count_query = count_query.where(Signature.signer_id == user_id)
+        if signature_level:
+            count_query = count_query.where(Signature.signature_level == signature_level)
+        
+        total_result = await db.execute(count_query)
+        total = len(total_result.scalars().all())
+        
+        # Get deleted count
+        deleted_count = 0
+        if include_deleted:
+            deleted_result = await db.execute(
+                select(Signature).where(Signature.is_deleted == True)
+            )
+            deleted_count = len(deleted_result.scalars().all())
+        
+        # Get signatures with pagination
+        result = await db.execute(query.offset(skip).limit(limit))
+        signatures_data = result.all()
+        
+        signatures = []
+        for sig_data in signatures_data:
+            signature = sig_data[0]  # Signature object
+            signer_email = sig_data[1]
+            signer_first_name = sig_data[2]
+            signer_last_name = sig_data[3]
+            document_title = sig_data[4]
+            
+            signer_name = None
+            if signer_first_name or signer_last_name:
+                signer_name = f"{signer_first_name or ''} {signer_last_name or ''}".strip()
+            
+            signatures.append(AdminSignatureResponse(
+                id=str(signature.id),
+                document_id=str(signature.document_id),
+                signer_id=str(signature.signer_id),
+                signature_type=signature.signature_type.value,
+                status=signature.status.value,
+                signature_position=signature.signature_position,
+                signing_reason=signature.signing_reason,
+                signing_location=signature.signing_location,
+                created_at=signature.created_at,
+                signed_at=signature.signed_at,
+                # Digital signature fields
+                digital_signature=signature.digital_signature,
+                document_hash=signature.document_hash,
+                certificate_thumbprint=signature.certificate_thumbprint,
+                verification_status=signature.verification_status,
+                # Legal compliance fields
+                signature_level=signature.signature_level,
+                is_legally_binding=signature.is_legally_binding,
+                compliance_standard=signature.compliance_standard,
+                # Hybrid signature fields
+                certificate_type=signature.certificate_type,
+                # Soft delete fields
+                is_deleted=signature.is_deleted,
+                deleted_at=signature.deleted_at,
+                deleted_by=str(signature.deleted_by) if signature.deleted_by else None,
+                deletion_reason=signature.deletion_reason,
+                # User information
+                signer_email=signer_email,
+                signer_name=signer_name,
+                document_title=document_title
+            ))
+        
+        return AdminSignatureListResponse(
+            signatures=signatures,
+            total=total,
+            skip=skip,
+            limit=limit,
+            has_more=(skip + limit) < total,
+            deleted_count=deleted_count
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Admin list signatures error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list signatures"
+        )
+
+@router.get("/admin/{signature_id}", response_model=AdminSignatureResponse)
+async def admin_get_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Admin endpoint to get signature with full details"""
+    try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required"
+            )
+        
+        # Get signature with user and document info
+        from app.models.user import User
+        result = await db.execute(
+            select(
+                Signature,
+                User.email.label("signer_email"),
+                User.first_name.label("signer_first_name"),
+                User.last_name.label("signer_last_name"),
+                Document.title.label("document_title")
+            ).join(
+                User, Signature.signer_id == User.id
+            ).join(
+                Document, Signature.document_id == Document.id
+            ).where(Signature.id == signature_id)
+        )
+        
+        signature_data = result.first()
+        if not signature_data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        signature = signature_data[0]
+        signer_email = signature_data[1]
+        signer_first_name = signature_data[2]
+        signer_last_name = signature_data[3]
+        document_title = signature_data[4]
+        
+        signer_name = None
+        if signer_first_name or signer_last_name:
+            signer_name = f"{signer_first_name or ''} {signer_last_name or ''}".strip()
+        
+        return AdminSignatureResponse(
+            id=str(signature.id),
+            document_id=str(signature.document_id),
+            signer_id=str(signature.signer_id),
+            signature_type=signature.signature_type.value,
+            status=signature.status.value,
+            signature_position=signature.signature_position,
+            signing_reason=signature.signing_reason,
+            signing_location=signature.signing_location,
+            created_at=signature.created_at,
+            signed_at=signature.signed_at,
+            # Digital signature fields
+            digital_signature=signature.digital_signature,
+            document_hash=signature.document_hash,
+            certificate_thumbprint=signature.certificate_thumbprint,
+            verification_status=signature.verification_status,
+            # Legal compliance fields
+            signature_level=signature.signature_level,
+            is_legally_binding=signature.is_legally_binding,
+            compliance_standard=signature.compliance_standard,
+            # Hybrid signature fields
+            certificate_type=signature.certificate_type,
+            # Soft delete fields
+            is_deleted=signature.is_deleted,
+            deleted_at=signature.deleted_at,
+            deleted_by=str(signature.deleted_by) if signature.deleted_by else None,
+            deletion_reason=signature.deletion_reason,
+            # User information
+            signer_email=signer_email,
+            signer_name=signer_name,
+            document_title=document_title
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Admin get signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get signature"
+        )
+
+@router.post("/admin/{signature_id}/restore")
+async def admin_restore_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Admin endpoint to restore any soft-deleted signature"""
+    try:
+        # Check if user is admin
+        if current_user.get("role") != "admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admin access required"
+            )
+        
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.is_deleted == True
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Deleted signature not found"
+            )
+        
+        # Restore the signature
+        signature.is_deleted = False
+        signature.deleted_at = None
+        signature.deleted_by = None
+        signature.deletion_reason = None
+        
+        await db.commit()
+        
+        return {"message": "Signature restored successfully by admin", "signature_id": signature_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Admin restore signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to restore signature"
         )

@@ -114,3 +114,57 @@ class HybridSignatureCreate(BaseModel):
     signing_reason: Optional[str] = None
     signing_location: Optional[str] = None
     signature_level: str = "simple"  # simple, advanced, qualified
+
+class SignatureDeleteRequest(BaseModel):
+    """Signature deletion request schema"""
+    deletion_reason: Optional[str] = None
+
+class AdminSignatureResponse(BaseModel):
+    """Admin signature response schema with full details"""
+    id: str
+    document_id: str
+    signer_id: str
+    signature_type: str
+    status: str
+    signature_position: Optional[Dict[str, Any]] = None
+    signing_reason: Optional[str] = None
+    signing_location: Optional[str] = None
+    created_at: datetime
+    signed_at: Optional[datetime] = None
+    
+    # Digital signature fields
+    digital_signature: Optional[str] = None
+    document_hash: Optional[str] = None
+    certificate_thumbprint: Optional[str] = None
+    verification_status: Optional[str] = None
+    
+    # Legal compliance fields
+    signature_level: Optional[str] = None
+    is_legally_binding: Optional[bool] = None
+    compliance_standard: Optional[str] = None
+    
+    # Hybrid signature fields
+    certificate_type: Optional[str] = None
+    
+    # Soft delete fields
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[str] = None
+    deletion_reason: Optional[str] = None
+    
+    # User information
+    signer_email: Optional[str] = None
+    signer_name: Optional[str] = None
+    document_title: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class AdminSignatureListResponse(BaseModel):
+    """Admin signature list response schema"""
+    signatures: List[AdminSignatureResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
+    deleted_count: int = 0

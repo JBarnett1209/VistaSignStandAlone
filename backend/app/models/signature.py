@@ -83,10 +83,17 @@ class Signature(Base):
     signed_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
     
+    # Soft delete fields
+    is_deleted = Column(Boolean, default=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    deletion_reason = Column(Text, nullable=True)
+    
     # Relationships
     document = relationship("Document", back_populates="signatures")
-    signer = relationship("User", back_populates="signatures")
+    signer = relationship("User", back_populates="signatures", foreign_keys=[signer_id])
     template = relationship("SignatureTemplate", back_populates="signatures")
+    deleted_by_user = relationship("User", foreign_keys=[deleted_by])
     
     def __repr__(self):
         return f"<Signature(id={self.id}, status='{self.status.value}', signer='{self.signer_id}')>"
