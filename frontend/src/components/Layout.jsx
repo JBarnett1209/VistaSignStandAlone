@@ -24,6 +24,8 @@ import DashboardIcon from '@mui/icons-material/Dashboard';
 import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import PeopleIcon from '@mui/icons-material/People';
 // PersonIcon removed (unused)
 import SettingsIcon from '@mui/icons-material/Settings';
 
@@ -33,19 +35,27 @@ const sidebarGutter = 32; // extra spacing between drawer and content
 export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [menuAnchor, setMenuAnchor] = React.useState(null);
   const menuOpen = Boolean(menuAnchor);
   const handleMenu = (event) => setMenuAnchor(event.currentTarget);
   const handleClose = () => setMenuAnchor(null);
   const goProfile = () => { handleClose(); navigate('/profile'); };
   const doLogout = async () => { handleClose(); try { await logout(); } finally { navigate('/login'); } };
+  
+  const isAdmin = user?.role === 'admin';
+  
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
     { text: 'Signatures', icon: <EditIcon />, path: '/signatures' },
     { text: 'Workflows', icon: <AssignmentIcon />, path: '/workflows' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
+  ];
+  
+  const adminMenuItems = [
+    { text: 'Admin Signatures', icon: <AdminPanelSettingsIcon />, path: '/admin/signatures' },
+    { text: 'User Management', icon: <PeopleIcon />, path: '/settings/users' },
   ];
 
   return (
@@ -124,6 +134,43 @@ export const Layout = () => {
               </ListItem>
             ))}
           </List>
+          
+          {isAdmin && (
+            <>
+              <Divider />
+              <List>
+                <ListItem disablePadding>
+                  <ListItemText 
+                    primary="Admin" 
+                    sx={{ 
+                      px: 2, 
+                      py: 1, 
+                      color: 'text.secondary',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }} 
+                  />
+                </ListItem>
+                {adminMenuItems.map((item) => (
+                  <ListItem key={item.text} disablePadding>
+                    <ListItemButton
+                      component={Link}
+                      to={item.path}
+                      selected={location.pathname === item.path}
+                    >
+                      <ListItemIcon>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText primary={item.text} />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+          
           <Divider />
         </Box>
       </Drawer>

@@ -20,6 +20,7 @@ import Pricing from './pages/Pricing';
 import PublicSigning from './pages/PublicSigning';
 import Invites from './pages/Invites';
 import Users from './pages/Users';
+import AdminSignatures from './pages/AdminSignatures';
 
 // Create theme (UnitVista color feel)
 const theme = createTheme({
@@ -148,6 +149,7 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="settings/invites" element={<Invites />} />
                 <Route path="settings/users" element={<Users />} />
+                <Route path="admin/signatures" element={<AdminSignatures />} />
                 <Route path="pricing" element={<Pricing />} />
               </Route>
             </Routes>

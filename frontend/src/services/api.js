@@ -152,9 +152,22 @@ export const signaturesAPI = {
   create: (data) => api.post('/api/v1/signatures/', data),
   list: (params) => api.get('/api/v1/signatures/', { params }),
   get: (id) => api.get(`/api/v1/signatures/${id}`),
+  delete: (id, reason) => api.delete(`/api/v1/signatures/${id}`, { data: { deletion_reason: reason } }),
+  restore: (id) => api.post(`/api/v1/signatures/${id}/restore`),
+  verify: (id) => api.get(`/api/v1/signatures/${id}/verify`),
+  verifyLegal: (id) => api.get(`/api/v1/signatures/${id}/verify-legal`),
+  verifyHybrid: (id) => api.get(`/api/v1/signatures/${id}/verify-hybrid`),
+  getLevels: () => api.get('/api/v1/signatures/levels'),
+  createHybrid: (data) => api.post('/api/v1/signatures/hybrid', data),
   templates: {
     create: (data) => api.post('/api/v1/signatures/templates', data),
     list: () => api.get('/api/v1/signatures/templates')
+  },
+  // Admin endpoints
+  admin: {
+    listAll: (params) => api.get('/api/v1/signatures/admin/all', { params }),
+    get: (id) => api.get(`/api/v1/signatures/admin/${id}`),
+    restore: (id) => api.post(`/api/v1/signatures/admin/${id}/restore`)
   }
 };
 
