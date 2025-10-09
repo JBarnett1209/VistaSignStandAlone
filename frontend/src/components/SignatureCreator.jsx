@@ -13,12 +13,12 @@ import {
   IconButton,
   Alert,
   Paper,
-  Divider,
+  // Divider,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  Slider
+  // Slider
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -28,7 +28,7 @@ import {
   Clear as ClearIcon,
   Save as SaveIcon,
   Undo as UndoIcon,
-  Edit as SignatureIcon
+  // Edit as SignatureIcon
 } from '@mui/icons-material';
 import SignatureCanvas from 'react-signature-canvas';
 
@@ -101,16 +101,19 @@ export default function SignatureCreator({ open, onClose, onSave, existingSignat
     setError(null);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleDrawSignature = () => {
     setSignatureMethod(SIGNATURE_METHODS.DRAW);
     setActiveTab(0);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleTypeSignature = () => {
     setSignatureMethod(SIGNATURE_METHODS.TYPE);
     setActiveTab(1);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleUploadSignature = () => {
     setSignatureMethod(SIGNATURE_METHODS.UPLOAD);
     setActiveTab(2);

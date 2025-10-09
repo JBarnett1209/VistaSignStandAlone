@@ -69,11 +69,11 @@ const FIELD_TYPES = {
   WHITEOUT: 'whiteout'
 };
 
-const SIGNING_ROLES = {
-  SIGNER: 'signer',
-  APPROVER: 'approver',
-  RECIPIENT: 'recipient'
-};
+// const SIGNING_ROLES = {
+//   SIGNER: 'signer',
+//   APPROVER: 'approver',
+//   RECIPIENT: 'recipient'
+// };
 
 const FIELD_TYPE_CONFIG = {
   [FIELD_TYPES.SIGNATURE]: {
@@ -157,7 +157,7 @@ const FIELD_TYPE_CONFIG = {
 
 export default function DocumentEditor({ document, onClose, onSave }) {
   const [numPages, setNumPages] = useState(null);
-  const [pageNumber, setPageNumber] = useState(1);
+  const [pageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [fields, setFields] = useState([]);
   const [selectedField, setSelectedField] = useState(null);
@@ -192,7 +192,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [currentWhiteoutBox, setCurrentWhiteoutBox] = useState(null);
 
   const canvasRef = useRef(null);
-  const containerRef = useRef(null);
 
   // Load document fields and signers on mount
   useEffect(() => {
@@ -246,6 +245,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setDragField(fieldType);
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleCanvasClick = (event) => {
     if (!isDragging || !dragField) return;
 
@@ -605,7 +605,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         }}
         onClick={(e) => {
           e.stopPropagation();
-          if (confirm('Delete this whiteout box?')) {
+          if (window.confirm('Delete this whiteout box?')) {
             handleDeleteWhiteoutBox(whiteoutBox.id);
           }
         }}
@@ -879,7 +879,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                   }
                 }}
                 onClick={() => {
-                  if (confirm('Delete this whiteout box?')) {
+                  if (window.confirm('Delete this whiteout box?')) {
                     handleDeleteWhiteoutBox(whiteoutBox.id);
                   }
                 }}
@@ -980,7 +980,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               const rect = e.currentTarget.getBoundingClientRect();
               const x = e.clientX - rect.left;
               const y = e.clientY - rect.top;
-              addField(x, y);
+              handleCanvasClick({ clientX: e.clientX, clientY: e.clientY });
             }
           }}
           onMouseDown={(e) => {

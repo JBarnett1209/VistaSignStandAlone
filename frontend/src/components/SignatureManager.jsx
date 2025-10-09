@@ -3,14 +3,14 @@ import {
   Box,
   Typography,
   Button,
-  Card,
-  CardContent,
-  CardActions,
-  IconButton,
+  // Card,
+  // CardContent,
+  // CardActions,
+  // IconButton,
   Alert,
-  Grid,
+  // Grid,
   Chip,
-  Divider,
+  // Divider,
   Table,
   TableBody,
   TableCell,
@@ -26,12 +26,12 @@ import {
   Edit as SignatureIcon
 } from '@mui/icons-material';
 import SignatureCreator from './SignatureCreator';
-import { authAPI, signaturesAPI } from '../services/api';
+import { signaturesAPI } from '../services/api';
 import ConfirmationDialog from './ConfirmationDialog';
 
 export default function SignatureManager() {
   const [signatures, setSignatures] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [signatureCreatorOpen, setSignatureCreatorOpen] = useState(false);
   const [editingSignature, setEditingSignature] = useState(null);
