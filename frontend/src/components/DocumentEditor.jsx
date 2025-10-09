@@ -198,14 +198,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   // Load document fields and signers on mount
   useEffect(() => {
-    console.log('DocumentEditor - Document data:', document);
-    console.log('DocumentEditor - Available file properties:', {
-      file_url: document?.file_url,
-      file_path: document?.file_path,
-      url: document?.url,
-      filename: document?.filename,
-      file_name: document?.file_name
-    });
     if (document?.fields) {
       setFields(document.fields);
     }
@@ -497,12 +489,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     };
 
     if (isDraggingField || isResizing || isDrawingWhiteout) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
+      window.document.addEventListener('mousemove', handleGlobalMouseMove);
+      window.document.addEventListener('mouseup', handleGlobalMouseUp);
       
       return () => {
-        document.removeEventListener('mousemove', handleGlobalMouseMove);
-        document.removeEventListener('mouseup', handleGlobalMouseUp);
+        window.document.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.document.removeEventListener('mouseup', handleGlobalMouseUp);
       };
     }
   }, [isDraggingField, isResizing, isDrawingWhiteout, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale, whiteoutStartPos]);
