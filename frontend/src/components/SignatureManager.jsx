@@ -65,8 +65,8 @@ export default function SignatureManager() {
       // Create signature template data for the API
       const templateData = {
         name: `Signature ${signatures.length + 1}`,
-        signature_data: signatureData,
-        signature_type: typeof signatureData === 'string' ? 'drawn' : 'typed'
+        template_data: signatureData,
+        signature_style: typeof signatureData === 'string' ? 'drawn' : 'typed'
       };
 
       if (editingSignature) {
@@ -106,7 +106,7 @@ export default function SignatureManager() {
   };
 
   const renderSignaturePreview = (signature) => {
-    const signatureData = signature.signature_data || signature.data;
+    const signatureData = signature.template_data || signature.signature_data || signature.data;
     
     if (typeof signatureData === 'string' && signatureData.startsWith('data:image')) {
       // Drawn or uploaded signature
@@ -234,7 +234,7 @@ export default function SignatureManager() {
                   </TableCell>
                   <TableCell>
                     <Chip
-                      label={signature.signature_type || (typeof (signature.signature_data || signature.data) === 'string' ? 'Drawn' : 'Typed')}
+                      label={signature.signature_style || (typeof (signature.template_data || signature.signature_data || signature.data) === 'string' ? 'Drawn' : 'Typed')}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -289,7 +289,7 @@ export default function SignatureManager() {
           setEditingSignature(null);
         }}
         onSave={handleSaveSignature}
-        existingSignature={editingSignature?.signature_data || editingSignature?.data}
+        existingSignature={editingSignature?.template_data || editingSignature?.signature_data || editingSignature?.data}
       />
 
       {/* Delete Confirmation Dialog */}
