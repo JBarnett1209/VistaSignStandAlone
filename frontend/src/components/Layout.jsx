@@ -68,22 +68,6 @@ export const Layout = () => {
         }}
       >
         <Toolbar sx={{ display: 'flex', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '40px', width: 'auto', maxWidth: '200px' }}>
-              <defs>
-                <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#7E3AF2"/>
-                  <stop offset="100%" stopColor="#A855F7"/>
-                </linearGradient>
-              </defs>
-              <text x="240" y="75" fontFamily="Poppins, Inter, Arial, sans-serif" fontSize="60" fontWeight="600" fill="url(#uvGradient)" textAnchor="middle">
-                VistaSign
-              </text>
-              <text x="240" y="115" fontFamily="Inter, Arial, sans-serif" fontSize="20" fill="#888" textAnchor="middle">
-                powered by UnitVista
-              </text>
-            </svg>
-          </Box>
           <Box sx={{
             ml: 2,
             flex: 1,
@@ -135,6 +119,28 @@ export const Layout = () => {
         anchor="left"
       >
         <Toolbar />
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          py: 2, 
+          px: 2,
+          borderBottom: '1px solid #E5E7EB'
+        }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '60px', width: 'auto', maxWidth: '200px' }}>
+            <defs>
+              <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#7E3AF2"/>
+                <stop offset="100%" stopColor="#A855F7"/>
+              </linearGradient>
+            </defs>
+            <text x="240" y="75" fontFamily="Poppins, Inter, Arial, sans-serif" fontSize="60" fontWeight="600" fill="url(#uvGradient)" textAnchor="middle">
+              VistaSign
+            </text>
+            <text x="240" y="115" fontFamily="Inter, Arial, sans-serif" fontSize="20" fill="#888" textAnchor="middle">
+              powered by UnitVista
+            </text>
+          </svg>
+        </Box>
         <Box sx={{ overflow: 'auto' }}>
           <List>
             {menuItems.map((item) => (
