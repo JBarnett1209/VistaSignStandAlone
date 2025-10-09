@@ -19,9 +19,16 @@ async def apply_migration():
         return False
     
     try:
+        # Convert SQLAlchemy URL to asyncpg format
+        if database_url.startswith('postgresql+asyncpg://'):
+            # Remove the +asyncpg part for asyncpg
+            asyncpg_url = database_url.replace('postgresql+asyncpg://', 'postgresql://')
+        else:
+            asyncpg_url = database_url
+        
         # Parse database URL and connect
         print("🔗 Connecting to database...")
-        conn = await asyncpg.connect(database_url)
+        conn = await asyncpg.connect(asyncpg_url)
         
         print("📝 Adding signature table columns...")
         
