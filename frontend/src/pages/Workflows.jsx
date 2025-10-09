@@ -23,9 +23,11 @@ export default function Workflows() {
   const [error, setError] = useState(null);
   const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
+  const [viewParticipantsDialogOpen, setViewParticipantsDialogOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
   const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
+  const [workflowParticipants, setWorkflowParticipants] = useState([]);
 
   useEffect(() => {
     loadWorkflows();
@@ -180,6 +182,22 @@ export default function Workflows() {
     setParticipantDialogOpen(true);
   };
 
+  const loadWorkflowParticipants = async (workflowId) => {
+    try {
+      const response = await workflowsAPI.get(workflowId);
+      setWorkflowParticipants(response.participants || []);
+    } catch (err) {
+      console.error('Error loading workflow participants:', err);
+      setError('Failed to load participants');
+    }
+  };
+
+  const openViewParticipantsDialog = async (workflow) => {
+    setSelectedWorkflow(workflow);
+    await loadWorkflowParticipants(workflow.id);
+    setViewParticipantsDialogOpen(true);
+  };
+
   return (
     <Box className="content-section" sx={{ 
       width: '100%', 
@@ -263,9 +281,21 @@ export default function Workflows() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {workflow.participants?.length || 0} participants
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2">
+                        {workflow.participants?.length || 0} participants
+                      </Typography>
+                      {(workflow.participants?.length || 0) > 0 && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => openViewParticipantsDialog(workflow)}
+                          sx={{ minWidth: 'auto', px: 1 }}
+                        >
+                          View
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -389,6 +419,63 @@ export default function Workflows() {
             disabled={participants.every(p => !p.email.trim())}
           >
             Add Participants
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Participants Dialog */}
+      <Dialog open={viewParticipantsDialogOpen} onClose={() => setViewParticipantsDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Workflow Participants</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Current participants for "{selectedWorkflow?.name}"
+          </Typography>
+          
+          {workflowParticipants.length === 0 ? (
+            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
+              No participants added yet.
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Signing Order</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {workflowParticipants.map((participant, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{participant.email}</TableCell>
+                      <TableCell>#{participant.signingOrder}</TableCell>
+                      <TableCell>{participant.role}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={participant.status || 'Pending'} 
+                          size="small"
+                          color={participant.status === 'completed' ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewParticipantsDialogOpen(false)}>Close</Button>
+          <Button 
+            variant="contained"
+            onClick={() => {
+              setViewParticipantsDialogOpen(false);
+              openParticipantDialog(selectedWorkflow);
+            }}
+          >
+            Add More Participants
           </Button>
         </DialogActions>
       </Dialog>

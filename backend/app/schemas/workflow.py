@@ -24,6 +24,7 @@ class WorkflowResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    participants: Optional[List[WorkflowParticipantResponse]] = []
     
     class Config:
         from_attributes = True

@@ -112,24 +112,45 @@ async def list_workflows(
         total_result = await db.execute(count_query)
         total = len(total_result.scalars().all())
         
-        # Get workflows with pagination
+        # Get workflows with pagination and participants
         result = await db.execute(query.offset(skip).limit(limit))
         workflows = result.scalars().all()
         
+        # Get participants for each workflow
+        workflow_responses = []
+        for workflow in workflows:
+            # Get participants for this workflow
+            participants_query = select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow.id)
+            participants_result = await db.execute(participants_query)
+            participants = participants_result.scalars().all()
+            
+            workflow_responses.append(WorkflowResponse(
+                id=str(workflow.id),
+                name=workflow.name,
+                description=workflow.description,
+                status=workflow.status.value,
+                document_id=str(workflow.document_id),
+                created_by=str(workflow.created_by),
+                created_at=workflow.created_at,
+                started_at=workflow.started_at,
+                completed_at=workflow.completed_at,
+                participants=[
+                    WorkflowParticipantResponse(
+                        id=str(participant.id),
+                        email=participant.email,
+                        signingOrder=participant.signingOrder,
+                        role=participant.role,
+                        permissions=participant.permissions,
+                        workflow_id=str(participant.workflow_id),
+                        user_id=str(participant.user_id) if participant.user_id else None,
+                        created_at=participant.created_at,
+                        updated_at=participant.updated_at
+                    ) for participant in participants
+                ]
+            ))
+        
         return WorkflowListResponse(
-            workflows=[
-                WorkflowResponse(
-                    id=str(workflow.id),
-                    name=workflow.name,
-                    description=workflow.description,
-                    status=workflow.status.value,
-                    document_id=str(workflow.document_id),
-                    created_by=str(workflow.created_by),
-                    created_at=workflow.created_at,
-                    started_at=workflow.started_at,
-                    completed_at=workflow.completed_at
-                ) for workflow in workflows
-            ],
+            workflows=workflow_responses,
             total=total,
             skip=skip,
             limit=limit,
