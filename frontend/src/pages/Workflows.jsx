@@ -25,6 +25,7 @@ export default function Workflows() {
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
   const [viewParticipantsDialogOpen, setViewParticipantsDialogOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [editingWorkflow, setEditingWorkflow] = useState(null);
   const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
   const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
   const [workflowParticipants, setWorkflowParticipants] = useState([]);
@@ -231,6 +232,11 @@ export default function Workflows() {
     }
   };
 
+  const handleEditWorkflow = (workflow) => {
+    setEditingWorkflow(workflow);
+    setWorkflowEditorOpen(true);
+  };
+
   return (
     <Box className="content-section" sx={{ 
       width: '100%', 
@@ -356,7 +362,11 @@ export default function Workflows() {
                           <SendIcon />
                         </IconButton>
                       )}
-                      <IconButton size="small" title="Edit">
+                      <IconButton 
+                        size="small" 
+                        title="Edit Workflow"
+                        onClick={() => handleEditWorkflow(workflow)}
+                      >
                         <EditIcon />
                       </IconButton>
                       <IconButton 
@@ -379,8 +389,12 @@ export default function Workflows() {
       {/* Workflow Editor */}
       <WorkflowEditor
         open={workflowEditorOpen}
-        onClose={() => setWorkflowEditorOpen(false)}
+        onClose={() => {
+          setWorkflowEditorOpen(false);
+          setEditingWorkflow(null);
+        }}
         onSuccess={handleWorkflowSuccess}
+        initialWorkflow={editingWorkflow}
       />
 
       {/* Add Participants Dialog */}
