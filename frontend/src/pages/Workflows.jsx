@@ -23,12 +23,11 @@ export default function Workflows() {
   const [error, setError] = useState(null);
   const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
-  const [viewParticipantsDialogOpen, setViewParticipantsDialogOpen] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [editingWorkflow, setEditingWorkflow] = useState(null);
   const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
   const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
-  const [workflowParticipants, setWorkflowParticipants] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
 
   useEffect(() => {
     loadWorkflows();
@@ -96,17 +95,24 @@ export default function Workflows() {
     }
   };
 
-  const handleDeleteWorkflow = async (workflowId) => {
-    if (window.confirm('Are you sure you want to delete this workflow? This action cannot be undone.')) {
-      try {
-        await workflowsAPI.delete(workflowId);
-        await loadWorkflows();
-        setError(null);
-      } catch (err) {
-        setError('Failed to delete workflow');
-        console.error('Error deleting workflow:', err);
+  const handleDeleteWorkflow = (workflowId) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Workflow',
+      message: 'Are you sure you want to delete this workflow? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await workflowsAPI.delete(workflowId);
+          await loadWorkflows();
+          setError(null);
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+        } catch (err) {
+          setError('Failed to delete workflow');
+          console.error('Error deleting workflow:', err);
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+        }
       }
-    }
+    });
   };
 
   const handleAddParticipants = async () => {
@@ -185,52 +191,7 @@ export default function Workflows() {
     setParticipantDialogOpen(true);
   };
 
-  const loadWorkflowParticipants = async (workflowId) => {
-    try {
-      console.log('Loading participants for workflow:', workflowId);
-      const response = await workflowsAPI.get(workflowId);
-      console.log('Full workflow response:', response);
-      console.log('Response data:', response.data);
-      console.log('Participants from response.data:', response.data?.participants);
-      console.log('Participants from response:', response.participants);
-      
-      // Try both possible data structures
-      const participants = response.data?.participants || response.participants || [];
-      console.log('Final participants array:', participants);
-      setWorkflowParticipants(participants);
-    } catch (err) {
-      console.error('Error loading workflow participants:', err);
-      setError('Failed to load participants');
-    }
-  };
 
-  const openViewParticipantsDialog = async (workflow) => {
-    setSelectedWorkflow(workflow);
-    await loadWorkflowParticipants(workflow.id);
-    setViewParticipantsDialogOpen(true);
-  };
-
-  const handleEditParticipant = (participant) => {
-    // TODO: Implement edit participant functionality
-    console.log('Edit participant:', participant);
-    // For now, just show an alert
-    alert(`Edit participant: ${participant.email}`);
-  };
-
-  const handleRemoveParticipant = async (participantId) => {
-    if (window.confirm('Are you sure you want to remove this participant?')) {
-      try {
-        // TODO: Implement remove participant API call
-        console.log('Remove participant:', participantId);
-        // For now, just reload the participants
-        await loadWorkflowParticipants(selectedWorkflow.id);
-        alert('Participant removed successfully');
-      } catch (err) {
-        console.error('Error removing participant:', err);
-        setError('Failed to remove participant');
-      }
-    }
-  };
 
   const handleEditWorkflow = (workflow) => {
     setEditingWorkflow(workflow);
@@ -320,21 +281,9 @@ export default function Workflows() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2">
-                        {workflow.participants?.length || 0} participants
-                      </Typography>
-                      {(workflow.participants?.length || 0) > 0 && (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => openViewParticipantsDialog(workflow)}
-                          sx={{ minWidth: 'auto', px: 1 }}
-                        >
-                          View
-                        </Button>
-                      )}
-                    </Box>
+                    <Typography variant="body2">
+                      {workflow.participants?.length || 0} participants
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -470,82 +419,26 @@ export default function Workflows() {
         </DialogActions>
       </Dialog>
 
-      {/* View Participants Dialog */}
-      <Dialog open={viewParticipantsDialogOpen} onClose={() => setViewParticipantsDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Workflow Participants</DialogTitle>
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, title: '', message: '', onConfirm: null })}>
+        <DialogTitle>{confirmDialog.title}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Current participants for "{selectedWorkflow?.name}"
-          </Typography>
-          
-          {workflowParticipants.length === 0 ? (
-            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-              No participants added yet.
-            </Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Signing Order</TableCell>
-                    <TableCell>Role</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {workflowParticipants.map((participant, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{participant.email}</TableCell>
-                      <TableCell>#{participant.signingOrder}</TableCell>
-                      <TableCell>{participant.role}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={participant.status || 'Pending'} 
-                          size="small"
-                          color={participant.status === 'completed' ? 'success' : 'default'}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton 
-                            size="small" 
-                            title="Edit Participant"
-                            onClick={() => handleEditParticipant(participant)}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton 
-                            size="small" 
-                            title="Remove Participant"
-                            onClick={() => handleRemoveParticipant(participant.id)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <Typography>{confirmDialog.message}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setViewParticipantsDialogOpen(false)}>Close</Button>
+          <Button onClick={() => setConfirmDialog({ open: false, title: '', message: '', onConfirm: null })}>
+            Cancel
+          </Button>
           <Button 
-            variant="contained"
-            onClick={() => {
-              setViewParticipantsDialogOpen(false);
-              openParticipantDialog(selectedWorkflow);
-            }}
+            variant="contained" 
+            color="error" 
+            onClick={confirmDialog.onConfirm}
           >
-            Add More Participants
+            Confirm
           </Button>
         </DialogActions>
       </Dialog>
+
     </Box>
   );
 }
