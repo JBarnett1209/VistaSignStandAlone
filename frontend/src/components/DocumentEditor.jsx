@@ -65,7 +65,8 @@ const FIELD_TYPES = {
   DROPDOWN: 'dropdown',
   NAME: 'name',
   EMAIL: 'email',
-  ATTACHMENT: 'attachment'
+  ATTACHMENT: 'attachment',
+  WHITEOUT: 'whiteout'
 };
 
 const SIGNING_ROLES = {
@@ -144,6 +145,13 @@ const FIELD_TYPE_CONFIG = {
     color: '#6d4c41',
     width: 220,
     height: 40
+  },
+  [FIELD_TYPES.WHITEOUT]: {
+    label: 'Whiteout Tool',
+    icon: <DeleteIcon />,
+    color: '#FF5722',
+    width: 100,
+    height: 20
   }
 };
 
@@ -175,6 +183,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [resizeHandle, setResizeHandle] = useState(null);
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
   const [fieldStartSize, setFieldStartSize] = useState({ width: 0, height: 0 });
+  
+  // Whiteout tool state
+  const [isWhiteoutMode, setIsWhiteoutMode] = useState(false);
+  const [isDrawingWhiteout, setIsDrawingWhiteout] = useState(false);
+  const [whiteoutStartPos, setWhiteoutStartPos] = useState({ x: 0, y: 0 });
+  const [whiteoutBoxes, setWhiteoutBoxes] = useState([]);
+  const [currentWhiteoutBox, setCurrentWhiteoutBox] = useState(null);
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
@@ -399,6 +414,58 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setResizeHandle(null);
   };
 
+  // Whiteout tool handlers
+  const handleWhiteoutMouseDown = (e) => {
+    if (!isWhiteoutMode) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    
+    setIsDrawingWhiteout(true);
+    setWhiteoutStartPos({ x, y });
+    setCurrentWhiteoutBox({ x, y, width: 0, height: 0 });
+  };
+
+  const handleWhiteoutMouseMove = (e) => {
+    if (!isDrawingWhiteout || !isWhiteoutMode) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / scale;
+    const y = (e.clientY - rect.top) / scale;
+    
+    const width = Math.abs(x - whiteoutStartPos.x);
+    const height = Math.abs(y - whiteoutStartPos.y);
+    const left = Math.min(x, whiteoutStartPos.x);
+    const top = Math.min(y, whiteoutStartPos.y);
+    
+    setCurrentWhiteoutBox({ x: left, y: top, width, height });
+  };
+
+  const handleWhiteoutMouseUp = () => {
+    if (!isDrawingWhiteout || !currentWhiteoutBox) return;
+    
+    // Only add whiteout box if it has meaningful size
+    if (currentWhiteoutBox.width > 5 && currentWhiteoutBox.height > 5) {
+      const newWhiteoutBox = {
+        id: Date.now().toString(),
+        ...currentWhiteoutBox,
+        page: pageNumber
+      };
+      setWhiteoutBoxes(prev => [...prev, newWhiteoutBox]);
+    }
+    
+    setIsDrawingWhiteout(false);
+    setCurrentWhiteoutBox(null);
+  };
+
+  const handleDeleteWhiteoutBox = (whiteoutId) => {
+    setWhiteoutBoxes(prev => prev.filter(box => box.id !== whiteoutId));
+  };
+
   // Add event listeners for mouse events
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
@@ -406,6 +473,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         handleFieldMouseMove(e);
       } else if (isResizing) {
         handleResizeMouseMove(e);
+      } else if (isDrawingWhiteout) {
+        handleWhiteoutMouseMove(e);
       }
     };
 
@@ -414,10 +483,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         handleFieldMouseUp();
       } else if (isResizing) {
         handleResizeMouseUp();
+      } else if (isDrawingWhiteout) {
+        handleWhiteoutMouseUp();
       }
     };
 
-    if (isDraggingField || isResizing) {
+    if (isDraggingField || isResizing || isDrawingWhiteout) {
       document.addEventListener('mousemove', handleGlobalMouseMove);
       document.addEventListener('mouseup', handleGlobalMouseUp);
     }
@@ -426,7 +497,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
       document.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [isDraggingField, isResizing, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale]);
+  }, [isDraggingField, isResizing, isDrawingWhiteout, dragStartPos, fieldStartPos, resizeStartPos, fieldStartSize, resizeHandle, selectedField, scale, whiteoutStartPos]);
 
   const handleSignatureSave = async (signatureData) => {
     try {
@@ -513,6 +584,34 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         ? { ...s, order: newOrder }
         : s
     ));
+  };
+
+  const renderWhiteoutBox = (whiteoutBox) => {
+    return (
+      <Box
+        key={whiteoutBox.id}
+        sx={{
+          position: 'absolute',
+          left: whiteoutBox.x * scale,
+          top: whiteoutBox.y * scale,
+          width: whiteoutBox.width * scale,
+          height: whiteoutBox.height * scale,
+          backgroundColor: 'white',
+          border: '1px dashed #FF5722',
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 87, 34, 0.1)'
+          }
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (confirm('Delete this whiteout box?')) {
+            handleDeleteWhiteoutBox(whiteoutBox.id);
+          }
+        }}
+        title="Click to delete whiteout box"
+      />
+    );
   };
 
   const renderField = (field) => {
@@ -725,18 +824,23 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           {Object.entries(FIELD_TYPE_CONFIG).map(([type, config]) => (
             <Box
               key={type}
-              draggable
-              onDragStart={(e) => handleFieldDragStart(type, e)}
+              draggable={type !== FIELD_TYPES.WHITEOUT}
+              onDragStart={type !== FIELD_TYPES.WHITEOUT ? (e) => handleFieldDragStart(type, e) : undefined}
+              onClick={type === FIELD_TYPES.WHITEOUT ? () => {
+                setIsWhiteoutMode(!isWhiteoutMode);
+                setDragField(null); // Clear any selected field type
+              } : undefined}
               sx={{
                 p: 2,
                 mb: 1,
                 border: 1,
-                borderColor: 'divider',
+                borderColor: type === FIELD_TYPES.WHITEOUT && isWhiteoutMode ? 'primary.main' : 'divider',
                 borderRadius: 1,
-                cursor: 'grab',
+                cursor: type === FIELD_TYPES.WHITEOUT ? 'pointer' : 'grab',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
+                backgroundColor: type === FIELD_TYPES.WHITEOUT && isWhiteoutMode ? 'primary.light' : 'transparent',
                 '&:hover': {
                   backgroundColor: 'action.hover'
                 }
@@ -747,9 +851,47 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               </Box>
               <Typography variant="body2">
                 {config.label}
+                {type === FIELD_TYPES.WHITEOUT && isWhiteoutMode && ' (Active)'}
               </Typography>
             </Box>
           ))}
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="h6" gutterBottom>
+            Whiteout Boxes ({whiteoutBoxes.filter(box => box.page === pageNumber).length})
+          </Typography>
+          {whiteoutBoxes
+            .filter(box => box.page === pageNumber)
+            .map(whiteoutBox => (
+              <Box
+                key={whiteoutBox.id}
+                sx={{
+                  p: 1,
+                  mb: 1,
+                  border: 1,
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  cursor: 'pointer',
+                  backgroundColor: 'transparent',
+                  '&:hover': {
+                    backgroundColor: 'action.hover'
+                  }
+                }}
+                onClick={() => {
+                  if (confirm('Delete this whiteout box?')) {
+                    handleDeleteWhiteoutBox(whiteoutBox.id);
+                  }
+                }}
+              >
+                <Typography variant="caption" display="block">
+                  Whiteout Box
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Math.round(whiteoutBox.width)} × {Math.round(whiteoutBox.height)}px
+                </Typography>
+              </Box>
+            ))}
 
           <Divider sx={{ my: 2 }} />
 
@@ -833,12 +975,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             position: 'relative'
           }}
           onClick={(e) => {
-            // Only add field if we're not dragging/resizing and have a field type selected
-            if (!isDraggingField && !isResizing && dragField && e.target === e.currentTarget) {
+            // Only add field if we're not dragging/resizing, not in whiteout mode, and have a field type selected
+            if (!isDraggingField && !isResizing && !isWhiteoutMode && dragField && e.target === e.currentTarget) {
               const rect = e.currentTarget.getBoundingClientRect();
               const x = e.clientX - rect.left;
               const y = e.clientY - rect.top;
               addField(x, y);
+            }
+          }}
+          onMouseDown={(e) => {
+            if (isWhiteoutMode && e.target === e.currentTarget) {
+              handleWhiteoutMouseDown(e);
             }
           }}
           >
@@ -853,6 +1000,27 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 setError(`Failed to load document: ${error.message || 'Unknown error'}`);
               }}
             />
+              
+              {/* Render whiteout boxes for current page */}
+              {whiteoutBoxes
+                .filter(box => box.page === pageNumber)
+                .map(renderWhiteoutBox)}
+              
+              {/* Render current whiteout box being drawn */}
+              {currentWhiteoutBox && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: currentWhiteoutBox.x * scale,
+                    top: currentWhiteoutBox.y * scale,
+                    width: currentWhiteoutBox.width * scale,
+                    height: currentWhiteoutBox.height * scale,
+                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                    border: '2px dashed #FF5722',
+                    pointerEvents: 'none'
+                  }}
+                />
+              )}
               
               {/* Render fields for current page */}
               {fields
