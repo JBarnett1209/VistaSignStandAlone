@@ -1,6 +1,7 @@
 import React from 'react';
 import { Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import SignatureManager from '../components/SignatureManager';
 
 export default function Signatures() {
   return (
@@ -9,32 +10,14 @@ export default function Signatures() {
         <Typography variant="h4">
           Signatures
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => {
+          const event = new CustomEvent('open-signature-creator');
+          window.dispatchEvent(event);
+        }}>
           Create Signature
         </Button>
       </Box>
-      
-      <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
-        <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed', minWidth: 0 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Created</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={4} align="center">
-                <Typography color="text.secondary">
-                  No signatures yet. Create your first signature to get started.
-                </Typography>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <SignatureManager />
     </Box>
   );
 }

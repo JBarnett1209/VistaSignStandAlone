@@ -34,6 +34,10 @@ export default function SignatureManager() {
   // Load user signatures
   useEffect(() => {
     loadSignatures();
+    // Allow external pages to open the creator
+    const open = () => setSignatureCreatorOpen(true);
+    window.addEventListener('open-signature-creator', open);
+    return () => window.removeEventListener('open-signature-creator', open);
   }, []);
 
   const loadSignatures = async () => {
