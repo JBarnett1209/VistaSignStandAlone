@@ -47,6 +47,12 @@ class Signature(Base):
     signature_hash = Column(String(64), nullable=True)  # Hash of the signature
     timestamp = Column(DateTime(timezone=True), nullable=True)
     
+    # Cryptographic signature data
+    digital_signature = Column(Text, nullable=True)  # Base64 encoded digital signature
+    document_hash = Column(String(64), nullable=True)  # SHA-256 hash of document content
+    signature_metadata = Column(JSON, nullable=True)  # Complete signature metadata
+    verification_status = Column(String(20), default="pending")  # pending, verified, failed
+    
     # Signing context
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)

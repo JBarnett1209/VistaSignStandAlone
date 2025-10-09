@@ -28,6 +28,12 @@ class SignatureResponse(BaseModel):
     created_at: datetime
     signed_at: Optional[datetime] = None
     
+    # Digital signature fields
+    digital_signature: Optional[str] = None
+    document_hash: Optional[str] = None
+    certificate_thumbprint: Optional[str] = None
+    verification_status: Optional[str] = None
+    
     class Config:
         from_attributes = True
 
@@ -58,3 +64,11 @@ class SignatureTemplateResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class SignatureVerificationResponse(BaseModel):
+    """Signature verification response schema"""
+    is_valid: bool
+    errors: List[str] = []
+    warnings: List[str] = []
+    verification_details: Dict[str, Any] = {}
+    certificate_info: Optional[Dict[str, Any]] = None

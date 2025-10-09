@@ -15,8 +15,9 @@ from app.models.signature import Signature, SignatureTemplate, SignatureStatus, 
 from app.models.document import Document
 from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
-    SignatureTemplateCreate, SignatureTemplateResponse
+    SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse
 )
+from app.core.digital_signature import digital_signature_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,6 +47,51 @@ async def create_signature(
                 detail="Document not found"
             )
         
+        # Get document content for hashing
+        document_content = b""  # TODO: Load actual document content
+        if hasattr(document, 'file_path') and document.file_path:
+            try:
+                with open(document.file_path, 'rb') as f:
+                    document_content = f.read()
+            except Exception as e:
+                logger.warning(f"Could not read document content: {str(e)}")
+        
+        # Create signing context
+        signing_context = {
+            "ip_address": "127.0.0.1",  # TODO: Get from request
+            "user_agent": "VistaSign",  # TODO: Get from request
+            "signing_reason": signature_data.signing_reason,
+            "signing_location": signature_data.signing_location,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Create digital signature if service is available
+        digital_sig_data = None
+        document_hash = None
+        certificate_thumbprint = None
+        verification_status = "pending"
+        
+        if digital_signature_service.is_available():
+            try:
+                digital_sig_data = digital_signature_service.create_complete_signature(
+                    document_content=document_content,
+                    user_id=str(current_user["user_id"]),
+                    signature_data=signature_data.signature_data or "",
+                    signing_context=signing_context
+                )
+                
+                if digital_sig_data:
+                    document_hash = digital_sig_data["document_hash"]
+                    certificate_thumbprint = digital_sig_data["certificate_info"]["thumbprint"]
+                    verification_status = "verified"
+                    logger.info(f"Digital signature created for user {current_user['user_id']}")
+                else:
+                    logger.warning("Failed to create digital signature")
+                    verification_status = "failed"
+            except Exception as e:
+                logger.error(f"Digital signature creation failed: {str(e)}")
+                verification_status = "failed"
+        
         # Create signature
         signature = Signature(
             document_id=signature_data.document_id,
@@ -56,7 +102,13 @@ async def create_signature(
             signature_image=signature_data.signature_image,
             signature_position=signature_data.signature_position,
             signing_reason=signature_data.signing_reason,
-            signing_location=signature_data.signing_location
+            signing_location=signature_data.signing_location,
+            # Digital signature fields
+            digital_signature=digital_sig_data["digital_signature"] if digital_sig_data else None,
+            document_hash=document_hash,
+            certificate_thumbprint=certificate_thumbprint,
+            signature_metadata=digital_sig_data if digital_sig_data else None,
+            verification_status=verification_status
         )
         
         db.add(signature)
@@ -73,7 +125,12 @@ async def create_signature(
             signing_reason=signature.signing_reason,
             signing_location=signature.signing_location,
             created_at=signature.created_at,
-            signed_at=signature.signed_at
+            signed_at=signature.signed_at,
+            # Digital signature fields
+            digital_signature=signature.digital_signature,
+            document_hash=signature.document_hash,
+            certificate_thumbprint=signature.certificate_thumbprint,
+            verification_status=signature.verification_status
         )
         
     except HTTPException:
@@ -181,7 +238,12 @@ async def get_signature(
             signing_reason=signature.signing_reason,
             signing_location=signature.signing_location,
             created_at=signature.created_at,
-            signed_at=signature.signed_at
+            signed_at=signature.signed_at,
+            # Digital signature fields
+            digital_signature=signature.digital_signature,
+            document_hash=signature.document_hash,
+            certificate_thumbprint=signature.certificate_thumbprint,
+            verification_status=signature.verification_status
         )
         
     except HTTPException:
@@ -264,4 +326,84 @@ async def list_signature_templates(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list signature templates"
+        )
+
+@router.get("/{signature_id}/verify", response_model=SignatureVerificationResponse)
+async def verify_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify a digital signature"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"]
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        # Check if digital signature exists
+        if not signature.digital_signature or not signature.signature_metadata:
+            return SignatureVerificationResponse(
+                is_valid=False,
+                errors=["No digital signature data available"],
+                verification_details={"has_digital_signature": False}
+            )
+        
+        # Verify the signature
+        verification_result = digital_signature_service.verify_complete_signature(
+            signature.signature_metadata
+        )
+        
+        # Add certificate info if available
+        if digital_signature_service.is_available():
+            verification_result["certificate_info"] = digital_signature_service.get_certificate_info()
+        
+        return SignatureVerificationResponse(**verification_result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Signature verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify signature"
+        )
+
+@router.get("/certificate/info")
+async def get_certificate_info():
+    """Get certificate information for signature verification"""
+    try:
+        if not digital_signature_service.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Digital signature service not available"
+            )
+        
+        cert_info = digital_signature_service.get_certificate_info()
+        if not cert_info:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get certificate information"
+            )
+        
+        return cert_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get certificate info error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get certificate information"
         )
