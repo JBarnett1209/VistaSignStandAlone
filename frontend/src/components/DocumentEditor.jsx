@@ -20,10 +20,6 @@ import {
   Select,
   FormControlLabel,
   Checkbox as MUICheckbox,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -44,7 +40,6 @@ import {
   Email as EmailIcon,
   Attachment as AttachmentIcon,
   Send as SendIcon,
-  PersonAdd as PersonAddIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
 import { pdfjs } from 'react-pdf';
@@ -169,7 +164,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [editingField, setEditingField] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [signers, setSigners] = useState([]);
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false);
   const [signatureTemplates, setSignatureTemplates] = useState([]);
   
@@ -200,9 +194,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   useEffect(() => {
     if (document?.fields) {
       setFields(document.fields);
-    }
-    if (document?.signers) {
-      setSigners(document.signers);
     }
     
     // Load signature templates
@@ -267,6 +258,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       }
     };
 
+    // Get the next signing order number
+    const maxSigningOrder = Math.max(0, ...fields.map(f => f.signingOrder || 0));
+    const nextSigningOrder = maxSigningOrder + 1;
+
     const newField = {
       id: Date.now().toString(),
       type: dragField,
@@ -278,8 +273,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       value: defaultValueByType(dragField),
       required: true,
       completed: false,
-      assignedSigner: null,
-      signingOrder: 1,
+      signingOrder: nextSigningOrder,
       // type-specific metadata
       options: dragField === FIELD_TYPES.RADIO || dragField === FIELD_TYPES.DROPDOWN ? ['Option 1', 'Option 2'] : undefined,
       groupName: dragField === FIELD_TYPES.RADIO ? 'Group 1' : undefined,
@@ -545,7 +539,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const updatedDocument = {
         ...document,
         fields: fields,
-        signers: signers,
         status: 'pending'
       };
 
@@ -564,27 +557,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setWorkflowDialogOpen(true);
   };
 
-  const addSigner = (signer) => {
-    setSigners(prev => [...prev, { ...signer, id: Date.now().toString() }]);
-  };
-
-  const removeSigner = (signerId) => {
-    setSigners(prev => prev.filter(s => s.id !== signerId));
-    // Remove signer assignment from fields
-    setFields(prev => prev.map(f => 
-      f.assignedSigner === signerId 
-        ? { ...f, assignedSigner: null }
-        : f
-    ));
-  };
-
-  const updateSignerOrder = (signerId, newOrder) => {
-    setSigners(prev => prev.map(s => 
-      s.id === signerId 
-        ? { ...s, order: newOrder }
-        : s
-    ));
-  };
 
   const renderWhiteoutBox = (whiteoutBox) => {
     return (
@@ -645,6 +617,22 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           }
         }}
       >
+        {/* Signing order indicator */}
+        <Chip
+          label={`#${field.signingOrder || 1}`}
+          size="small"
+          color="primary"
+          variant="filled"
+          sx={{
+            position: 'absolute',
+            top: -8,
+            left: -8,
+            fontSize: '0.7rem',
+            height: 16,
+            minWidth: 20
+          }}
+        />
+        
         {field.completed ? (
           <Chip
             label={field.type === FIELD_TYPES.SIGNATURE ? 'Signed' : field.value}
@@ -1195,23 +1183,16 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 </Button>
               )}
 
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Assigned Signer</InputLabel>
-                <Select
-                  value={editingField?.assignedSigner || ''}
-                  label="Assigned Signer"
-                  onChange={(e) => setEditingField(prev => ({ ...prev, assignedSigner: e.target.value }))}
-                >
-                  <MenuItem value="">
-                    <em>No signer assigned</em>
-                  </MenuItem>
-                  {signers.map(signer => (
-                    <MenuItem key={signer.id} value={signer.id}>
-                      {signer.name} ({signer.email})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <TextField
+                fullWidth
+                label="Signing Order"
+                type="number"
+                value={editingField?.signingOrder || 1}
+                onChange={(e) => setEditingField(prev => ({ ...prev, signingOrder: parseInt(e.target.value) || 1 }))}
+                inputProps={{ min: 1, max: 99 }}
+                helperText="Order in which this field should be signed (1 = first, 2 = second, etc.)"
+                sx={{ mb: 2 }}
+              />
 
               <FormControlLabel
                 control={
@@ -1262,13 +1243,37 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       >
         <DialogTitle>Send Document for Signing</DialogTitle>
         <DialogContent>
-          <WorkflowManager
-            signers={signers}
-            fields={fields}
-            onAddSigner={addSigner}
-            onRemoveSigner={removeSigner}
-            onUpdateSignerOrder={updateSignerOrder}
-          />
+            <Box sx={{ p: 2 }}>
+              <Typography variant="h6" gutterBottom>
+                Signing Order Summary
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Fields are assigned signing order numbers. In the workflow, you'll map email addresses to these signing order numbers.
+              </Typography>
+              {fields.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No fields added yet. Drag and drop fields onto the document to create signing order.
+                </Typography>
+              ) : (
+                <Box>
+                  {fields
+                    .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
+                    .map((field, index) => (
+                    <Box key={field.id} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Chip 
+                        label={`Order ${field.signingOrder || 1}`} 
+                        size="small" 
+                        color="primary" 
+                        sx={{ mr: 1, minWidth: 60 }}
+                      />
+                      <Typography variant="body2">
+                        {FIELD_TYPE_CONFIG[field.type]?.label || field.type} field
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setWorkflowDialogOpen(false)}>
@@ -1296,120 +1301,3 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   );
 }
 
-// Workflow Manager Component
-function WorkflowManager({ signers, fields, onAddSigner, onRemoveSigner, onUpdateSignerOrder }) {
-  const [newSigner, setNewSigner] = useState({ name: '', email: '', role: 'signer', order: 1 });
-  const [addSignerOpen, setAddSignerOpen] = useState(false);
-
-  const handleAddSigner = () => {
-    if (newSigner.name && newSigner.email) {
-      onAddSigner(newSigner);
-      setNewSigner({ name: '', email: '', role: 'signer', order: signers.length + 1 });
-      setAddSignerOpen(false);
-    }
-  };
-
-  const getSignerFieldCount = (signerId) => {
-    return fields.filter(f => f.assignedSigner === signerId).length;
-  };
-
-  return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">
-          Signers ({signers.length})
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<PersonAddIcon />}
-          onClick={() => setAddSignerOpen(true)}
-        >
-          Add Signer
-        </Button>
-      </Box>
-
-      {signers.length === 0 ? (
-        <Alert severity="info">
-          No signers added yet. Add signers to send the document for signing.
-        </Alert>
-      ) : (
-        <List>
-          {signers
-            .sort((a, b) => (a.order || 1) - (b.order || 1))
-            .map((signer, index) => (
-            <ListItem key={signer.id} divider>
-              <ListItemText
-                primary={`${index + 1}. ${signer.name}`}
-                secondary={`${signer.email} • ${getSignerFieldCount(signer.id)} fields assigned`}
-              />
-              <ListItemSecondaryAction>
-                <IconButton
-                  edge="end"
-                  onClick={() => onRemoveSigner(signer.id)}
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
-        </List>
-      )}
-
-      {/* Add Signer Dialog */}
-      <Dialog
-        open={addSignerOpen}
-        onClose={() => setAddSignerOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add Signer</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Name"
-            value={newSigner.name}
-            onChange={(e) => setNewSigner(prev => ({ ...prev, name: e.target.value }))}
-            sx={{ mb: 2, mt: 1 }}
-          />
-          <TextField
-            fullWidth
-            label="Email"
-            type="email"
-            value={newSigner.email}
-            onChange={(e) => setNewSigner(prev => ({ ...prev, email: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Role</InputLabel>
-            <Select
-              value={newSigner.role}
-              label="Role"
-              onChange={(e) => setNewSigner(prev => ({ ...prev, role: e.target.value }))}
-            >
-              <MenuItem value="signer">Signer</MenuItem>
-              <MenuItem value="approver">Approver</MenuItem>
-              <MenuItem value="recipient">Recipient</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            fullWidth
-            label="Signing Order"
-            type="number"
-            value={newSigner.order}
-            onChange={(e) => setNewSigner(prev => ({ ...prev, order: parseInt(e.target.value) || 1 }))}
-            inputProps={{ min: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddSignerOpen(false)}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={handleAddSigner}>
-            Add Signer
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
-  );
-}
