@@ -55,7 +55,6 @@ export const Layout = () => {
   
   const adminMenuItems = [
     { text: 'Admin Signatures', icon: <AdminPanelSettingsIcon />, path: '/admin/signatures' },
-    { text: 'User Management', icon: <PeopleIcon />, path: '/settings/users' },
   ];
 
   return (

@@ -33,7 +33,8 @@ import {
   Restore as RestoreIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon
+  FilterList as FilterIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { signaturesAPI } from '../services/api';
 
@@ -61,6 +62,12 @@ export default function AdminSignatures() {
   // Dialogs
   const [viewDialog, setViewDialog] = useState({ open: false, signature: null });
   const [restoreDialog, setRestoreDialog] = useState({ open: false, signature: null });
+  const [userLookupDialog, setUserLookupDialog] = useState({ open: false, user: null });
+  
+  // User lookup
+  const [userLookupTerm, setUserLookupTerm] = useState('');
+  const [userLookupLoading, setUserLookupLoading] = useState(false);
+  const [userLookupError, setUserLookupError] = useState(null);
 
   const loadSignatures = async () => {
     setLoading(true);
@@ -109,6 +116,40 @@ export default function AdminSignatures() {
     } catch (err) {
       setError('Failed to restore signature');
       console.error('Error restoring signature:', err);
+    }
+  };
+
+  const handleUserLookup = async () => {
+    if (!userLookupTerm.trim()) return;
+    
+    setUserLookupLoading(true);
+    setUserLookupError(null);
+    
+    try {
+      // Try to find user by email or UUID
+      const response = await signaturesAPI.admin.listAll({ 
+        user_id: userLookupTerm.trim(),
+        limit: 1 
+      });
+      
+      if (response.data.signatures && response.data.signatures.length > 0) {
+        const signature = response.data.signatures[0];
+        // Get user info from the signature
+        const userInfo = {
+          id: signature.signer_id,
+          email: signature.signer_email,
+          name: signature.signer_name,
+          // We'll need to get more user details from a separate API call
+        };
+        setUserLookupDialog({ open: true, user: userInfo });
+      } else {
+        setUserLookupError('User not found');
+      }
+    } catch (err) {
+      setUserLookupError('Failed to lookup user');
+      console.error('Error looking up user:', err);
+    } finally {
+      setUserLookupLoading(false);
     }
   };
 
@@ -214,7 +255,7 @@ export default function AdminSignatures() {
       {/* Filters and Search */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={3}>
             <TextField
               fullWidth
               label="Search signatures"
@@ -224,6 +265,26 @@ export default function AdminSignatures() {
                 endAdornment: (
                   <IconButton onClick={handleSearch}>
                     <SearchIcon />
+                  </IconButton>
+                )
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              label="Lookup User (Email or UUID)"
+              value={userLookupTerm}
+              onChange={(e) => setUserLookupTerm(e.target.value)}
+              error={!!userLookupError}
+              helperText={userLookupError}
+              InputProps={{
+                endAdornment: (
+                  <IconButton 
+                    onClick={handleUserLookup}
+                    disabled={userLookupLoading || !userLookupTerm.trim()}
+                  >
+                    <PersonIcon />
                   </IconButton>
                 )
               }}
@@ -551,6 +612,122 @@ export default function AdminSignatures() {
             variant="contained"
           >
             Restore
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* User Profile Lookup Dialog */}
+      <Dialog
+        open={userLookupDialog.open}
+        onClose={() => setUserLookupDialog({ open: false, user: null })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>User Profile</DialogTitle>
+        <DialogContent>
+          {userLookupDialog.user && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Basic Information
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>User ID:</strong> {userLookupDialog.user.id}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Name:</strong> {userLookupDialog.user.name || 'Not provided'}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Email:</strong> {userLookupDialog.user.email}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Signature Statistics
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Total Signatures:</strong> {signatures.filter(s => s.signer_id === userLookupDialog.user.id).length}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Active Signatures:</strong> {signatures.filter(s => s.signer_id === userLookupDialog.user.id && !s.is_deleted).length}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Deleted Signatures:</strong> {signatures.filter(s => s.signer_id === userLookupDialog.user.id && s.is_deleted).length}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Recent Signatures
+                  </Typography>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Document</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Level</TableCell>
+                        <TableCell>Created</TableCell>
+                        <TableCell>Deleted</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {signatures
+                        .filter(s => s.signer_id === userLookupDialog.user.id)
+                        .slice(0, 5)
+                        .map((signature) => (
+                          <TableRow key={signature.id}>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {signature.document_title || 'Unknown Document'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={signature.status}
+                                color={getStatusColor(signature.status)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={signature.signature_level || 'simple'}
+                                color={getSignatureLevelColor(signature.signature_level)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {formatDate(signature.created_at)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              {signature.is_deleted ? (
+                                <Typography variant="body2" color="error">
+                                  {formatDate(signature.deleted_at)}
+                                </Typography>
+                              ) : (
+                                <Typography variant="body2" color="success.main">
+                                  Active
+                                </Typography>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                  {signatures.filter(s => s.signer_id === userLookupDialog.user.id).length === 0 && (
+                    <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+                      No signatures found for this user.
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUserLookupDialog({ open: false, user: null })}>
+            Close
           </Button>
         </DialogActions>
       </Dialog>
