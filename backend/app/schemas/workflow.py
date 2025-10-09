@@ -13,6 +13,28 @@ class WorkflowCreate(BaseModel):
     workflow_data: Dict[str, Any]
     document_id: str
 
+class WorkflowParticipantCreate(BaseModel):
+    """Workflow participant creation schema"""
+    email: str
+    signingOrder: int
+    role: str = "signer"
+    permissions: Optional[Dict[str, Any]] = None
+
+class WorkflowParticipantResponse(BaseModel):
+    """Workflow participant response schema"""
+    id: str
+    workflow_id: str
+    email: str
+    signingOrder: int
+    role: str
+    user_id: Optional[str] = None
+    permissions: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 class WorkflowResponse(BaseModel):
     """Workflow response schema"""
     id: str
@@ -66,23 +88,3 @@ class WorkflowStepResponse(BaseModel):
     class Config:
         from_attributes = True
 
-class WorkflowParticipantCreate(BaseModel):
-    """Workflow participant creation schema"""
-    email: str
-    signingOrder: int
-    role: str = "signer"
-    permissions: Optional[Dict[str, Any]] = None
-
-class WorkflowParticipantResponse(BaseModel):
-    """Workflow participant response schema"""
-    id: str
-    workflow_id: str
-    email: str
-    signingOrder: int
-    role: str
-    user_id: Optional[str] = None
-    permissions: Optional[Dict[str, Any]] = None
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
