@@ -150,7 +150,14 @@ export default function Documents() {
   };
 
   return (
-    <Box className="content-section" sx={{ width: '100%', overflow: 'hidden' }}>
+    <Box className="content-section" sx={{ 
+      width: '100%', 
+      height: '100%',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 

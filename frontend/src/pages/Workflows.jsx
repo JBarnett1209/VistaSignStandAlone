@@ -4,7 +4,14 @@ import AddIcon from '@mui/icons-material/Add';
 
 export default function Workflows() {
   return (
-    <Box className="content-section">
+    <Box className="content-section" sx={{ 
+      width: '100%', 
+      height: '100%',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflowX: 'hidden'
+    }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
           Workflows

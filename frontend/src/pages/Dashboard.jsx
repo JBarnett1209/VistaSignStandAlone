@@ -8,7 +8,14 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 export default function Dashboard() {
   const CARD_HEIGHT = 220;
   return (
-    <Box className="content-section">
+    <Box className="content-section" sx={{ 
+      width: '100%', 
+      height: '100%',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflowX: 'hidden'
+    }}>
       <Typography variant="h4" gutterBottom>
         Dashboard
       </Typography>

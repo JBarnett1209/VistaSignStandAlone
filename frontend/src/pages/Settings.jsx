@@ -196,7 +196,14 @@ export default function Settings() {
   };
 
   return (
-    <Box className="content-section">
+    <Box className="content-section" sx={{ 
+      width: '100%', 
+      height: '100%',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflowX: 'hidden'
+    }}>
       <Typography variant="h4" gutterBottom>
         Settings
       </Typography>
