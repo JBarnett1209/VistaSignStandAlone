@@ -126,7 +126,7 @@ export const Layout = () => {
           px: 2,
           borderBottom: '1px solid #E5E7EB'
         }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '45px', width: 'auto', maxWidth: '180px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '55px', width: 'auto', maxWidth: '220px' }}>
             <defs>
               <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#7E3AF2"/>
