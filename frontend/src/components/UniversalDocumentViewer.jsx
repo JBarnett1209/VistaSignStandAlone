@@ -553,7 +553,12 @@ const UniversalDocumentViewer = ({
   );
 
   const renderDocument = () => {
+    console.log('UniversalDocumentViewer - renderDocument called');
+    console.log('UniversalDocumentViewer - renderDocument - loading:', loading);
+    console.log('UniversalDocumentViewer - renderDocument - error:', error);
+    
     if (loading) {
+      console.log('UniversalDocumentViewer - renderDocument - showing loading state');
       return (
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
           <CircularProgress />
