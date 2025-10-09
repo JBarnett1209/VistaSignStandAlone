@@ -16,10 +16,11 @@ from app.models.document import Document
 from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
     SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse,
-    LegalSignatureVerificationResponse
+    LegalSignatureVerificationResponse, SignatureLevelsResponse, HybridSignatureCreate
 )
 from app.core.digital_signature import digital_signature_service
 from app.core.legal_signature import legal_signature_service, SignatureLevel
+from app.core.hybrid_signature import hybrid_signature_service, SignatureLevel as HybridSignatureLevel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -511,4 +512,200 @@ async def get_legal_certificate_info():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get legal certificate information"
+        )
+
+@router.get("/levels", response_model=SignatureLevelsResponse)
+async def get_signature_levels():
+    """Get available signature levels and their capabilities"""
+    try:
+        levels_info = hybrid_signature_service.get_signature_level_info()
+        return SignatureLevelsResponse(**levels_info)
+    except Exception as e:
+        logger.error(f"Get signature levels error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get signature levels"
+        )
+
+@router.post("/hybrid", response_model=SignatureResponse)
+async def create_hybrid_signature(
+    signature_data: HybridSignatureCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a hybrid signature with specified signature level"""
+    try:
+        # Verify document exists and user has access
+        result = await db.execute(
+            select(Document).where(
+                and_(
+                    Document.id == signature_data.document_id,
+                    Document.owner_id == current_user["user_id"]
+                )
+            )
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Get document content for hashing
+        document_content = b""
+        if hasattr(document, 'file_path') and document.file_path:
+            try:
+                with open(document.file_path, 'rb') as f:
+                    document_content = f.read()
+            except Exception as e:
+                logger.warning(f"Could not read document content: {str(e)}")
+        
+        # Create signing context
+        signing_context = {
+            "ip_address": "127.0.0.1",  # TODO: Get from request
+            "user_agent": "VistaSign",  # TODO: Get from request
+            "signing_reason": signature_data.signing_reason,
+            "signing_location": signature_data.signing_location,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Determine signature level
+        try:
+            signature_level = HybridSignatureLevel(signature_data.signature_level)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid signature level: {signature_data.signature_level}"
+            )
+        
+        # Create hybrid signature
+        hybrid_sig_data = hybrid_signature_service.create_hybrid_signature(
+            document_content=document_content,
+            user_id=str(current_user["user_id"]),
+            signature_data=signature_data.signature_data or "",
+            signing_context=signing_context,
+            signature_level=signature_level
+        )
+        
+        if not hybrid_sig_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create hybrid signature"
+            )
+        
+        # Create signature record
+        signature = Signature(
+            document_id=signature_data.document_id,
+            signer_id=current_user["user_id"],
+            signature_type=SignatureType.ELECTRONIC,
+            status=SignatureStatus.PENDING,
+            signature_data=signature_data.signature_data,
+            signature_image=signature_data.signature_image,
+            signature_position=signature_data.signature_position,
+            signing_reason=signature_data.signing_reason,
+            signing_location=signature_data.signing_location,
+            # Hybrid signature fields
+            digital_signature=hybrid_sig_data["digital_signature"],
+            document_hash=hybrid_sig_data["document_hash"],
+            certificate_thumbprint=hybrid_sig_data["certificate_info"]["fingerprints"]["sha256"],
+            signature_metadata=hybrid_sig_data,
+            verification_status="verified",
+            signature_level=hybrid_sig_data["signature_level"],
+            certificate_type=hybrid_sig_data["certificate_type"],
+            is_legally_binding=hybrid_sig_data["legal_binding"]["is_legally_binding"],
+            compliance_standard=hybrid_sig_data["legal_binding"]["compliance_level"],
+            certificate_chain=hybrid_sig_data["certificate_info"],
+            user_metadata=hybrid_sig_data.get("user_metadata"),
+            qualified_metadata=hybrid_sig_data.get("qualified_metadata")
+        )
+        
+        db.add(signature)
+        await db.commit()
+        await db.refresh(signature)
+        
+        return SignatureResponse(
+            id=str(signature.id),
+            document_id=str(signature.document_id),
+            signer_id=str(signature.signer_id),
+            signature_type=signature.signature_type.value,
+            status=signature.status.value,
+            signature_position=signature.signature_position,
+            signing_reason=signature.signing_reason,
+            signing_location=signature.signing_location,
+            created_at=signature.created_at,
+            signed_at=signature.signed_at,
+            # Digital signature fields
+            digital_signature=signature.digital_signature,
+            document_hash=signature.document_hash,
+            certificate_thumbprint=signature.certificate_thumbprint,
+            verification_status=signature.verification_status,
+            # Legal compliance fields
+            signature_level=signature.signature_level,
+            is_legally_binding=signature.is_legally_binding,
+            compliance_standard=signature.compliance_standard,
+            # Hybrid signature fields
+            certificate_type=signature.certificate_type
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Create hybrid signature error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create hybrid signature"
+        )
+
+@router.get("/{signature_id}/verify-hybrid", response_model=LegalSignatureVerificationResponse)
+async def verify_hybrid_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify a hybrid signature with level-specific validation"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"]
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        # Check if hybrid signature data exists
+        if not signature.digital_signature or not signature.signature_metadata:
+            return LegalSignatureVerificationResponse(
+                is_valid=False,
+                is_legally_binding=False,
+                errors=["No hybrid signature data available"],
+                verification_details={"has_hybrid_signature": False}
+            )
+        
+        # Verify the hybrid signature
+        verification_result = hybrid_signature_service.verify_hybrid_signature(
+            signature.signature_metadata
+        )
+        
+        # Add certificate chain info if available
+        if signature.certificate_chain:
+            verification_result["certificate_chain"] = signature.certificate_chain
+        
+        return LegalSignatureVerificationResponse(**verification_result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Hybrid signature verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify hybrid signature"
         )

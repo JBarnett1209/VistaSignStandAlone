@@ -61,6 +61,11 @@ class Signature(Base):
     timestamp_data = Column(JSON, nullable=True)  # RFC 3161 timestamp data
     legal_metadata = Column(JSON, nullable=True)  # Legal compliance metadata
     
+    # Hybrid signature fields
+    certificate_type = Column(String(20), default="system")  # system, user, trusted
+    user_metadata = Column(JSON, nullable=True)  # User-specific certificate metadata
+    qualified_metadata = Column(JSON, nullable=True)  # Qualified signature metadata
+    
     # Signing context
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)

@@ -39,6 +39,9 @@ class SignatureResponse(BaseModel):
     is_legally_binding: Optional[bool] = None
     compliance_standard: Optional[str] = None
     
+    # Hybrid signature fields
+    certificate_type: Optional[str] = None
+    
     class Config:
         from_attributes = True
 
@@ -87,3 +90,27 @@ class LegalSignatureVerificationResponse(BaseModel):
     verification_details: Dict[str, Any] = {}
     legal_compliance: Dict[str, Any] = {}
     certificate_chain: Optional[Dict[str, Any]] = None
+
+class SignatureLevelInfo(BaseModel):
+    """Signature level information schema"""
+    available: bool
+    description: str
+    legal_binding: str
+    verification: str
+    use_cases: List[str]
+
+class SignatureLevelsResponse(BaseModel):
+    """Available signature levels response schema"""
+    simple: SignatureLevelInfo
+    advanced: SignatureLevelInfo
+    qualified: SignatureLevelInfo
+
+class HybridSignatureCreate(BaseModel):
+    """Hybrid signature creation schema"""
+    document_id: str
+    signature_data: Optional[str] = None
+    signature_image: Optional[str] = None
+    signature_position: Optional[Dict[str, Any]] = None
+    signing_reason: Optional[str] = None
+    signing_location: Optional[str] = None
+    signature_level: str = "simple"  # simple, advanced, qualified
