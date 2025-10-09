@@ -170,6 +170,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [isDraggingField, setIsDraggingField] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [fieldStartPos, setFieldStartPos] = useState({ x: 0, y: 0 });
+  const [hasDragged, setHasDragged] = useState(false);
   
   // Resize state
   const [isResizing, setIsResizing] = useState(false);
@@ -283,6 +284,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const handleFieldClick = (fieldId) => {
+    // Don't open field properties if we just finished dragging
+    if (hasDragged) {
+      setHasDragged(false); // Reset for next interaction
+      return;
+    }
+    
     setSelectedField(fieldId);
     const field = fields.find(f => f.id === fieldId);
     if (field) {
@@ -309,6 +316,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     
     setSelectedField(fieldId);
     setIsDraggingField(true);
+    setHasDragged(false); // Reset drag tracking
     setDragStartPos({ x: e.clientX, y: e.clientY });
     setFieldStartPos({ x: field.x, y: field.y });
   };
@@ -318,6 +326,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     
     const deltaX = (e.clientX - dragStartPos.x) / scale;
     const deltaY = (e.clientY - dragStartPos.y) / scale;
+    
+    // Check if we've moved enough to consider it a drag (threshold of 5 pixels)
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (distance > 5) {
+      setHasDragged(true);
+    }
     
     setFields(prev => prev.map(field => 
       field.id === selectedField 
@@ -339,6 +353,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     if (!field) return;
     
     setIsResizing(true);
+    setHasDragged(false); // Reset drag tracking for resize
     setResizeHandle(handle);
     setResizeStartPos({ x: e.clientX, y: e.clientY });
     setFieldStartSize({ width: field.width, height: field.height });
@@ -350,6 +365,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     
     const deltaX = (e.clientX - resizeStartPos.x) / scale;
     const deltaY = (e.clientY - resizeStartPos.y) / scale;
+    
+    // Check if we've moved enough to consider it a resize (threshold of 5 pixels)
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (distance > 5) {
+      setHasDragged(true);
+    }
     
     setFields(prev => prev.map(field => {
       if (field.id !== selectedField) return field;
