@@ -53,6 +53,14 @@ class Signature(Base):
     signature_metadata = Column(JSON, nullable=True)  # Complete signature metadata
     verification_status = Column(String(20), default="pending")  # pending, verified, failed
     
+    # Legal compliance fields
+    signature_level = Column(String(20), default="simple")  # simple, advanced, qualified
+    is_legally_binding = Column(Boolean, default=False)
+    compliance_standard = Column(String(20), default="ESIGN")  # ESIGN, eIDAS, etc.
+    certificate_chain = Column(JSON, nullable=True)  # Complete certificate chain info
+    timestamp_data = Column(JSON, nullable=True)  # RFC 3161 timestamp data
+    legal_metadata = Column(JSON, nullable=True)  # Legal compliance metadata
+    
     # Signing context
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)

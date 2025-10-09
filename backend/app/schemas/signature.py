@@ -34,6 +34,11 @@ class SignatureResponse(BaseModel):
     certificate_thumbprint: Optional[str] = None
     verification_status: Optional[str] = None
     
+    # Legal compliance fields
+    signature_level: Optional[str] = None
+    is_legally_binding: Optional[bool] = None
+    compliance_standard: Optional[str] = None
+    
     class Config:
         from_attributes = True
 
@@ -72,3 +77,13 @@ class SignatureVerificationResponse(BaseModel):
     warnings: List[str] = []
     verification_details: Dict[str, Any] = {}
     certificate_info: Optional[Dict[str, Any]] = None
+
+class LegalSignatureVerificationResponse(BaseModel):
+    """Legal signature verification response schema"""
+    is_valid: bool
+    is_legally_binding: bool
+    errors: List[str] = []
+    warnings: List[str] = []
+    verification_details: Dict[str, Any] = {}
+    legal_compliance: Dict[str, Any] = {}
+    certificate_chain: Optional[Dict[str, Any]] = None

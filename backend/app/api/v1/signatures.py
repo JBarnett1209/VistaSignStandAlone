@@ -15,9 +15,11 @@ from app.models.signature import Signature, SignatureTemplate, SignatureStatus, 
 from app.models.document import Document
 from app.schemas.signature import (
     SignatureCreate, SignatureResponse, SignatureListResponse,
-    SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse
+    SignatureTemplateCreate, SignatureTemplateResponse, SignatureVerificationResponse,
+    LegalSignatureVerificationResponse
 )
 from app.core.digital_signature import digital_signature_service
+from app.core.legal_signature import legal_signature_service, SignatureLevel
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -65,31 +67,38 @@ async def create_signature(
             "timestamp": datetime.now().isoformat()
         }
         
-        # Create digital signature if service is available
-        digital_sig_data = None
+        # Create legal signature if service is available
+        legal_sig_data = None
         document_hash = None
         certificate_thumbprint = None
         verification_status = "pending"
+        signature_level = "simple"
+        is_legally_binding = False
+        compliance_standard = "ESIGN"
         
-        if digital_signature_service.is_available():
+        if legal_signature_service.is_available():
             try:
-                digital_sig_data = digital_signature_service.create_complete_signature(
+                legal_sig_data = legal_signature_service.create_legal_signature(
                     document_content=document_content,
                     user_id=str(current_user["user_id"]),
                     signature_data=signature_data.signature_data or "",
-                    signing_context=signing_context
+                    signing_context=signing_context,
+                    signature_level=SignatureLevel.ADVANCED  # Use advanced level for legal binding
                 )
                 
-                if digital_sig_data:
-                    document_hash = digital_sig_data["document_hash"]
-                    certificate_thumbprint = digital_sig_data["certificate_info"]["thumbprint"]
+                if legal_sig_data:
+                    document_hash = legal_sig_data["document_hash"]
+                    certificate_thumbprint = legal_sig_data["certificate_chain"]["fingerprints"]["sha256"]
                     verification_status = "verified"
-                    logger.info(f"Digital signature created for user {current_user['user_id']}")
+                    signature_level = legal_sig_data["signature_data"]["signature_level"]
+                    is_legally_binding = legal_sig_data["legal_binding"]["is_legally_binding"]
+                    compliance_standard = legal_sig_data["signature_data"]["legal_metadata"]["compliance_standard"]
+                    logger.info(f"Legal signature created for user {current_user['user_id']} - Level: {signature_level}")
                 else:
-                    logger.warning("Failed to create digital signature")
+                    logger.warning("Failed to create legal signature")
                     verification_status = "failed"
             except Exception as e:
-                logger.error(f"Digital signature creation failed: {str(e)}")
+                logger.error(f"Legal signature creation failed: {str(e)}")
                 verification_status = "failed"
         
         # Create signature
@@ -104,11 +113,18 @@ async def create_signature(
             signing_reason=signature_data.signing_reason,
             signing_location=signature_data.signing_location,
             # Digital signature fields
-            digital_signature=digital_sig_data["digital_signature"] if digital_sig_data else None,
+            digital_signature=legal_sig_data["digital_signature"] if legal_sig_data else None,
             document_hash=document_hash,
             certificate_thumbprint=certificate_thumbprint,
-            signature_metadata=digital_sig_data if digital_sig_data else None,
-            verification_status=verification_status
+            signature_metadata=legal_sig_data if legal_sig_data else None,
+            verification_status=verification_status,
+            # Legal compliance fields
+            signature_level=signature_level,
+            is_legally_binding=is_legally_binding,
+            compliance_standard=compliance_standard,
+            certificate_chain=legal_sig_data["certificate_chain"] if legal_sig_data else None,
+            timestamp_data=legal_sig_data["signature_data"]["timestamp"] if legal_sig_data else None,
+            legal_metadata=legal_sig_data["signature_data"]["legal_metadata"] if legal_sig_data else None
         )
         
         db.add(signature)
@@ -130,7 +146,11 @@ async def create_signature(
             digital_signature=signature.digital_signature,
             document_hash=signature.document_hash,
             certificate_thumbprint=signature.certificate_thumbprint,
-            verification_status=signature.verification_status
+            verification_status=signature.verification_status,
+            # Legal compliance fields
+            signature_level=signature.signature_level,
+            is_legally_binding=signature.is_legally_binding,
+            compliance_standard=signature.compliance_standard
         )
         
     except HTTPException:
@@ -243,7 +263,11 @@ async def get_signature(
             digital_signature=signature.digital_signature,
             document_hash=signature.document_hash,
             certificate_thumbprint=signature.certificate_thumbprint,
-            verification_status=signature.verification_status
+            verification_status=signature.verification_status,
+            # Legal compliance fields
+            signature_level=signature.signature_level,
+            is_legally_binding=signature.is_legally_binding,
+            compliance_standard=signature.compliance_standard
         )
         
     except HTTPException:
@@ -406,4 +430,85 @@ async def get_certificate_info():
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get certificate information"
+        )
+
+@router.get("/{signature_id}/verify-legal", response_model=LegalSignatureVerificationResponse)
+async def verify_legal_signature(
+    signature_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify a legal signature with comprehensive legal compliance checking"""
+    try:
+        result = await db.execute(
+            select(Signature).where(
+                and_(
+                    Signature.id == signature_id,
+                    Signature.signer_id == current_user["user_id"]
+                )
+            )
+        )
+        signature = result.scalar_one_or_none()
+        
+        if not signature:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Signature not found"
+            )
+        
+        # Check if legal signature data exists
+        if not signature.digital_signature or not signature.signature_metadata:
+            return LegalSignatureVerificationResponse(
+                is_valid=False,
+                is_legally_binding=False,
+                errors=["No legal signature data available"],
+                verification_details={"has_legal_signature": False}
+            )
+        
+        # Verify the legal signature
+        verification_result = legal_signature_service.verify_legal_signature(
+            signature.signature_metadata
+        )
+        
+        # Add certificate chain info if available
+        if signature.certificate_chain:
+            verification_result["certificate_chain"] = signature.certificate_chain
+        
+        return LegalSignatureVerificationResponse(**verification_result)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Legal signature verification error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to verify legal signature"
+        )
+
+@router.get("/certificate/legal-info")
+async def get_legal_certificate_info():
+    """Get legal certificate information for signature verification"""
+    try:
+        if not legal_signature_service.is_available():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Legal signature service not available"
+            )
+        
+        cert_info = legal_signature_service.get_certificate_chain_info()
+        if not cert_info:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to get legal certificate information"
+            )
+        
+        return cert_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get legal certificate info error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get legal certificate information"
         )
