@@ -54,6 +54,15 @@ export default function Profile() {
               />
             </Grid>
             <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="User ID"
+                value={user?.user_id || user?.id || ''}
+                disabled
+                helperText="Use this ID for admin lookups and account management"
+              />
+            </Grid>
+            <Grid item xs={12}>
               <Button variant="contained" color="primary">
                 Update Profile
               </Button>

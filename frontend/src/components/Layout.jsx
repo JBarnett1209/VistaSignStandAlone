@@ -92,6 +92,12 @@ export const Layout = () => {
               onClose={handleClose}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              PaperProps={{
+                sx: {
+                  maxWidth: 200,
+                  minWidth: 150
+                }
+              }}
             >
               <MenuItem onClick={goProfile}>Profile</MenuItem>
               <MenuItem onClick={doLogout}>Logout</MenuItem>
