@@ -209,6 +209,28 @@ export default function Workflows() {
     setViewParticipantsDialogOpen(true);
   };
 
+  const handleEditParticipant = (participant) => {
+    // TODO: Implement edit participant functionality
+    console.log('Edit participant:', participant);
+    // For now, just show an alert
+    alert(`Edit participant: ${participant.email}`);
+  };
+
+  const handleRemoveParticipant = async (participantId) => {
+    if (window.confirm('Are you sure you want to remove this participant?')) {
+      try {
+        // TODO: Implement remove participant API call
+        console.log('Remove participant:', participantId);
+        // For now, just reload the participants
+        await loadWorkflowParticipants(selectedWorkflow.id);
+        alert('Participant removed successfully');
+      } catch (err) {
+        console.error('Error removing participant:', err);
+        setError('Failed to remove participant');
+      }
+    }
+  };
+
   return (
     <Box className="content-section" sx={{ 
       width: '100%', 
@@ -455,6 +477,7 @@ export default function Workflows() {
                     <TableCell>Signing Order</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -469,6 +492,25 @@ export default function Workflows() {
                           size="small"
                           color={participant.status === 'completed' ? 'success' : 'default'}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton 
+                            size="small" 
+                            title="Edit Participant"
+                            onClick={() => handleEditParticipant(participant)}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton 
+                            size="small" 
+                            title="Remove Participant"
+                            onClick={() => handleRemoveParticipant(participant.id)}
+                            color="error"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))}
