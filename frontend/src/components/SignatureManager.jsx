@@ -106,7 +106,7 @@ export default function SignatureManager() {
           alt="Signature preview"
           style={{
             maxWidth: '100%',
-            maxHeight: 80,
+            maxHeight: 60,
             objectFit: 'contain',
             border: '1px solid #ddd',
             borderRadius: 4
@@ -119,14 +119,18 @@ export default function SignatureManager() {
         <Box
           sx={{
             fontFamily: `'${signature.data.font}', cursive`,
-            fontSize: Math.min(48, signature.data.size || 40),
+            fontSize: Math.min(24, signature.data.size || 20),
             color: signature.data.color,
             fontStyle: 'italic',
             textAlign: 'center',
-            py: 2,
+            py: 1,
             border: '1px solid #ddd',
             borderRadius: 1,
-            backgroundColor: '#f9f9f9'
+            backgroundColor: '#f9f9f9',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}
         >
           {signature.data.text}
@@ -181,9 +185,9 @@ export default function SignatureManager() {
           {signatures.map((signature) => (
             <Grid item xs={12} sm={6} md={4} lg={3} xl={3} key={signature.id}>
               <Card sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">
+                <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6" sx={{ fontSize: '1rem' }}>
                       {signature.name}
                     </Typography>
                     <Chip
@@ -194,11 +198,11 @@ export default function SignatureManager() {
                     />
                   </Box>
                   
-                  <Box sx={{ mb: 2, minHeight: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                  <Box sx={{ mb: 2, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden' }}>
                     {renderSignaturePreview(signature)}
                   </Box>
 
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 'auto' }}>
                     Created: {new Date(signature.createdAt).toLocaleDateString()}
                   </Typography>
                 </CardContent>
