@@ -549,7 +549,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const updatedDocument = {
         ...document,
         fields: fields,
-        status: 'pending'
+        status: 'pending_signature'
       };
 
       await documentsAPI.update(document.id, updatedDocument);
@@ -571,7 +571,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const updatedDocument = {
         ...document,
         fields: fields,
-        status: 'pending'
+        status: 'pending_signature'
       };
 
       await documentsAPI.update(document.id, updatedDocument);
