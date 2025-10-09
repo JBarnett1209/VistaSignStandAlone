@@ -13,6 +13,13 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     cargo \
     pkg-config \
+    libreoffice \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress \
+    fonts-dejavu \
+    fontconfig \
+    ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

@@ -7,6 +7,8 @@ import os
 import tempfile
 import logging
 from typing import Optional, Tuple
+import asyncio
+import shutil
 from pathlib import Path
 import uuid
 from datetime import datetime
@@ -118,222 +120,98 @@ class DocumentConverter:
     
     @staticmethod
     async def _convert_docx_to_pdf(input_path: str, output_path: str, title: str) -> bool:
-        """Convert DOCX to PDF"""
+        """Convert DOCX to PDF using LibreOffice (real conversion)."""
         try:
-            logger.info(f"Converting DOCX to PDF: {input_path} -> {output_path}")
-            
-            # Check if required imports are available
-            try:
-                from reportlab.lib.pagesizes import A4
-                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-                from reportlab.lib import colors
-                logger.info("ReportLab imports successful")
-            except ImportError as e:
-                logger.error(f"ReportLab import failed: {e}")
-                logger.error("ReportLab is required for PDF conversion. Please install it with: pip install reportlab")
+            logger.info(f"Converting DOCX to PDF via LibreOffice: {input_path} -> {output_path}")
+            outdir = os.path.dirname(output_path)
+            os.makedirs(outdir, exist_ok=True)
+
+            cmd = [
+                'soffice', '--headless', '--nologo', '--nofirststartwizard',
+                '--convert-to', 'pdf', '--outdir', outdir, input_path
+            ]
+            logger.info(f"Running command: {' '.join(cmd)}")
+
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            logger.info(f"LibreOffice stdout: {stdout.decode(errors='ignore')}")
+            if stderr:
+                logger.warning(f"LibreOffice stderr: {stderr.decode(errors='ignore')}")
+
+            if proc.returncode != 0:
+                logger.error(f"LibreOffice exited with code {proc.returncode}")
                 return False
-            
-            # Create a PDF with document information
-            doc = SimpleDocTemplate(output_path, pagesize=A4)
-            styles = getSampleStyleSheet()
-            story = []
-            
-            # Add title
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Title'],
-                fontSize=18,
-                spaceAfter=30,
-                alignment=1  # Center alignment
-            )
-            story.append(Paragraph(title, title_style))
-            story.append(Spacer(1, 20))
-            
-            # Add document information
-            info_style = ParagraphStyle(
-                'Info',
-                parent=styles['Normal'],
-                fontSize=12,
-                spaceAfter=12
-            )
-            
-            story.append(Paragraph("Document Information", styles['Heading2']))
-            story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
-            story.append(Paragraph(f"<b>Document Type:</b> Microsoft Word Document", info_style))
-            story.append(Paragraph(f"<b>Conversion Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
-            story.append(Spacer(1, 20))
-            
-            # Add note about conversion
-            note_style = ParagraphStyle(
-                'Note',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.grey,
-                alignment=1
-            )
-            story.append(Paragraph("Note: This document was converted from a Word document (.docx) to PDF format.", note_style))
-            story.append(Paragraph("The original formatting and content are preserved as much as possible.", note_style))
-            story.append(Paragraph("You can add signature fields and send this document for signing.", note_style))
-            
-            doc.build(story)
-            logger.info(f"Created PDF from DOCX: {output_path}")
+
+            # LibreOffice writes <basename>.pdf in outdir
+            expected_pdf = os.path.join(outdir, f"{Path(input_path).stem}.pdf")
+            if not os.path.exists(expected_pdf) or os.path.getsize(expected_pdf) == 0:
+                logger.error("LibreOffice did not produce a valid PDF output")
+                return False
+
+            # Move/rename to requested output_path if different
+            if os.path.abspath(expected_pdf) != os.path.abspath(output_path):
+                shutil.move(expected_pdf, output_path)
+
+            logger.info(f"DOCX conversion successful: {output_path}")
             return True
-            
         except Exception as e:
             logger.error(f"DOCX to PDF conversion failed: {str(e)}")
-            logger.error(f"Input file: {input_path}")
-            logger.error(f"Output file: {output_path}")
-            logger.error(f"Title: {title}")
             return False
     
     @staticmethod
     async def _convert_excel_to_pdf(input_path: str, output_path: str, title: str) -> bool:
-        """Convert Excel to PDF"""
-        if not EXCEL_CONVERSION_AVAILABLE:
-            logger.error("pandas and reportlab not available for Excel conversion")
-            return False
-        
+        """Convert Excel to PDF using LibreOffice."""
         try:
-            logger.info(f"Converting Excel to PDF: {input_path} -> {output_path}")
-            
-            # Read Excel file
-            df = pd.read_excel(input_path)
-            
-            # Create PDF
-            doc = SimpleDocTemplate(output_path, pagesize=A4)
-            styles = getSampleStyleSheet()
-            story = []
-            
-            # Add title
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Title'],
-                fontSize=18,
-                spaceAfter=30,
-                alignment=1
-            )
-            story.append(Paragraph(title, title_style))
-            story.append(Spacer(1, 20))
-            
-            # Add document information
-            info_style = ParagraphStyle(
-                'Info',
-                parent=styles['Normal'],
-                fontSize=12,
-                spaceAfter=12
-            )
-            
-            story.append(Paragraph("Document Information", styles['Heading2']))
-            story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
-            story.append(Paragraph(f"<b>Document Type:</b> Microsoft Excel Spreadsheet", info_style))
-            story.append(Paragraph(f"<b>Rows:</b> {len(df)}", info_style))
-            story.append(Paragraph(f"<b>Columns:</b> {len(df.columns)}", info_style))
-            story.append(Spacer(1, 20))
-            
-            # Convert DataFrame to table if not too large
-            if not df.empty and len(df) <= 50:  # Limit to 50 rows for PDF
-                story.append(Paragraph("Spreadsheet Data", styles['Heading2']))
-                
-                # Prepare table data
-                table_data = [df.columns.tolist()]  # Header
-                table_data.extend(df.head(50).values.tolist())  # Data rows (limit to 50)
-                
-                # Create table
-                table = Table(table_data)
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                    ('FONTSIZE', (0, 1), (-1, -1), 8)
-                ]))
-                
-                story.append(table)
-            else:
-                story.append(Paragraph("Spreadsheet contains too much data to display in PDF format.", styles['Normal']))
-                story.append(Paragraph("Please download the original file to view all data.", styles['Normal']))
-            
-            story.append(Spacer(1, 20))
-            
-            # Add note about conversion
-            note_style = ParagraphStyle(
-                'Note',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.grey,
-                alignment=1
-            )
-            story.append(Paragraph("Note: This document was converted from an Excel spreadsheet to PDF format.", note_style))
-            story.append(Paragraph("You can add signature fields and send this document for signing.", note_style))
-            
-            doc.build(story)
-            logger.info(f"Excel to PDF conversion successful: {output_path}")
-            return True
-            
+            logger.info(f"Converting Excel to PDF via LibreOffice: {input_path} -> {output_path}")
+            return await DocumentConverter._convert_with_soffice(input_path, output_path)
         except Exception as e:
             logger.error(f"Excel to PDF conversion failed: {str(e)}")
             return False
     
     @staticmethod
     async def _convert_powerpoint_to_pdf(input_path: str, output_path: str, title: str) -> bool:
-        """Convert PowerPoint to PDF"""
+        """Convert PowerPoint to PDF using LibreOffice."""
         try:
-            logger.info(f"Converting PowerPoint to PDF: {input_path} -> {output_path}")
-            
-            # Create a PDF with document information
-            doc = SimpleDocTemplate(output_path, pagesize=A4)
-            styles = getSampleStyleSheet()
-            story = []
-            
-            # Add title
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Title'],
-                fontSize=18,
-                spaceAfter=30,
-                alignment=1
-            )
-            story.append(Paragraph(title, title_style))
-            story.append(Spacer(1, 20))
-            
-            # Add document information
-            info_style = ParagraphStyle(
-                'Info',
-                parent=styles['Normal'],
-                fontSize=12,
-                spaceAfter=12
-            )
-            
-            story.append(Paragraph("Document Information", styles['Heading2']))
-            story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
-            story.append(Paragraph(f"<b>Document Type:</b> Microsoft PowerPoint Presentation", info_style))
-            story.append(Paragraph(f"<b>Conversion Date:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", info_style))
-            story.append(Spacer(1, 20))
-            
-            # Add note about conversion
-            note_style = ParagraphStyle(
-                'Note',
-                parent=styles['Normal'],
-                fontSize=10,
-                textColor=colors.grey,
-                alignment=1
-            )
-            story.append(Paragraph("Note: This document was converted from a PowerPoint presentation to PDF format.", note_style))
-            story.append(Paragraph("The original slides and content are preserved as much as possible.", note_style))
-            story.append(Paragraph("You can add signature fields and send this document for signing.", note_style))
-            
-            doc.build(story)
-            logger.info(f"Created PDF from PowerPoint: {output_path}")
-            return True
-            
+            logger.info(f"Converting PowerPoint to PDF via LibreOffice: {input_path} -> {output_path}")
+            return await DocumentConverter._convert_with_soffice(input_path, output_path)
         except Exception as e:
             logger.error(f"PowerPoint to PDF conversion failed: {str(e)}")
             return False
+
+    @staticmethod
+    async def _convert_with_soffice(input_path: str, output_path: str) -> bool:
+        """Generic LibreOffice-based conversion to PDF for Office docs."""
+        outdir = os.path.dirname(output_path)
+        os.makedirs(outdir, exist_ok=True)
+        cmd = [
+            'soffice', '--headless', '--nologo', '--nofirststartwizard',
+            '--convert-to', 'pdf', '--outdir', outdir, input_path
+        ]
+        logger.info(f"Running command: {' '.join(cmd)}")
+        proc = await asyncio.create_subprocess_exec(
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if stdout:
+            logger.info(f"LibreOffice stdout: {stdout.decode(errors='ignore')}")
+        if stderr:
+            logger.warning(f"LibreOffice stderr: {stderr.decode(errors='ignore')}")
+        if proc.returncode != 0:
+            logger.error(f"LibreOffice returned non-zero code: {proc.returncode}")
+            return False
+
+        expected_pdf = os.path.join(outdir, f"{Path(input_path).stem}.pdf")
+        if not os.path.exists(expected_pdf) or os.path.getsize(expected_pdf) == 0:
+            logger.error("LibreOffice did not produce a valid PDF output")
+            return False
+        if os.path.abspath(expected_pdf) != os.path.abspath(output_path):
+            shutil.move(expected_pdf, output_path)
+        logger.info(f"LibreOffice conversion successful: {output_path}")
+        return True
     
     @staticmethod
     async def _convert_image_to_pdf(input_path: str, output_path: str, title: str) -> bool:
