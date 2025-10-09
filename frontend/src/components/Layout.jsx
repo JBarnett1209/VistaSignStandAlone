@@ -121,12 +121,14 @@ export const Layout = () => {
         <Toolbar />
         <Box sx={{ 
           display: 'flex', 
+          alignItems: 'center',
           justifyContent: 'center', 
-          py: 1, 
-          px: 2,
-          borderBottom: '1px solid #E5E7EB'
+          py: 2, 
+          px: 1,
+          borderBottom: '1px solid #E5E7EB',
+          minHeight: '80px'
         }}>
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '55px', width: 'auto', maxWidth: '220px' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '70px', width: '100%', maxWidth: '240px' }}>
             <defs>
               <linearGradient id="uvGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#7E3AF2"/>
