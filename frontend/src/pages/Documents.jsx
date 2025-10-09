@@ -33,6 +33,7 @@ import {
 import { documentsAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentEditor from '../components/DocumentEditor';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -93,6 +94,7 @@ export default function Documents() {
   const [error, setError] = useState(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, documentId: null, documentTitle: '' });
 
   const fetchDocuments = async () => {
     try {
@@ -117,15 +119,22 @@ export default function Documents() {
     setUploadDialogOpen(false);
   };
 
-  const handleDeleteDocument = async (documentId) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
-      try {
-        await documentsAPI.delete(documentId);
-        setDocuments(prev => prev.filter(doc => doc.id !== documentId));
-      } catch (err) {
-        setError('Failed to delete document');
-        console.error('Error deleting document:', err);
-      }
+  const handleDeleteDocument = (documentId, documentTitle) => {
+    setDeleteDialog({
+      open: true,
+      documentId,
+      documentTitle
+    });
+  };
+
+  const confirmDeleteDocument = async () => {
+    try {
+      await documentsAPI.delete(deleteDialog.documentId);
+      setDocuments(prev => prev.filter(doc => doc.id !== deleteDialog.documentId));
+      setDeleteDialog({ open: false, documentId: null, documentTitle: '' });
+    } catch (err) {
+      setError('Failed to delete document');
+      console.error('Error deleting document:', err);
     }
   };
 
@@ -306,7 +315,7 @@ export default function Documents() {
                       <IconButton
                         size="small"
                         title="Delete"
-                        onClick={() => handleDeleteDocument(doc.id)}
+                        onClick={() => handleDeleteDocument(doc.id, doc.title)}
                         color="error"
                         sx={{ flexShrink: 0 }}
                       >
@@ -341,6 +350,18 @@ export default function Documents() {
         document={editingDocument}
         onClose={() => setEditingDocument(null)}
         onSave={handleDocumentSave}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, documentId: null, documentTitle: '' })}
+        onConfirm={confirmDeleteDocument}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${deleteDialog.documentTitle}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
     </Box>
   );

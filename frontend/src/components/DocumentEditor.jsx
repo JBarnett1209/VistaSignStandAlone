@@ -18,6 +18,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  FormControlLabel,
+  Checkbox as MUICheckbox,
   List,
   ListItem,
   ListItemText,
@@ -35,6 +37,12 @@ import {
   CalendarToday as DateIcon,
   TextFields as TextIcon,
   CheckCircle as InitialIcon,
+  CheckBox as CheckboxIcon,
+  RadioButtonChecked as RadioIcon,
+  ArrowDropDownCircle as DropdownIcon,
+  Person as PersonIcon,
+  Email as EmailIcon,
+  Attachment as AttachmentIcon,
   Send as SendIcon,
   PersonAdd as PersonAddIcon,
   Delete as DeleteIcon
@@ -51,7 +59,13 @@ const FIELD_TYPES = {
   SIGNATURE: 'signature',
   DATE: 'date',
   INITIALS: 'initials',
-  TEXT: 'text'
+  TEXT: 'text',
+  CHECKBOX: 'checkbox',
+  RADIO: 'radio',
+  DROPDOWN: 'dropdown',
+  NAME: 'name',
+  EMAIL: 'email',
+  ATTACHMENT: 'attachment'
 };
 
 const SIGNING_ROLES = {
@@ -87,6 +101,48 @@ const FIELD_TYPE_CONFIG = {
     icon: <TextIcon />,
     color: '#7b1fa2',
     width: 150,
+    height: 40
+  },
+  [FIELD_TYPES.CHECKBOX]: {
+    label: 'Checkbox',
+    icon: <CheckboxIcon />,
+    color: '#455a64',
+    width: 24,
+    height: 24
+  },
+  [FIELD_TYPES.RADIO]: {
+    label: 'Radio Group',
+    icon: <RadioIcon />,
+    color: '#5d4037',
+    width: 24,
+    height: 24
+  },
+  [FIELD_TYPES.DROPDOWN]: {
+    label: 'Dropdown',
+    icon: <DropdownIcon />,
+    color: '#00897b',
+    width: 160,
+    height: 40
+  },
+  [FIELD_TYPES.NAME]: {
+    label: 'Name',
+    icon: <PersonIcon />,
+    color: '#3949ab',
+    width: 180,
+    height: 40
+  },
+  [FIELD_TYPES.EMAIL]: {
+    label: 'Email',
+    icon: <EmailIcon />,
+    color: '#1e88e5',
+    width: 220,
+    height: 40
+  },
+  [FIELD_TYPES.ATTACHMENT]: {
+    label: 'Attachment',
+    icon: <AttachmentIcon />,
+    color: '#6d4c41',
+    width: 220,
     height: 40
   }
 };
@@ -157,6 +213,20 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    const defaultValueByType = (type) => {
+      switch (type) {
+        case FIELD_TYPES.CHECKBOX:
+          return false;
+        case FIELD_TYPES.RADIO:
+        case FIELD_TYPES.DROPDOWN:
+          return '';
+        case FIELD_TYPES.DATE:
+          return new Date().toISOString().split('T')[0];
+        default:
+          return '';
+      }
+    };
+
     const newField = {
       id: Date.now().toString(),
       type: dragField,
@@ -165,11 +235,16 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
-      value: '',
+      value: defaultValueByType(dragField),
       required: true,
       completed: false,
       assignedSigner: null,
-      signingOrder: 1
+      signingOrder: 1,
+      // type-specific metadata
+      options: dragField === FIELD_TYPES.RADIO || dragField === FIELD_TYPES.DROPDOWN ? ['Option 1', 'Option 2'] : undefined,
+      groupName: dragField === FIELD_TYPES.RADIO ? 'Group 1' : undefined,
+      allowedFileTypes: dragField === FIELD_TYPES.ATTACHMENT ? '' : undefined,
+      maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
     };
 
     setFields(prev => [...prev, newField]);
@@ -571,6 +646,92 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                   sx={{ mb: 2 }}
                 />
               )}
+
+              {editingField.type === FIELD_TYPES.CHECKBOX && (
+                <FormControlLabel
+                  control={
+                    <MUICheckbox
+                      checked={!!editingField.value}
+                      onChange={(e) => handleFieldValueChange(editingField.id, e.target.checked)}
+                    />
+                  }
+                  label="Default Checked"
+                  sx={{ mb: 2 }}
+                />
+              )}
+
+              {(editingField.type === FIELD_TYPES.RADIO || editingField.type === FIELD_TYPES.DROPDOWN) && (
+                <Box>
+                  {editingField.type === FIELD_TYPES.RADIO && (
+                    <TextField
+                      fullWidth
+                      label="Group Name"
+                      value={editingField.groupName || ''}
+                      onChange={(e) => setEditingField(prev => ({ ...prev, groupName: e.target.value }))}
+                      sx={{ mb: 2 }}
+                    />
+                  )}
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    label="Options (one per line)"
+                    value={(editingField.options || []).join('\n')}
+                    onChange={(e) => setEditingField(prev => ({ ...prev, options: e.target.value.split('\n').filter(Boolean) }))}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Default Value"
+                    value={editingField.value || ''}
+                    onChange={(e) => handleFieldValueChange(editingField.id, e.target.value)}
+                    helperText="Must match one of the options"
+                    sx={{ mb: 2 }}
+                  />
+                </Box>
+              )}
+
+              {editingField.type === FIELD_TYPES.NAME && (
+                <TextField
+                  fullWidth
+                  label="Prefilled Name"
+                  value={editingField.value || ''}
+                  onChange={(e) => handleFieldValueChange(editingField.id, e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+              )}
+
+              {editingField.type === FIELD_TYPES.EMAIL && (
+                <TextField
+                  fullWidth
+                  type="email"
+                  label="Prefilled Email"
+                  value={editingField.value || ''}
+                  onChange={(e) => handleFieldValueChange(editingField.id, e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+              )}
+
+              {editingField.type === FIELD_TYPES.ATTACHMENT && (
+                <Box>
+                  <TextField
+                    fullWidth
+                    label="Allowed File Types (comma-separated, e.g. pdf,jpg,docx)"
+                    value={editingField.allowedFileTypes || ''}
+                    onChange={(e) => setEditingField(prev => ({ ...prev, allowedFileTypes: e.target.value }))}
+                    sx={{ mb: 2 }}
+                  />
+                  <TextField
+                    fullWidth
+                    type="number"
+                    label="Max File Size (MB)"
+                    value={editingField.maxFileSizeMb || 10}
+                    onChange={(e) => setEditingField(prev => ({ ...prev, maxFileSizeMb: parseInt(e.target.value) || 1 }))}
+                    inputProps={{ min: 1 }}
+                    sx={{ mb: 2 }}
+                  />
+                </Box>
+              )}
               
               {editingField.type === FIELD_TYPES.SIGNATURE && (
                 <Button
@@ -601,6 +762,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                   ))}
                 </Select>
               </FormControl>
+
+              <FormControlLabel
+                control={
+                  <MUICheckbox
+                    checked={!!editingField.required}
+                    onChange={(e) => setEditingField(prev => ({ ...prev, required: e.target.checked }))}
+                  />
+                }
+                label="Required"
+                sx={{ mb: 2 }}
+              />
 
               <TextField
                 fullWidth

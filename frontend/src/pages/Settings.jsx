@@ -30,6 +30,7 @@ import { Delete as DeleteIcon, Block as BlockIcon, CheckCircle as AllowIcon } fr
 import { useAuth } from '../contexts/AuthContext';
 import { usersAPI, invitesAPI } from '../services/api';
 import SignatureManager from '../components/SignatureManager';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -45,6 +46,11 @@ export default function Settings() {
   const [inviting, setInviting] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionDialog, setBulkActionDialog] = useState({ 
+    open: false, 
+    action: null, 
+    count: 0 
+  });
 
   const loadUsers = async () => {
     setUsersLoading(true);
@@ -138,10 +144,21 @@ export default function Settings() {
   };
 
   // Bulk actions
-  const handleBulkAction = async (action) => {
+  const handleBulkAction = (action) => {
     if (selectedUsers.size === 0) return;
     
+    setBulkActionDialog({
+      open: true,
+      action,
+      count: selectedUsers.size
+    });
+  };
+
+  const confirmBulkAction = async () => {
+    const { action } = bulkActionDialog;
     setBulkActionLoading(true);
+    setBulkActionDialog({ open: false, action: null, count: 0 });
+    
     try {
       const selectedArray = Array.from(selectedUsers);
       const userIds = selectedArray.filter(id => !id.startsWith('invite-'));
@@ -360,6 +377,23 @@ export default function Settings() {
           <Button onClick={createInvite} disabled={inviting}>Send Invite</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <ConfirmationDialog
+        open={bulkActionDialog.open}
+        onClose={() => setBulkActionDialog({ open: false, action: null, count: 0 })}
+        onConfirm={confirmBulkAction}
+        title={`${bulkActionDialog.action === 'delete' ? 'Delete' : 
+                bulkActionDialog.action === 'deactivate' ? 'Deactivate' : 
+                bulkActionDialog.action === 'activate' ? 'Activate' : 'Process'} ${bulkActionDialog.count} Item${bulkActionDialog.count > 1 ? 's' : ''}`}
+        message={`Are you sure you want to ${bulkActionDialog.action} ${bulkActionDialog.count} selected item${bulkActionDialog.count > 1 ? 's' : ''}? This action cannot be undone.`}
+        confirmText={bulkActionDialog.action === 'delete' ? 'Delete' : 
+                    bulkActionDialog.action === 'deactivate' ? 'Deactivate' : 
+                    bulkActionDialog.action === 'activate' ? 'Activate' : 'Confirm'}
+        cancelText="Cancel"
+        type={bulkActionDialog.action === 'delete' ? 'danger' : 'warning'}
+        loading={bulkActionLoading}
+      />
     </Box>
   );
 }

@@ -7,10 +7,6 @@ import {
   CardContent,
   CardActions,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Alert,
   Grid,
   Chip,
@@ -24,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import SignatureCreator from './SignatureCreator';
 import { authAPI } from '../services/api';
+import ConfirmationDialog from './ConfirmationDialog';
 
 export default function SignatureManager() {
   const [signatures, setSignatures] = useState([]);
@@ -242,25 +239,16 @@ export default function SignatureManager() {
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <ConfirmationDialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Delete Signature</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete "{signatureToDelete?.name}"? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button color="error" onClick={handleDeleteSignature}>
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleDeleteSignature}
+        title="Delete Signature"
+        message={`Are you sure you want to delete "${signatureToDelete?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </Box>
   );
 }

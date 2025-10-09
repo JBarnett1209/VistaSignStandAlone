@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Typography, Paper, Table, TableHead, TableRow, TableCell, TableBody, Select, MenuItem, Button, Stack } from '@mui/material';
 import { usersAPI } from '../services/api';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 
 export default function Users() {
   const [users, setUsers] = useState([]);
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, userId: null, userEmail: '' });
 
   const loadUsers = async () => {
     try {
@@ -29,9 +31,22 @@ export default function Users() {
     await loadUsers();
   };
 
-  const remove = async (id) => {
-    await usersAPI.delete(id);
-    await loadUsers();
+  const handleDeleteUser = (id, email) => {
+    setDeleteDialog({
+      open: true,
+      userId: id,
+      userEmail: email
+    });
+  };
+
+  const confirmDeleteUser = async () => {
+    try {
+      await usersAPI.delete(deleteDialog.userId);
+      await loadUsers();
+      setDeleteDialog({ open: false, userId: null, userEmail: '' });
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+    }
   };
 
   return (
@@ -66,7 +81,7 @@ export default function Users() {
                   <Stack direction="row" spacing={1}>
                     <Button size="small" onClick={() => deactivate(u.id)}>Deactivate</Button>
                     <Button size="small" onClick={() => reactivate(u.id)}>Enable</Button>
-                    <Button size="small" color="error" onClick={() => remove(u.id)}>Delete</Button>
+                    <Button size="small" color="error" onClick={() => handleDeleteUser(u.id, u.email)}>Delete</Button>
                   </Stack>
                 </TableCell>
               </TableRow>
@@ -74,6 +89,18 @@ export default function Users() {
           </TableBody>
         </Table>
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialog.open}
+        onClose={() => setDeleteDialog({ open: false, userId: null, userEmail: '' })}
+        onConfirm={confirmDeleteUser}
+        title="Delete User"
+        message={`Are you sure you want to delete user "${deleteDialog.userEmail}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
     </Box>
   );
 }
