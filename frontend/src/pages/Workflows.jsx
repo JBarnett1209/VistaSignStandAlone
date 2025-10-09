@@ -188,9 +188,15 @@ export default function Workflows() {
     try {
       console.log('Loading participants for workflow:', workflowId);
       const response = await workflowsAPI.get(workflowId);
-      console.log('Workflow response:', response);
+      console.log('Full workflow response:', response);
+      console.log('Response data:', response.data);
+      console.log('Participants from response.data:', response.data?.participants);
       console.log('Participants from response:', response.participants);
-      setWorkflowParticipants(response.participants || []);
+      
+      // Try both possible data structures
+      const participants = response.data?.participants || response.participants || [];
+      console.log('Final participants array:', participants);
+      setWorkflowParticipants(participants);
     } catch (err) {
       console.error('Error loading workflow participants:', err);
       setError('Failed to load participants');
