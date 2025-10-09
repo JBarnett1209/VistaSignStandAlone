@@ -167,7 +167,18 @@ export default function WorkflowEditor({
       
       if (initialWorkflow) {
         // Update existing workflow
-        workflow = await workflowsAPI.update(initialWorkflow.id, workflowData);
+        const updateData = {
+          ...workflowData,
+          workflow_data: initialWorkflow.workflow_data || {
+            steps: [],
+            participants: [],
+            settings: {
+              email_notifications: true,
+              reminder_frequency: 'daily'
+            }
+          }
+        };
+        workflow = await workflowsAPI.update(initialWorkflow.id, updateData);
       } else {
         // Create new workflow
         const newWorkflowData = {
