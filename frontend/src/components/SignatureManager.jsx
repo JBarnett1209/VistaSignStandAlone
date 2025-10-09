@@ -118,7 +118,7 @@ export default function SignatureManager() {
       return (
         <Box
           sx={{
-            fontFamily: signature.data.font,
+            fontFamily: `'${signature.data.font}', ${signature.data.font.includes(' ') ? 'cursive' : 'cursive'}`,
             fontSize: signature.data.size,
             color: signature.data.color,
             fontStyle: 'italic',

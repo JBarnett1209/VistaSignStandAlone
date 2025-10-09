@@ -315,7 +315,7 @@ export default function SignatureCreator({ open, onClose, onSave, existingSignat
           <Typography
             variant="h4"
             sx={{
-              fontFamily: selectedFont,
+              fontFamily: `'${selectedFont}', cursive`,
               fontSize: fontSize,
               color: signatureColor,
               fontStyle: 'italic'
