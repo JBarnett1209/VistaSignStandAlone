@@ -18,6 +18,9 @@ def _apply_development_cookie_settings(cookie_kwargs: dict) -> dict:
 
 def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     """Set refresh token cookie with standardized attributes"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
     
     # Determine cookie attributes based on environment
@@ -43,6 +46,9 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     
     # Apply development-friendly settings if needed
     cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
+    
+    # Debug logging
+    logger.info(f"Setting refresh cookie with attributes: {cookie_kwargs}")
     
     response.set_cookie(**cookie_kwargs)
 

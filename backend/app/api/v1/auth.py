@@ -36,8 +36,8 @@ CSRF_COOKIE_NAME = "vst_csrf"
 @router.post("/login", response_model=LoginResponse)
 async def login(
     login_data: LoginRequest,
-    db: AsyncSession = Depends(get_db),
-    response: Response = None
+    response: Response,
+    db: AsyncSession = Depends(get_db)
 ):
     """User login endpoint"""
     try:
@@ -106,9 +106,10 @@ async def login(
             data={"sub": str(user.id)}
         )
         # Set standardized cookies
-        if response:
-            set_refresh_cookie(response, refresh_token)
-            set_csrf_cookie(response)
+        logger.info(f"Login successful for user {user.email}, setting cookies...")
+        set_refresh_cookie(response, refresh_token)
+        set_csrf_cookie(response)
+        logger.info("Cookies set successfully")
         
         return LoginResponse(
             access_token=access_token,
