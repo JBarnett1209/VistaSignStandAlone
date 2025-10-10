@@ -653,6 +653,8 @@ async def get_workflow_signing_page(
             "document": {
                 "id": str(document.id),
                 "title": document.title,
+                "filename": document.filename,
+                "mime_type": document.mime_type,
                 "fields": document.fields or [],
                 "file_url": f"/api/v1/documents/public/{document.id}/file?token={document_token}"
             }
