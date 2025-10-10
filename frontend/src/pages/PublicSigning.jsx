@@ -216,10 +216,11 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          left: `${field.x}%`,
-          top: `${field.y}%`,
-          width: `${field.width}%`,
-          height: `${field.height}%`,
+          // Fields in editor are saved in document pixel coords; render with pixels
+          left: `${field.x}px`,
+          top: `${field.y}px`,
+          width: `${field.width}px`,
+          height: `${field.height}px`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
           backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : isClickable ? 'rgba(123, 92, 255, 0.1)' : 'rgba(204, 204, 204, 0.1)',
           borderRadius: '4px',
@@ -407,15 +408,15 @@ export default function PublicSigning() {
                 justifyContent: 'center',
                 p: 2
               }}>
-                <Box sx={{ 
-                  position: 'relative',
-                  backgroundColor: '#fff',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  borderRadius: 1,
-                  overflow: 'hidden'
-                }}>
+              <Box sx={{ 
+                position: 'relative',
+                backgroundColor: '#fff',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                borderRadius: 1,
+                overflow: 'hidden'
+              }}>
                   <Box sx={{ 
-                    width: '800px', 
+                  width: '800px', 
                     maxHeight: '1000px',
                     overflow: 'auto',
                     border: '1px solid #ddd',
@@ -470,11 +471,10 @@ export default function PublicSigning() {
                     </PDFDocument>
                   </Box>
                   
-                  {/* Signature Fields Overlay - only show fields for current page */}
-                  {workflowData?.document?.fields?.map(field => {
-                    const fieldPage = field.pageNumber || 1;
-                    return fieldPage === pageNumber ? renderSignatureField(field) : null;
-                  })}
+                  {/* Signature Fields Overlay - positioned absolutely over PDF */}
+                  {workflowData?.document?.fields
+                    ?.filter(field => (field.page || 1) === pageNumber)
+                    .map(renderSignatureField)}
                 </Box>
               </Box>
             </Box>
@@ -532,7 +532,7 @@ export default function PublicSigning() {
               </Typography>
               {(() => {
                 const userFields = workflowData?.document?.fields?.filter(f => f.signingOrder === (workflowData?.participant?.signing_order || 1)) || [];
-                const pagesWithFields = [...new Set(userFields.map(f => f.pageNumber || 1))];
+                const pagesWithFields = [...new Set(userFields.map(f => f.page || 1))];
                 if (pagesWithFields.length > 0) {
                   return (
                     <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 1 }}>
