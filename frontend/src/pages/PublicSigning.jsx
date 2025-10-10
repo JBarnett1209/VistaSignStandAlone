@@ -60,15 +60,6 @@ export default function PublicSigning() {
       const containerWidth = containerRect.width;
       const offsetX = (containerWidth - pdfWidth) / 2 + 7; // Add 7px adjustment for better positioning
       
-      console.log('PublicSigning: PDF offset calculated:', { 
-        offsetX, 
-        pdfWidth, 
-        containerWidth,
-        containerRect: {
-          width: containerRect.width,
-          height: containerRect.height
-        }
-      });
       
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF is at top
     } else {

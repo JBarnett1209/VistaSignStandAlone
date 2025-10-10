@@ -248,7 +248,7 @@ const SignatureCapture = ({
               variant="outlined"
               sx={{ 
                 '& .MuiInputBase-input': { 
-                  fontFamily: 'cursive',
+                  fontFamily: "'Dancing Script', cursive",
                   fontSize: '20px',
                   textAlign: 'center'
                 }
@@ -266,7 +266,7 @@ const SignatureCapture = ({
                 <Typography 
                   variant="h6" 
                   sx={{ 
-                    fontFamily: 'cursive',
+                    fontFamily: "'Dancing Script', cursive",
                     color: '#7B5CFF'
                   }}
                 >
