@@ -282,6 +282,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setFields(prev => [...prev, newField]);
     setDragField(null);
     setSelectedField(newField.id);
+    setEditingField(newField);
+    setFieldDialogOpen(true);
   };
 
   const handleFieldClick = (fieldId) => {
@@ -977,10 +979,31 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             >
               Fit
             </Button>
+            
+            {/* Page Navigation */}
+            {numPages && numPages > 1 && (
+              <>
+                <Divider orientation="vertical" flexItem />
+                <Button
+                  size="small"
+                  onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                  disabled={pageNumber <= 1}
+                >
+                  Previous
+                </Button>
+                <Typography variant="body2" sx={{ mx: 1 }}>
+                  Page {pageNumber} of {numPages}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                  disabled={pageNumber >= numPages}
+                >
+                  Next
+                </Button>
+              </>
+            )}
             <Box sx={{ flex: 1 }} />
-            <Typography variant="body2">
-              Page {pageNumber} of {numPages}
-            </Typography>
           </Box>
 
           {/* PDF Viewer */}
@@ -1027,38 +1050,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             }
           }}
           >
-            {/* Page Navigation */}
-            {numPages && numPages > 1 && (
-              <Box sx={{ 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                gap: 2, 
-                p: 1, 
-                backgroundColor: '#f5f5f5',
-                borderBottom: '1px solid #ddd'
-              }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                  disabled={pageNumber <= 1}
-                >
-                  Previous
-                </Button>
-                <Typography variant="body2">
-                  Page {pageNumber} of {numPages}
-                </Typography>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                  disabled={pageNumber >= numPages}
-                >
-                  Next
-                </Button>
-              </Box>
-            )}
             
             <UniversalDocumentViewer
               document={document}
