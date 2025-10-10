@@ -14,6 +14,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     // Attempt to refresh on load (cookie-based refresh)
@@ -121,6 +122,13 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
+      // Don't logout if we're in the middle of logging in
+      if (isLoggingIn) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Ignoring auth-failed event during login');
+        }
+        return;
+      }
       setUser(null);
       if (typeof window !== 'undefined') {
         window.__vstAccessToken = null;
@@ -144,15 +152,25 @@ export const AuthProvider = ({ children }) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('AuthContext: Starting login process...');
     }
-    const response = await api.post('/api/v1/auth/login', { email, password });
-    const { access_token, user: userData } = response.data;
-    if (typeof window !== 'undefined') {
-      window.__vstAccessToken = access_token;
+    setIsLoggingIn(true);
+    try {
+      const response = await api.post('/api/v1/auth/login', { email, password });
+      const { access_token, user: userData } = response.data;
+      if (typeof window !== 'undefined') {
+        window.__vstAccessToken = access_token;
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthContext: Login successful, setting user:', userData);
+      }
+      setUser(userData);
+      // Add a small delay before allowing auth-failed events to prevent race conditions
+      setTimeout(() => {
+        setIsLoggingIn(false);
+      }, 2000);
+    } catch (error) {
+      setIsLoggingIn(false);
+      throw error;
     }
-    if (process.env.NODE_ENV === 'development') {
-      console.log('AuthContext: Login successful, setting user:', userData);
-    }
-    setUser(userData);
   };
 
   const register = async (userData) => {
@@ -202,12 +220,12 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Add a small delay before the first check to avoid race conditions with login
+    // Add a longer delay before the first check to avoid race conditions with login
     const initialCheckTimeout = setTimeout(() => {
       if (!cancelled) {
         checkSession();
       }
-    }, 1000); // 1 second delay
+    }, 3000); // 3 second delay
     
     const intervalId = setInterval(checkSession, 30000); // 30s
 
@@ -216,7 +234,7 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [user]);
+  }, [user, isLoggingIn]);
 
   const value = {
     user,
