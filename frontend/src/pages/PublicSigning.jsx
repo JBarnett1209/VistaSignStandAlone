@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
+import ConsentDialog from '../components/ConsentDialog';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -36,6 +37,9 @@ export default function PublicSigning() {
   const [signedFields, setSignedFields] = useState({});
   const [showSidebar, setShowSidebar] = useState(true);
   const [signingField, setSigningField] = useState(false);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
+  const [consentData, setConsentData] = useState(null);
   const documentRef = useRef(null);
 
   useEffect(() => {
@@ -78,9 +82,32 @@ export default function PublicSigning() {
       return;
     }
 
+    // Check if consent has been given
+    if (!consentGiven) {
+      setSelectedField(field);
+      setConsentDialogOpen(true);
+      setError(null);
+      return;
+    }
+
+    // Proceed to signature capture
     setSelectedField(field);
     setSignatureDialogOpen(true);
     setError(null);
+  };
+
+  const handleConsentAccept = (consentInfo) => {
+    setConsentGiven(true);
+    setConsentData(consentInfo);
+    setConsentDialogOpen(false);
+    // Now proceed to signature capture
+    setSignatureDialogOpen(true);
+  };
+
+  const handleConsentDecline = () => {
+    setConsentDialogOpen(false);
+    setSelectedField(null);
+    setError('You must accept the consent terms to sign this document.');
   };
 
   const handleSignatureSubmit = async (signatureData) => {
@@ -135,7 +162,9 @@ export default function PublicSigning() {
         signature_data: {
           type: 'field_signatures',
           fields: signatureData,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          // Include consent data
+          ...consentData
         }
       });
 
@@ -495,6 +524,18 @@ export default function PublicSigning() {
           </Box>
         )}
       </Box>
+
+      {/* Consent Dialog */}
+      <ConsentDialog
+        open={consentDialogOpen}
+        onAccept={handleConsentAccept}
+        onDecline={handleConsentDecline}
+        participantInfo={workflowData?.participant}
+        documentInfo={{
+          title: workflowData?.document?.title,
+          workflowName: workflowData?.workflow?.name
+        }}
+      />
 
       {/* Signature Capture Dialog */}
       <SignatureCapture

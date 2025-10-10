@@ -745,7 +745,11 @@ async def sign_workflow_document(
             "user_agent": request.headers.get('user-agent'),
             "timestamp": datetime.utcnow().isoformat(),
             "signature_type": signature_data.get('type', 'unknown'),
-            "fields_signed": signature_data.get('fields', []) if signature_data.get('type') == 'field_signatures' else []
+            "fields_signed": signature_data.get('fields', []) if signature_data.get('type') == 'field_signatures' else [],
+            "consent_given": signature_data.get('consent_given', False),
+            "privacy_accepted": signature_data.get('privacy_accepted', False),
+            "legal_binding_accepted": signature_data.get('legal_binding_accepted', False),
+            "consent_timestamp": signature_data.get('consent_timestamp')
         }
         
         # Read document content for hashing
