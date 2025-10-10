@@ -955,6 +955,8 @@ async def sign_workflow_document(
         await db.commit()
         await db.refresh(participant)
         
+        logger.info(f"Signature creation completed. Created {len(created_signature_ids)} signature records: {created_signature_ids}")
+        
         # Check if all participants have signed
         all_participants_result = await db.execute(
             select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
@@ -967,6 +969,14 @@ async def sign_workflow_document(
             # Mark workflow as completed
             workflow.status = WorkflowStatus.COMPLETED
             workflow.completed_at = datetime.utcnow()
+            
+            # Update document status to completed
+            if document:
+                from app.models.document import DocumentStatus
+                document.status = DocumentStatus.COMPLETED
+                document.updated_at = datetime.utcnow()
+                logger.info(f"Updated document {document.id} status to COMPLETED")
+            
             await db.commit()
             await db.refresh(workflow)
             
