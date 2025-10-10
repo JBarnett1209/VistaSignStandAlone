@@ -496,7 +496,7 @@ async def send_workflow(
                     base_url = settings.FRONTEND_URL.rstrip('/')
                     signing_url = f"{base_url}/sign/{workflow_id}/{participant.id}"
                     
-                    subject = f"Document Signing Request: {workflow.name}"
+                    subject = f"Document Signing Request: {document.title}"
                     
                     html_body = f"""
                     <html>
@@ -506,12 +506,11 @@ async def send_workflow(
                             
                             <p>Hello,</p>
                             
-                            <p>You have been requested to sign a document as part of the workflow: <strong>{workflow.name}</strong></p>
+                            <p>You have been requested to sign a document.</p>
                             
                             <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
                                 <h3 style="margin-top: 0; color: #7E3AF2;">Document Details:</h3>
                                 <p><strong>Document:</strong> {document.title}</p>
-                                <p><strong>Workflow:</strong> {workflow.name}</p>
                                 {f'<p><strong>Description:</strong> {workflow.description}</p>' if workflow.description else ''}
                             </div>
                             
@@ -529,7 +528,7 @@ async def send_workflow(
                             
                             <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                             <p style="color: #666; font-size: 12px;">
-                                This email was sent by VistaSign. If you have any questions, please contact the workflow creator.
+                                This email was sent by VistaSign. If you have any questions, please contact the document owner.
                             </p>
                         </div>
                     </body>
