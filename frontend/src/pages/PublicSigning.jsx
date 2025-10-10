@@ -472,6 +472,17 @@ export default function PublicSigning() {
                   pageNumber={pageNumber}
                   fixedWidth={800}
                 />
+                {/* Debug: Log document object to see what properties it has */}
+                {console.log('PublicSigning: Document object:', {
+                  id: workflowData.document?.id,
+                  title: workflowData.document?.title,
+                  filename: workflowData.document?.filename,
+                  mime_type: workflowData.document?.mime_type,
+                  file_url: workflowData.document?.file_url,
+                  file_path: workflowData.document?.file_path,
+                  url: workflowData.document?.url,
+                  allProperties: Object.keys(workflowData.document || {})
+                })}
                 
                 {/* Signature Fields Overlay - positioned absolutely over PDF */}
                 {(() => {
