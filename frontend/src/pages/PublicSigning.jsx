@@ -55,12 +55,13 @@ export default function PublicSigning() {
   const calculatePdfOffset = () => {
     if (pdfContainerRef.current) {
       const containerRect = pdfContainerRef.current.getBoundingClientRect();
-      // Set offset to 0 for consistent positioning across all interfaces
+      // The PDF is centered in the container, so calculate the offset
       const pdfWidth = 800; // Fixed width we're using
       const containerWidth = containerRect.width;
+      const offsetX = (containerWidth - pdfWidth) / 2;
       
       console.log('PublicSigning: PDF offset calculated:', { 
-        offsetX: 0, 
+        offsetX, 
         pdfWidth, 
         containerWidth,
         containerRect: {
@@ -69,7 +70,7 @@ export default function PublicSigning() {
         }
       });
       
-      setPdfOffset({ x: 0, y: 0 }); // No offset needed for consistent positioning
+      setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF is at top
     } else {
       console.log('PublicSigning: PDF container ref not available for offset calculation');
     }
