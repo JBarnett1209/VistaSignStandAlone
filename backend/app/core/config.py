@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     INVITE_ONLY: bool = True
     
+    # Cookie settings
+    COOKIE_DOMAIN: Optional[str] = None  # None means use current domain
+    COOKIE_SECURE: bool = True  # Set to False for localhost development
+    
     # CORS - REQUIRED
     ALLOWED_ORIGINS: str
     
