@@ -28,7 +28,8 @@ import {
   GetApp as DownloadIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { documentsAPI, signaturesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
@@ -456,14 +457,25 @@ export default function Documents() {
                 </Typography>
               )}
             </Box>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
-              size="small"
-            >
-              Download
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
+                size="small"
+              >
+                Download
+              </Button>
+              <IconButton
+                onClick={() => {
+                  setViewingDocument(null);
+                  setDocumentSignatures([]);
+                }}
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
           </Box>
         </DialogTitle>
         <DialogContent sx={{ p: 0, height: '100%' }}>
@@ -472,6 +484,7 @@ export default function Documents() {
               <DocumentViewer
                 document={viewingDocument}
                 signatures={documentSignatures}
+                onClose={() => setViewingDocument(null)}
                 onFieldClick={(field, pageNum) => {
                   // You can add additional functionality here, like showing signature details
                 }}
