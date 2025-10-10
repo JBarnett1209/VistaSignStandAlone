@@ -778,8 +778,8 @@ export default function PublicSigning() {
             </Box>
           )}
           
-          {/* Finish Button - Show when signing is complete but no error message */}
-          {signingComplete && !error && (
+          {/* Finish Button - Show when signing is complete */}
+          {signingComplete && (
             <Box sx={{ 
               p: 2, 
               display: 'flex', 
