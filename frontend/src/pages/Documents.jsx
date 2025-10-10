@@ -34,7 +34,7 @@ import { documentsAPI, signaturesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentEditor from '../components/DocumentEditor';
 import ConfirmationDialog from '../components/ConfirmationDialog';
-import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
+import DocumentViewer from '../components/DocumentViewer';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -488,22 +488,13 @@ export default function Documents() {
         <DialogContent sx={{ p: 0, height: '100%' }}>
           {viewingDocument && (
             <Box sx={{ height: '100%', width: '100%' }}>
-              <UniversalDocumentViewer
+              <DocumentViewer
                 document={viewingDocument}
                 signatures={documentSignatures}
-                showSignatureStatus={true}
-                onLoadError={(error) => {
-                  console.error('Document load error:', error);
-                  setError(`Failed to load document: ${error.message || 'Unknown error'}`);
-                }}
-                onLoadSuccess={() => {
-                  console.log('Document loaded successfully');
-                }}
                 onFieldClick={(field, pageNum) => {
                   console.log('Signature field clicked:', field, 'on page:', pageNum);
                   // You can add additional functionality here, like showing signature details
                 }}
-                fixedWidth={null}
               />
             </Box>
           )}
