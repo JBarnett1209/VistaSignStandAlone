@@ -490,12 +490,18 @@ export default function Documents() {
             <Box sx={{ height: '100%', width: '100%' }}>
               <UniversalDocumentViewer
                 document={viewingDocument}
+                signatures={documentSignatures}
+                showSignatureStatus={true}
                 onLoadError={(error) => {
                   console.error('Document load error:', error);
                   setError(`Failed to load document: ${error.message || 'Unknown error'}`);
                 }}
                 onLoadSuccess={() => {
                   console.log('Document loaded successfully');
+                }}
+                onFieldClick={(field, pageNum) => {
+                  console.log('Signature field clicked:', field, 'on page:', pageNum);
+                  // You can add additional functionality here, like showing signature details
                 }}
                 fixedWidth={null}
               />

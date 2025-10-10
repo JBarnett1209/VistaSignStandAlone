@@ -5,7 +5,10 @@ import {
   Alert,
   CircularProgress,
   Button,
-  Paper
+  Paper,
+  Chip,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import {
   PictureAsPdf as PdfIcon,
@@ -13,6 +16,11 @@ import {
   TableChart as ExcelIcon,
   Image as ImageIcon,
   Download as DownloadIcon,
+  NavigateBefore as PrevIcon,
+  NavigateNext as NextIcon,
+  CheckCircle as SignedIcon,
+  RadioButtonUnchecked as UnsignedIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { Document, Page, pdfjs } from 'react-pdf';
 
@@ -26,7 +34,10 @@ const UniversalDocumentViewer = ({
   zoom = 1.0,
   onZoomChange,
   pageNumber = 1,
-  fixedWidth = null
+  fixedWidth = null,
+  signatures = [],
+  showSignatureStatus = true,
+  onFieldClick = null
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -122,58 +133,201 @@ const UniversalDocumentViewer = ({
     }
   };
 
-  const renderPDFViewer = () => {
+  const renderSignatureField = (field, pageNum) => {
+    if (!showSignatureStatus || !field) return null;
+
+    const isSigned = signatures.some(sig => 
+      sig.document_id === document?.id && 
+      sig.signature_position && 
+      JSON.stringify(sig.signature_position) === JSON.stringify(field)
+    );
+
+    const fieldStyle = {
+      position: 'absolute',
+      left: `${field.x || 0}px`,
+      top: `${field.y || 0}px`,
+      width: `${field.width || 150}px`,
+      height: `${field.height || 50}px`,
+      border: isSigned ? '2px solid #4caf50' : '2px dashed #ff9800',
+      backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
+      borderRadius: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: onFieldClick ? 'pointer' : 'default',
+      zIndex: 10,
+      transition: 'all 0.2s ease-in-out'
+    };
+
     return (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      gap: 2,
-      width: '100%',
-      flex: 1
-    }}>
-      <Document
-        file={document?.file_url || document?.file_path || document?.url}
-        onLoadSuccess={(payload) => {
-          // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
-          const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
-            ? payload.numPages
-            : (payload?.numPages ?? null);
-          if (pages) {
-            setNumPages(pages);
-          }
-          setLoading(false);
-          onLoadSuccess?.(payload);
-        }}
-        onLoadError={(error) => {
-          console.error('PDF load error:', error);
-          setError(`Failed to load PDF: ${error.message}`);
-          setLoading(false);
-          onLoadError?.(error);
-        }}
-        onSourceError={(error) => {
-          console.error('PDF source error:', error);
-        }}
-        onLoadProgress={({ loaded, total }) => {
-          // Progress tracking can be added here if needed
-        }}
-        loading={
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
-            <CircularProgress />
-            <Typography>Loading PDF document...</Typography>
+      <Tooltip 
+        key={`${field.id || field.x}-${field.y}`}
+        title={
+          <Box>
+            <Typography variant="body2">
+              {field.label || field.name || 'Signature Field'}
+            </Typography>
+            <Typography variant="caption" color={isSigned ? 'success.main' : 'warning.main'}>
+              {isSigned ? 'Signed' : 'Unsigned'}
+            </Typography>
+            {isSigned && (
+              <Typography variant="caption" display="block">
+                {signatures.find(sig => 
+                  sig.document_id === document?.id && 
+                  sig.signature_position && 
+                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
+                )?.signed_at ? new Date(signatures.find(sig => 
+                  sig.document_id === document?.id && 
+                  sig.signature_position && 
+                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
+                ).signed_at).toLocaleString() : 'Unknown date'}
+              </Typography>
+            )}
           </Box>
         }
+        arrow
       >
-        {numPages && (
-          <Page
-            pageNumber={currentPage}
-            {...(fixedWidth ? { width: fixedWidth } : { scale: zoom })}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
-          />
+        <Box
+          style={fieldStyle}
+          onClick={() => onFieldClick && onFieldClick(field, pageNum)}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = isSigned ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 152, 0, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = isSigned ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)';
+          }}
+        >
+          {isSigned ? (
+            <SignedIcon sx={{ color: '#4caf50', fontSize: 20 }} />
+          ) : (
+            <UnsignedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+          )}
+        </Box>
+      </Tooltip>
+    );
+  };
+
+  const renderPDFViewer = () => {
+    const allFields = document?.fields || [];
+    const currentPageFields = allFields.filter(field => (field.page || 1) === currentPage);
+    
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        gap: 2,
+        width: '100%',
+        flex: 1
+      }}>
+        {/* Page Navigation */}
+        {numPages && numPages > 1 && (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2, 
+            p: 1,
+            backgroundColor: 'background.paper',
+            borderRadius: 1,
+            boxShadow: 1
+          }}>
+            <IconButton 
+              size="small"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage <= 1}
+            >
+              <PrevIcon />
+            </IconButton>
+            <Typography variant="body2" sx={{ minWidth: '80px', textAlign: 'center' }}>
+              Page {currentPage} of {numPages}
+            </Typography>
+            <IconButton 
+              size="small"
+              onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
+              disabled={currentPage >= numPages}
+            >
+              <NextIcon />
+            </IconButton>
+          </Box>
         )}
-      </Document>
-    </Box>
+
+        {/* Signature Fields Summary */}
+        {showSignatureStatus && allFields.length > 0 && (
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1, 
+            flexWrap: 'wrap', 
+            justifyContent: 'center',
+            p: 1,
+            backgroundColor: 'background.paper',
+            borderRadius: 1,
+            boxShadow: 1
+          }}>
+            <Chip 
+              icon={<SignedIcon />}
+              label={`${signatures.length} Signed`}
+              color="success"
+              size="small"
+            />
+            <Chip 
+              icon={<UnsignedIcon />}
+              label={`${allFields.length - signatures.length} Unsigned`}
+              color="warning"
+              size="small"
+            />
+          </Box>
+        )}
+
+        {/* PDF Document Container */}
+        <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+          <Document
+            file={document?.file_url || document?.file_path || document?.url}
+            onLoadSuccess={(payload) => {
+              // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
+              const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
+                ? payload.numPages
+                : (payload?.numPages ?? null);
+              if (pages) {
+                setNumPages(pages);
+              }
+              setLoading(false);
+              onLoadSuccess?.(payload);
+            }}
+            onLoadError={(error) => {
+              console.error('PDF load error:', error);
+              setError(`Failed to load PDF: ${error.message}`);
+              setLoading(false);
+              onLoadError?.(error);
+            }}
+            onSourceError={(error) => {
+              console.error('PDF source error:', error);
+            }}
+            onLoadProgress={({ loaded, total }) => {
+              // Progress tracking can be added here if needed
+            }}
+            loading={
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
+                <CircularProgress />
+                <Typography>Loading PDF document...</Typography>
+              </Box>
+            }
+          >
+            {numPages && (
+              <Box sx={{ position: 'relative' }}>
+                <Page
+                  pageNumber={currentPage}
+                  {...(fixedWidth ? { width: fixedWidth } : { scale: zoom })}
+                  renderTextLayer={false}
+                  renderAnnotationLayer={false}
+                />
+                
+                {/* Signature Fields Overlay */}
+                {currentPageFields.map(field => renderSignatureField(field, currentPage))}
+              </Box>
+            )}
+          </Document>
+        </Box>
+      </Box>
     );
   };
 
