@@ -175,7 +175,6 @@ export default function Documents() {
         });
         setDocumentSignatures(signaturesResponse.data.signatures || []);
       } catch (sigErr) {
-        console.log('Could not fetch signatures for document:', sigErr);
         setDocumentSignatures([]);
       }
     } catch (err) {
@@ -189,21 +188,7 @@ export default function Documents() {
 
   const handleDownloadDocument = async (document) => {
     try {
-      // Check if document has signatures
-      let hasSignatures = false;
-      try {
-        const signaturesResponse = await signaturesAPI.adminListAll({ 
-          document_id: document.id,
-          limit: 1 
-        });
-        hasSignatures = signaturesResponse.data.signatures && signaturesResponse.data.signatures.length > 0;
-      } catch (sigErr) {
-        // If we can't check signatures (e.g., not admin), continue with regular download
-        console.log('Could not check signatures:', sigErr);
-      }
-
-      // For now, we'll download the original file
-      // TODO: In the future, we can enhance this to download a version with signatures embedded
+      // Download the original file
       const response = await documentsAPI.download(document.id);
       
       // Create blob URL for download
@@ -221,10 +206,6 @@ export default function Documents() {
       // Clean up the blob URL
       window.URL.revokeObjectURL(url);
       
-      // Show info about signatures if present
-      if (hasSignatures) {
-        console.log('Document has signatures - consider implementing signed document download');
-      }
     } catch (err) {
       console.error('Error downloading document:', err);
       setError('Failed to download document');
@@ -492,7 +473,6 @@ export default function Documents() {
                 document={viewingDocument}
                 signatures={documentSignatures}
                 onFieldClick={(field, pageNum) => {
-                  console.log('Signature field clicked:', field, 'on page:', pageNum);
                   // You can add additional functionality here, like showing signature details
                 }}
               />
