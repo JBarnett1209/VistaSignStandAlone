@@ -21,9 +21,13 @@ import {
   Person as User,
   Edit as EditIcon
 } from '@mui/icons-material';
+import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -40,11 +44,17 @@ export default function PublicSigning() {
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [consentGiven, setConsentGiven] = useState(false);
   const [consentData, setConsentData] = useState(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
   const documentRef = useRef(null);
 
   useEffect(() => {
     loadSigningData();
   }, [workflowId, participantId]);
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+  };
 
   const loadSigningData = async () => {
     try {
@@ -404,17 +414,27 @@ export default function PublicSigning() {
                   borderRadius: 1,
                   overflow: 'hidden'
                 }}>
-                  <iframe
-                    ref={documentRef}
-                    src={workflowData.document.file_url}
-                    style={{
-                      width: '800px',
-                      height: '1000px',
-                      border: 'none',
-                      display: 'block'
-                    }}
-                    title="Document Preview"
-                  />
+                  <Box sx={{ 
+                    width: '800px', 
+                    height: '1000px',
+                    overflow: 'auto',
+                    border: '1px solid #ddd',
+                    backgroundColor: '#f5f5f5'
+                  }}>
+                    <PDFDocument
+                      file={workflowData.document.file_url}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      loading={<CircularProgress />}
+                      error={<Alert severity="error">Failed to load document</Alert>}
+                    >
+                      <Page 
+                        pageNumber={pageNumber} 
+                        width={800}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
+                    </PDFDocument>
+                  </Box>
                   
                   {/* Signature Fields Overlay */}
                   {workflowData?.document?.fields?.map(field => renderSignatureField(field))}
