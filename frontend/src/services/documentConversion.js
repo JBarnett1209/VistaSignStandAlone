@@ -54,7 +54,6 @@ class DocumentConversionService {
         return this.conversionCache.get(cacheKey);
       }
 
-      console.log(`Converting document ${documentId} to PDF for viewing...`);
 
       // For now, we'll create a placeholder PDF conversion
       // In a real implementation, this would call a backend service

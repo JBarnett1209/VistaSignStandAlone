@@ -35,16 +35,6 @@ api.interceptors.request.use(
       }
     }
     
-    // Debug logging for development
-    if (process.env.NODE_ENV === 'development' && config.url?.includes('/auth/')) {
-      console.log('API Request:', {
-        url: config.url,
-        method: config.method,
-        hasToken: !!token,
-        hasCsrf: !!config.headers['X-CSRF-Token'],
-        cookies: document.cookie
-      });
-    }
     
     return config;
   },
@@ -151,8 +141,6 @@ export const authAPI = {
 // Documents API
 export const documentsAPI = {
   upload: (formData) => {
-    console.log('Uploading to:', '/api/v1/documents/upload');
-    console.log('FormData contents:', Array.from(formData.entries()));
     return api.post('/api/v1/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -160,7 +148,6 @@ export const documentsAPI = {
   list: (params) => api.get('/api/v1/documents/', { params }),
   get: (id) => api.get(`/api/v1/documents/${id}`),
   update: (id, data) => {
-    console.log('documentsAPI.update called with:', { id, data });
     return api.put(`/api/v1/documents/${id}`, data);
   },
   delete: (id) => api.delete(`/api/v1/documents/${id}`)

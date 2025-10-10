@@ -220,29 +220,20 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const offsetX = (containerWidth - pdfWidth) / 2 + 7; // Add 7px adjustment for better positioning
       
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
-    } else {
-      console.log('PDF container ref not available for offset calculation');
     }
   };
 
 
   // Load document fields and signers on mount
   useEffect(() => {
-    console.log('DocumentEditor: Document prop changed:', document);
-    console.log('DocumentEditor: Document ID:', document?.id);
-    console.log('DocumentEditor: Document fields:', document?.fields);
-    
     if (document?.fields) {
-      console.log('Loading document fields:', document.fields);
       setFields(document.fields);
     } else {
-      console.log('No fields found in document, initializing empty array');
       setFields([]);
     }
     
     // Reset page number to 1 when document changes
     setPageNumber(1);
-    console.log('Document loaded, resetting page number to 1');
     
     // Load signature templates
     loadSignatureTemplates();
@@ -358,11 +349,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
     };
     
-    console.log('Creating field on page:', pageNumber, 'Raw coords:', {x, y}, 'Scale:', scale, 'Saved coords:', {x: newField.x, y: newField.y}, 'Field:', newField);
-
     setFields(prev => {
       const updatedFields = [...prev, newField];
-      console.log('Updated fields array:', updatedFields);
       return updatedFields;
     });
     setDragField(null);
@@ -634,26 +622,19 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       setLoading(true);
       setError(null);
       
-      console.log('Saving document with fields:', fields);
-      console.log('Document ID:', document.id);
-      console.log('Document object:', document);
-      
       const updatedDocument = {
         ...document,
         fields: fields,
         status: 'pending_signature'
       };
 
-      console.log('Sending update request with document:', updatedDocument);
       const response = await documentsAPI.update(document.id, updatedDocument);
-      console.log('Document saved successfully, response:', response);
       
       // Show success message
       showSnackbar('Document saved successfully!', 'success');
       
       // Update the local document state with the response
       if (response && response.data) {
-        console.log('Updated document from response:', response.data);
         onSave(response.data);
       } else {
         onSave(updatedDocument);
@@ -736,9 +717,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const isSelected = selectedField === field.id;
     
     // Use calculated PDF offset to position fields correctly
-    console.log(`Rendering field ${field.id}:`, {
-      type: field.type,
-      x: field.x,
       y: field.y,
       width: field.width,
       height: field.height,
@@ -933,11 +911,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Button
             variant="outlined"
             startIcon={<SaveIcon />}
-            onClick={() => {
-              console.log('Save button clicked!');
-              console.log('Current fields before save:', fields);
-              handleSave();
-            }}
+            onClick={handleSave}
             disabled={loading}
             size="small"
           >
@@ -1236,13 +1210,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               )}
               
               {/* Render fields for current page */}
-              {(() => {
-                console.log(`All fields:`, fields);
-                console.log(`Current page: ${pageNumber}, Total pages: ${numPages}`);
-                const currentPageFields = fields.filter(field => (field.page || 1) === pageNumber);
-                console.log(`Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
-                return currentPageFields.map(renderField);
-              })()}
+              {fields.filter(field => (field.page || 1) === pageNumber).map(renderField)}
             </Box>
           </Box>
         </Box>

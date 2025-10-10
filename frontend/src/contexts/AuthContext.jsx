@@ -44,15 +44,6 @@ export const AuthProvider = ({ children }) => {
           const refreshToken = cookies['vst_refresh'];
           const hasValidRefresh = Boolean(refreshToken && refreshToken.length > 0 && refreshToken !== 'undefined' && refreshToken !== 'null');
           
-          // Debug logging for troubleshooting
-          if (process.env.NODE_ENV === 'development') {
-            console.log('AuthContext: Cookie parsing debug:', {
-              allCookies: document.cookie,
-              parsedCookies: cookies,
-              refreshToken: refreshToken,
-              hasValidRefresh: hasValidRefresh
-            });
-          }
           
           return hasValidRefresh;
         } catch (e) {
@@ -60,18 +51,13 @@ export const AuthProvider = ({ children }) => {
           return false;
         }
       })();
-      console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh, 'retry:', retryCount);
-      console.log('AuthContext: All cookies:', document.cookie);
-      
       if (!hasRefresh) {
-        console.log('AuthContext: No refresh token found, user not authenticated');
         setUser(null);
         setLoading(false);
         return;
       }
       
       try {
-        console.log('AuthContext: Attempting to refresh token...');
         const res = await api.post('/api/v1/auth/refresh', {});
         
         // Keep access token only in memory
@@ -79,14 +65,11 @@ export const AuthProvider = ({ children }) => {
           window.__vstAccessToken = res.data.access_token;
         }
         
-        console.log('AuthContext: Token refreshed, getting user profile...');
         const me = await api.get('/api/v1/auth/me');
-        console.log('AuthContext: User profile loaded:', me.data);
         setUser(me.data);
         setLoading(false);
         
       } catch (e) {
-        console.log('AuthContext: Refresh failed:', e);
         
         // Clear any stored tokens and user state on auth failure
         if (typeof window !== 'undefined') {
@@ -97,7 +80,6 @@ export const AuthProvider = ({ children }) => {
         // If it's a network error or server error, retry with exponential backoff
         if ((e.code === 'NETWORK_ERROR' || e.response?.status >= 500) && retryCount < maxRetries) {
           const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
-          console.log(`AuthContext: Network/server error, retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => {
             attemptRefresh(retryCount + 1);
           }, delay);

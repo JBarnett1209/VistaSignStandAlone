@@ -31,8 +31,6 @@ export default function Workflows() {
     try {
       setLoading(true);
       const response = await workflowsAPI.list();
-      console.log('Workflows response:', response);
-      console.log('Workflows with participants:', response.data?.workflows?.map(w => ({ id: w.id, name: w.name, participants: w.participants })));
       setWorkflows(response.data.workflows || []);
     } catch (err) {
       setError('Failed to load workflows');

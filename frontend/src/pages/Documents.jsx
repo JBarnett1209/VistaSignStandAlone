@@ -140,10 +140,8 @@ export default function Documents() {
 
   const handleEditDocument = async (document) => {
     try {
-      console.log('Opening document editor for:', document.id);
       // Fetch the latest document data from the database to ensure we have the most recent fields
       const response = await documentsAPI.get(document.id);
-      console.log('Fetched latest document data:', response.data);
       setEditingDocument(response.data);
     } catch (err) {
       console.error('Error fetching document for editing:', err);
