@@ -91,7 +91,8 @@ export default function Workflows() {
           setError(null);
           setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
         } catch (err) {
-          setError('Failed to delete workflow');
+          const errorMessage = err.response?.data?.detail || 'Failed to delete workflow';
+          setError(errorMessage);
           console.error('Error deleting workflow:', err);
           setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
         }

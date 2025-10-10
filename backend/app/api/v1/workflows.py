@@ -929,10 +929,10 @@ async def delete_workflow(
             )
         
         if workflow.status == WorkflowStatus.ACTIVE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot delete active workflows"
-            )
+            # Cancel the workflow first, then delete it
+            workflow.status = WorkflowStatus.CANCELLED
+            workflow.updated_at = datetime.utcnow()
+            await db.commit()
         
         await db.delete(workflow)
         await db.commit()
