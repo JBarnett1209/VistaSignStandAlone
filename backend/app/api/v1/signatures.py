@@ -8,7 +8,7 @@ from sqlalchemy import select, and_
 from typing import List, Optional
 import logging
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.security.auth import get_current_user
@@ -1248,8 +1248,8 @@ async def sign_document(
         
         if not signature_metadata:
             # No signature metadata returned
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create cryptographic signature"
             )
         
