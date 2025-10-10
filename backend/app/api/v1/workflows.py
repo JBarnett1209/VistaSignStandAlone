@@ -490,8 +490,9 @@ async def send_workflow(
             # Send email to each participant
             for participant in participants:
                 try:
-                    # Create signing URL (you may want to customize this)
-                    signing_url = f"https://vistasign.unitvista.com/sign/{workflow_id}/{participant.id}"
+                    # Create signing URL based on environment
+                    base_url = settings.FRONTEND_URL.rstrip('/')
+                    signing_url = f"{base_url}/sign/{workflow_id}/{participant.id}"
                     
                     subject = f"Document Signing Request: {workflow.name}"
                     
