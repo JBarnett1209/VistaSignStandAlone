@@ -261,15 +261,31 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   // Calculate PDF offset when component mounts and window resizes
   useEffect(() => {
-    calculatePdfOffset();
+    // Add a small delay to ensure the PDF is rendered before calculating offset
+    const timer = setTimeout(() => {
+      calculatePdfOffset();
+    }, 100);
     
     const handleResize = () => {
       calculatePdfOffset();
     };
     
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
+
+  // Also recalculate offset when document changes
+  useEffect(() => {
+    if (document) {
+      const timer = setTimeout(() => {
+        calculatePdfOffset();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [document]);
 
   const loadSignatureTemplates = async () => {
     try {
@@ -1192,7 +1208,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               document={document}
               zoom={scale}
               onZoomChange={setScale}
-              onLoadSuccess={onDocumentLoadSuccess}
+              onLoadSuccess={(payload) => {
+                onDocumentLoadSuccess(payload);
+                // Recalculate PDF offset after document loads
+                setTimeout(() => {
+                  calculatePdfOffset();
+                }, 100);
+              }}
               onLoadError={(error) => {
                 console.error('Document load error:', error);
                 console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
