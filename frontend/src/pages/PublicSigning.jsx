@@ -11,11 +11,6 @@ import {
   Paper,
   Divider,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   IconButton,
   Tooltip
 } from '@mui/material';
@@ -24,10 +19,10 @@ import {
   CheckCircle, 
   Schedule as Clock, 
   Person as User,
-  Close as CloseIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
 import api from '../services/api';
+import SignatureCapture from '../components/SignatureCapture';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -36,11 +31,11 @@ export default function PublicSigning() {
   const [signing, setSigning] = useState(false);
   const [error, setError] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
-  const [signatureData, setSignatureData] = useState('');
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [selectedField, setSelectedField] = useState(null);
   const [signedFields, setSignedFields] = useState({});
   const [showSidebar, setShowSidebar] = useState(true);
+  const [signingField, setSigningField] = useState(false);
   const documentRef = useRef(null);
 
   useEffect(() => {
@@ -88,28 +83,22 @@ export default function PublicSigning() {
     setError(null);
   };
 
-  const handleSignatureSubmit = async () => {
-    if (!signatureData.trim()) {
-      setError('Please provide your signature.');
-      return;
-    }
-
+  const handleSignatureSubmit = async (signatureData) => {
     try {
-      setSigning(true);
+      setSigningField(true);
       setError(null);
 
       // Mark this field as signed locally
       setSignedFields(prev => ({
         ...prev,
         [selectedField.id]: {
-          signature: signatureData,
+          ...signatureData,
           timestamp: new Date().toISOString(),
           fieldId: selectedField.id
         }
       }));
 
       setSignatureDialogOpen(false);
-      setSignatureData('');
       setSelectedField(null);
 
       // Check if all required fields are signed
@@ -127,7 +116,7 @@ export default function PublicSigning() {
       console.error('Error signing field:', err);
       setError('Failed to sign field. Please try again.');
     } finally {
-      setSigning(false);
+      setSigningField(false);
     }
   };
 
@@ -210,8 +199,37 @@ export default function PublicSigning() {
         {isSigned ? (
           <Box sx={{ textAlign: 'center', p: 1 }}>
             <CheckCircle sx={{ color: '#4CAF50', fontSize: 16, mb: 0.5 }} />
-            <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '10px' }}>
-              {signedFields[field.id]?.signature}
+            {signedFields[field.id]?.type === 'typed' || signedFields[field.id]?.type === 'adopted' ? (
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: '#4CAF50', 
+                  fontSize: '10px',
+                  fontFamily: 'cursive',
+                  display: 'block'
+                }}
+              >
+                {signedFields[field.id]?.text}
+              </Typography>
+            ) : signedFields[field.id]?.type === 'drawn' ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <img 
+                  src={signedFields[field.id]?.image} 
+                  alt="Signature" 
+                  style={{ 
+                    maxWidth: '60px', 
+                    maxHeight: '20px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '10px' }}>
+                Signed
+              </Typography>
+            )}
+            <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '8px', display: 'block' }}>
+              {signedFields[field.id]?.signatureType}
             </Typography>
           </Box>
         ) : isClickable ? (
@@ -432,9 +450,40 @@ export default function PublicSigning() {
                   }}>
                     <Typography variant="body2">
                       {signedFields[field.id] ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <CheckCircle sx={{ color: '#4CAF50', fontSize: 16 }} />
-                          <span style={{ color: '#4CAF50' }}>Signed: {signedFields[field.id].signature}</span>
+                        <Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                            <CheckCircle sx={{ color: '#4CAF50', fontSize: 16 }} />
+                            <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>Signed</span>
+                          </Box>
+                          <Typography variant="caption" sx={{ color: '#4CAF50', display: 'block' }}>
+                            Type: {signedFields[field.id].signatureType}
+                          </Typography>
+                          {signedFields[field.id].type === 'typed' || signedFields[field.id].type === 'adopted' ? (
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                color: '#4CAF50', 
+                                fontFamily: 'cursive',
+                                display: 'block'
+                              }}
+                            >
+                              {signedFields[field.id].text}
+                            </Typography>
+                          ) : signedFields[field.id].type === 'drawn' ? (
+                            <Box sx={{ mt: 1 }}>
+                              <img 
+                                src={signedFields[field.id].image} 
+                                alt="Signature" 
+                                style={{ 
+                                  maxWidth: '100px', 
+                                  maxHeight: '40px',
+                                  objectFit: 'contain',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px'
+                                }}
+                              />
+                            </Box>
+                          ) : null}
                         </Box>
                       ) : (
                         <span style={{ color: '#7B5CFF' }}>Click to sign</span>
@@ -447,60 +496,14 @@ export default function PublicSigning() {
         )}
       </Box>
 
-      {/* Signature Dialog */}
-      <Dialog 
-        open={signatureDialogOpen} 
+      {/* Signature Capture Dialog */}
+      <SignatureCapture
+        open={signatureDialogOpen}
         onClose={() => setSignatureDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="h6">Sign Document</Typography>
-            <IconButton onClick={() => setSignatureDialogOpen(false)}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Type your full name to sign this field:
-          </Typography>
-          <TextField
-            autoFocus
-            fullWidth
-            value={signatureData}
-            onChange={(e) => setSignatureData(e.target.value)}
-            placeholder="Enter your full name"
-            variant="outlined"
-            sx={{ 
-              '& .MuiInputBase-input': { 
-                fontFamily: 'cursive',
-                fontSize: '18px'
-              }
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSignatureDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSignatureSubmit}
-            variant="contained"
-            disabled={signing || !signatureData.trim()}
-          >
-            {signing ? (
-              <>
-                <CircularProgress size={20} sx={{ mr: 1 }} />
-                Signing...
-              </>
-            ) : (
-              'Sign Field'
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSubmit={handleSignatureSubmit}
+        loading={signingField}
+        fieldInfo={selectedField}
+      />
     </Box>
   );
 }

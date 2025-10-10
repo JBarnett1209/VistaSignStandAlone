@@ -626,6 +626,14 @@ async def get_workflow_signing_page(
                 }
             }
         
+        # Generate a temporary access token for the document (valid for 1 hour)
+        from app.core.security.auth import AuthHandler
+        auth_handler = AuthHandler()
+        document_token = auth_handler.create_access_token(
+            {"sub": str(document.id), "type": "document_access"},
+            expires_delta=timedelta(hours=1)
+        )
+        
         return {
             "workflow": {
                 "id": str(workflow.id),
@@ -642,7 +650,8 @@ async def get_workflow_signing_page(
             "document": {
                 "id": str(document.id),
                 "title": document.title,
-                "fields": document.fields or []
+                "fields": document.fields or [],
+                "file_url": f"/api/v1/documents/public/{document.id}/file?token={document_token}"
             }
         }
         
@@ -707,10 +716,69 @@ async def sign_workflow_document(
                 detail="Workflow is not active"
             )
         
-        # Update participant status
+        # Get document for non-repudiation
+        document_result = await db.execute(
+            select(Document).where(Document.id == workflow.document_id)
+        )
+        document = document_result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Create legally binding signature with non-repudiation
+        from app.core.legal_signature import legal_signature_service
+        from app.core.config import settings
+        
+        # Collect signing context for non-repudiation
+        signing_context = {
+            "participant_email": participant.email,
+            "participant_id": str(participant.id),
+            "workflow_id": str(workflow.id),
+            "workflow_name": workflow.name,
+            "document_id": str(document.id),
+            "document_title": document.title,
+            "signing_order": participant.signingOrder,
+            "ip_address": request.client.host if request.client else None,
+            "user_agent": request.headers.get('user-agent'),
+            "timestamp": datetime.utcnow().isoformat(),
+            "signature_type": signature_data.get('type', 'unknown'),
+            "fields_signed": signature_data.get('fields', []) if signature_data.get('type') == 'field_signatures' else []
+        }
+        
+        # Read document content for hashing
+        import os
+        document_content = b""
+        if os.path.exists(document.file_path):
+            with open(document.file_path, 'rb') as f:
+                document_content = f.read()
+        
+        # Create legally binding signature
+        legal_signature_metadata = None
+        if legal_signature_service.is_available():
+            try:
+                # Convert signature data to string for signing
+                signature_data_str = str(signature_data)
+                legal_signature_metadata = legal_signature_service.create_legal_signature(
+                    document_content=document_content,
+                    user_id=str(participant.id),
+                    signature_data=signature_data_str,
+                    signing_context=signing_context
+                )
+                logger.info(f"Created legal signature for participant {participant.id}")
+            except Exception as e:
+                logger.error(f"Failed to create legal signature: {e}")
+        
+        # Update participant status with enhanced data
         participant.status = 'completed'
         participant.signed_at = datetime.utcnow()
-        participant.signature_data = signature_data
+        participant.signature_data = {
+            **signature_data,
+            "legal_signature_metadata": legal_signature_metadata,
+            "signing_context": signing_context
+        }
         participant.ip_address = request.client.host if request.client else None
         participant.user_agent = request.headers.get('user-agent')
         
