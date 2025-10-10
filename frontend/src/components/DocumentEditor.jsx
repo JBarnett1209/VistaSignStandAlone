@@ -217,7 +217,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       // The PDF is centered in the container, so calculate the offset
       const pdfWidth = 800; // Fixed width we're using
       const containerWidth = containerRect.width;
-      const offsetX = (containerWidth - pdfWidth) / 2;
+      const offsetX = (containerWidth - pdfWidth) / 2 + 2; // Add 2px adjustment for better positioning
       
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
       console.log('PDF offset calculated:', { 
