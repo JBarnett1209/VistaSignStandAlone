@@ -8,8 +8,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Send as SendIcon,
-  Visibility as ViewIcon
+  Send as SendIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -207,9 +206,6 @@ export default function Workflows() {
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <IconButton size="small" title="View Details">
-                        <ViewIcon />
-                      </IconButton>
                       {workflow.status === 'draft' && (
                         <IconButton 
                           size="small" 
