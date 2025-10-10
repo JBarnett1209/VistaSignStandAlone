@@ -209,25 +209,30 @@ export default function PublicSigning() {
         }
       });
 
-      // Show success message
-      setError(null);
+      console.log('PublicSigning: Signing response:', response.data);
+
+      // Update workflow data with response from backend
       setWorkflowData(prev => ({
         ...prev,
+        workflow: {
+          ...prev.workflow,
+          status: response.data.workflow?.status || prev.workflow?.status,
+          completed: response.data.workflow?.completed || false
+        },
         participant: {
           ...prev.participant,
-          status: 'completed',
-          signed_at: new Date().toISOString()
+          status: response.data.participant?.status || 'completed',
+          signed_at: response.data.participant?.signed_at || new Date().toISOString()
         }
       }));
 
-      // Redirect to success page
-      setTimeout(() => {
-        navigate('/login', { 
-          state: { 
-            message: 'Document signed successfully! You can now log in to view the completed workflow.' 
-          }
-        });
-      }, 3000);
+      // Show completion success message
+      const isWorkflowComplete = response.data.workflow?.completed;
+      const message = isWorkflowComplete 
+        ? 'Document signed successfully! All participants have completed signing. Click "Finish" to complete the process.'
+        : 'Document signed successfully! Click "Finish" to complete the signing process.';
+      
+      setError(message);
 
     } catch (err) {
       console.error('Error submitting signatures:', err);
@@ -457,7 +462,33 @@ export default function PublicSigning() {
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
         }}>
           {error && (
-            <Alert severity="error" sx={{ m: 2, mb: 0 }}>
+            <Alert 
+              severity={isCompleted ? "success" : "error"} 
+              sx={{ m: 2, mb: 0 }}
+              action={isCompleted ? (
+                <Button
+                  color="inherit"
+                  size="small"
+                  variant="contained"
+                  onClick={() => navigate('/signing-complete', { 
+                    state: { 
+                      documentTitle: workflowData?.document?.title,
+                      workflowName: workflowData?.workflow?.name,
+                      participantEmail: workflowData?.participant?.email,
+                      signedAt: workflowData?.participant?.signed_at || new Date().toISOString(),
+                      workflowCompleted: workflowData?.workflow?.completed || false,
+                      workflowStatus: workflowData?.workflow?.status
+                    }
+                  })}
+                  sx={{ 
+                    backgroundColor: '#4CAF50',
+                    '&:hover': { backgroundColor: '#45a049' }
+                  }}
+                >
+                  Finish
+                </Button>
+              ) : null}
+            >
               {error}
             </Alert>
           )}
