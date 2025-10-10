@@ -17,7 +17,7 @@ import {
 import {
   Close as CloseIcon,
   Edit as EditIcon,
-  Type as TypeIcon,
+  TextFields as TypeIcon,
   Gesture as DrawIcon,
   CheckCircle as AdoptIcon
 } from '@mui/icons-material';
