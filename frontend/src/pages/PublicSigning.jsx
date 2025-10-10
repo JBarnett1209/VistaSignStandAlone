@@ -21,13 +21,10 @@ import {
   Person as User,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -417,11 +414,14 @@ export default function PublicSigning() {
               <Box 
                 ref={pdfContainerRef}
                 sx={{ 
-                position: 'relative',
-                minHeight: '100%',
+                flex: 1, 
+                overflow: 'auto', 
+                p: 2,
                 display: 'flex',
-                justifyContent: 'center',
-                p: 2  // Match Document Editor padding
+                flexDirection: 'column',
+                backgroundColor: '#f5f5f5',
+                minHeight: 0, // Allow flex shrinking
+                position: 'relative'
               }}>
                 {/* Page Navigation */}
                 {numPages && numPages > 1 && (
@@ -461,20 +461,17 @@ export default function PublicSigning() {
                   </Box>
                 )}
                 
-                <PDFDocument
-                  file={workflowData.document.file_url}
+                <UniversalDocumentViewer
+                  document={workflowData.document}
                   onLoadSuccess={onDocumentLoadSuccess}
-                  loading={<CircularProgress />}
-                  error={<Alert severity="error">Failed to load document</Alert>}
-                >
-                  {/* Render only current page */}
-                  <Page 
-                    pageNumber={pageNumber} 
-                    width={800}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
-                </PDFDocument>
+                  onLoadError={(error) => {
+                    console.error('Document load error:', error);
+                    console.error('Attempted to load file:', workflowData.document?.file_url || workflowData.document?.file_path || workflowData.document?.url);
+                    setError(`Failed to load document: ${error.message || 'Unknown error'}`);
+                  }}
+                  pageNumber={pageNumber}
+                  fixedWidth={800}
+                />
                 
                 {/* Signature Fields Overlay - positioned absolutely over PDF */}
                 {(() => {
