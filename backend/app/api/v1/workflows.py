@@ -512,7 +512,6 @@ async def send_workflow(
                                 <h3 style="margin-top: 0; color: #7E3AF2;">Document Details:</h3>
                                 <p><strong>Document:</strong> {document.title}</p>
                                 <p><strong>Workflow:</strong> {workflow.name}</p>
-                                <p><strong>Signing Order:</strong> #{participant.signingOrder}</p>
                                 {f'<p><strong>Description:</strong> {workflow.description}</p>' if workflow.description else ''}
                             </div>
                             
