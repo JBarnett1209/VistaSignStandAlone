@@ -118,7 +118,9 @@ class AuthHandler:
                 minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
             )
         
-        to_encode.update({"exp": expire, "type": "access"})
+        to_encode.update({"exp": expire})
+        if "type" not in to_encode:
+            to_encode["type"] = "access"
         encoded_jwt = jwt.encode(
             to_encode, 
             settings.SECRET_KEY, 
