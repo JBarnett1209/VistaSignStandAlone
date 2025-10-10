@@ -113,27 +113,36 @@ async def get_document_file_public(
         # Verify the token
         try:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-            user_id = payload.get("sub")
-            if not user_id:
+            token_subject = payload.get("sub")
+            token_type = payload.get("type", "user")
+            if not token_subject:
                 raise HTTPException(status_code=403, detail="Invalid token")
         except jwt.InvalidTokenError:
             raise HTTPException(status_code=403, detail="Invalid token")
         
-        logger.info(f"Public file access for document {document_id}, user {user_id}")
+        logger.info(f"Public file access for document {document_id}, token subject {token_subject}, type {token_type}")
         
         # Get document from database
-        result = await db.execute(
-            select(Document).where(
-                and_(
-                    Document.id == document_id,
-                    Document.owner_id == user_id
+        if token_type == "document_access" and token_subject == document_id:
+            # Document-based token (for workflow signing)
+            result = await db.execute(
+                select(Document).where(Document.id == document_id)
+            )
+            document = result.scalar_one_or_none()
+        else:
+            # User-based token (for regular user access)
+            result = await db.execute(
+                select(Document).where(
+                    and_(
+                        Document.id == document_id,
+                        Document.owner_id == token_subject
+                    )
                 )
             )
-        )
-        document = result.scalar_one_or_none()
+            document = result.scalar_one_or_none()
         
         if not document:
-            logger.warning(f"Document {document_id} not found for user {user_id}")
+            logger.warning(f"Document {document_id} not found for token subject {token_subject}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found"
