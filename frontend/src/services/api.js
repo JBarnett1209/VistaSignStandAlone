@@ -52,6 +52,11 @@ api.interceptors.response.use(
       // If no refresh cookie present, do not attempt to refresh (anonymous visitor)
       const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
       if (!hasRefresh) {
+        // Only dispatch auth-failed if we have a user (meaning we were logged in)
+        if (typeof window !== 'undefined' && window.__vstAccessToken) {
+          window.__vstAccessToken = null;
+          window.dispatchEvent(new CustomEvent('auth-failed'));
+        }
         return Promise.reject(error);
       }
       // If refresh has been disabled, immediately fail and notify once

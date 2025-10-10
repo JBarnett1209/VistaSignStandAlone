@@ -111,14 +111,7 @@ export const AuthProvider = ({ children }) => {
     };
     
     // Add a small delay to ensure cookies are fully loaded, then attempt refresh
-    // Also add a longer fallback in case cookies take time to be available
-    const timeoutId = setTimeout(() => attemptRefresh(), 100);
-    const fallbackTimeoutId = setTimeout(() => {
-      // If still loading after 2 seconds, try one more time
-      if (loading) {
-        attemptRefresh();
-      }
-    }, 2000);
+    const timeoutId = setTimeout(() => attemptRefresh(), 200);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
@@ -141,7 +134,6 @@ export const AuthProvider = ({ children }) => {
     
     return () => {
       clearTimeout(timeoutId);
-      clearTimeout(fallbackTimeoutId);
       if (typeof window !== 'undefined') {
         window.removeEventListener('auth-failed', handleAuthFailed);
       }
@@ -167,14 +159,13 @@ export const AuthProvider = ({ children }) => {
       
       setUser(userData);
       
-      // Add a longer delay before allowing auth-failed events to prevent race conditions
-      // This ensures the login process is fully complete before the session check runs
-      setTimeout(() => {
-        setIsLoggingIn(false);
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Login process completed, auth-failed events now allowed');
-        }
-      }, 3000); // Increased from 2000 to 3000ms
+      // Immediately set isLoggingIn to false after successful login
+      // The session check will handle any subsequent auth issues
+      setIsLoggingIn(false);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthContext: Login process completed');
+      }
     } catch (error) {
       setIsLoggingIn(false);
       throw error;
@@ -228,12 +219,12 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Add a longer delay before the first check to avoid race conditions with login
+    // Add a delay before the first check to avoid race conditions with login
     const initialCheckTimeout = setTimeout(() => {
       if (!cancelled) {
         checkSession();
       }
-    }, 5000); // Increased to 5 second delay to avoid race conditions
+    }, 2000); // Reduced to 2 second delay - enough to avoid race conditions
     
     const intervalId = setInterval(checkSession, 30000); // 30s
 
