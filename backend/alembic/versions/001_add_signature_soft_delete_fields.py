@@ -1,6 +1,6 @@
 """Add soft delete and admin fields to signatures
 
-Revision ID: 001_add_signature_soft_delete_fields
+Revision ID: 001_signature_fields
 Revises: 
 Create Date: 2024-01-01 00:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '001_add_signature_soft_delete_fields'
+revision = '001_signature_fields'
 down_revision = None
 branch_labels = None
 depends_on = None

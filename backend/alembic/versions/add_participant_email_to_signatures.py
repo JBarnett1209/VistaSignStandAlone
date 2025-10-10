@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '002_add_participant_email_to_signatures'
-down_revision = '001_add_signature_soft_delete_fields'
+down_revision = '001_signature_fields'
 branch_labels = None
 depends_on = None
 
