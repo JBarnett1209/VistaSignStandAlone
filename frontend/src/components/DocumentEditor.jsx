@@ -209,6 +209,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   // Load document fields and signers on mount
   useEffect(() => {
+    console.log('DocumentEditor: Document prop changed:', document);
+    console.log('DocumentEditor: Document ID:', document?.id);
+    console.log('DocumentEditor: Document fields:', document?.fields);
+    
     if (document?.fields) {
       console.log('Loading document fields:', document.fields);
       setFields(document.fields);

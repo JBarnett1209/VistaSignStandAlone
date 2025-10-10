@@ -138,8 +138,19 @@ export default function Documents() {
     }
   };
 
-  const handleEditDocument = (document) => {
-    setEditingDocument(document);
+  const handleEditDocument = async (document) => {
+    try {
+      console.log('Opening document editor for:', document.id);
+      // Fetch the latest document data from the database to ensure we have the most recent fields
+      const response = await documentsAPI.get(document.id);
+      console.log('Fetched latest document data:', response.data);
+      setEditingDocument(response.data);
+    } catch (err) {
+      console.error('Error fetching document for editing:', err);
+      setError('Failed to load document for editing');
+      // Fallback to the document from the list
+      setEditingDocument(document);
+    }
   };
 
   const handleDocumentSave = (updatedDocument) => {
