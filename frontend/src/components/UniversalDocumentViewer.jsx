@@ -463,36 +463,6 @@ const UniversalDocumentViewer = ({
         width: '100%',
         flex: 1
       }}>
-        {/* Page Navigation */}
-        {numPages && numPages > 1 && (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2, 
-            p: 1,
-            backgroundColor: 'background.paper',
-            borderRadius: 1,
-            boxShadow: 1
-          }}>
-            <IconButton 
-              size="small"
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage <= 1}
-            >
-              <PrevIcon />
-            </IconButton>
-            <Typography variant="body2" sx={{ minWidth: '80px', textAlign: 'center' }}>
-              Page {currentPage} of {numPages}
-            </Typography>
-            <IconButton 
-              size="small"
-              onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
-              disabled={currentPage >= numPages}
-            >
-              <NextIcon />
-            </IconButton>
-          </Box>
-        )}
 
         {/* Signature Fields Summary */}
         {showSignatureStatus && allFields.length > 0 && (
