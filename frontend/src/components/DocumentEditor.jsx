@@ -287,8 +287,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   };
 
   const handleFieldClick = (fieldId) => {
-    // Don't open field properties if we just finished dragging
-    if (hasDragged) {
+    // Don't open field properties if we just finished dragging or are currently dragging
+    if (hasDragged || isDraggingField) {
       setHasDragged(false); // Reset for next interaction
       return;
     }
@@ -345,6 +345,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   const handleFieldMouseUp = () => {
     setIsDraggingField(false);
+    // Reset hasDragged after a short delay to prevent click from firing
+    setTimeout(() => {
+      setHasDragged(false);
+    }, 50);
   };
 
   // Resize handlers for fields
