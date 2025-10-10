@@ -209,11 +209,6 @@ export default function PublicSigning() {
     const participantSigningOrder = workflowData?.participant?.signing_order || 1;
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
-    
-    // Calculate position accounting for page offset
-    const pageNumber = field.pageNumber || 1;
-    const pageHeight = 800; // Approximate page height in pixels
-    const pageOffset = (pageNumber - 1) * pageHeight;
 
     return (
       <Box
@@ -222,7 +217,7 @@ export default function PublicSigning() {
         sx={{
           position: 'absolute',
           left: `${field.x}%`,
-          top: `calc(${field.y}% + ${pageOffset}px)`,
+          top: `${field.y}%`,
           width: `${field.width}%`,
           height: `${field.height}%`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
@@ -465,21 +460,21 @@ export default function PublicSigning() {
                       loading={<CircularProgress />}
                       error={<Alert severity="error">Failed to load document</Alert>}
                     >
-                      {/* Render all pages */}
-                      {numPages && Array.from({ length: numPages }, (_, index) => (
-                        <Page 
-                          key={index + 1}
-                          pageNumber={index + 1} 
-                          width={800}
-                          renderTextLayer={false}
-                          renderAnnotationLayer={false}
-                        />
-                      ))}
+                      {/* Render only current page */}
+                      <Page 
+                        pageNumber={pageNumber} 
+                        width={800}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                      />
                     </PDFDocument>
                   </Box>
                   
-                  {/* Signature Fields Overlay */}
-                  {workflowData?.document?.fields?.map(field => renderSignatureField(field))}
+                  {/* Signature Fields Overlay - only show fields for current page */}
+                  {workflowData?.document?.fields?.map(field => {
+                    const fieldPage = field.pageNumber || 1;
+                    return fieldPage === pageNumber ? renderSignatureField(field) : null;
+                  })}
                 </Box>
               </Box>
             </Box>
@@ -526,6 +521,30 @@ export default function PublicSigning() {
             </Box>
 
             <Box sx={{ flex: 1, p: 2 }}>
+              {/* Page indicator */}
+              {numPages && numPages > 1 && (
+                <Box sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Current Page:</strong> {pageNumber} of {numPages}
+                  </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Use the navigation buttons to find signature fields on other pages
+              </Typography>
+              {(() => {
+                const userFields = workflowData?.document?.fields?.filter(f => f.signingOrder === (workflowData?.participant?.signing_order || 1)) || [];
+                const pagesWithFields = [...new Set(userFields.map(f => f.pageNumber || 1))];
+                if (pagesWithFields.length > 0) {
+                  return (
+                    <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 1 }}>
+                      Signature fields are on pages: {pagesWithFields.sort((a, b) => a - b).join(', ')}
+                    </Typography>
+                  );
+                }
+                return null;
+              })()}
+                </Box>
+              )}
+              
               <Typography variant="subtitle2" gutterBottom>
                 Your Fields to Sign:
               </Typography>
