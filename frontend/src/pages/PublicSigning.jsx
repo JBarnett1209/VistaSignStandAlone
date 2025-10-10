@@ -12,7 +12,12 @@ import {
   Divider,
   Chip
 } from '@mui/material';
-import { Document, CheckCircle, Clock, User } from 'lucide-react';
+import { 
+  Description as Document, 
+  CheckCircle, 
+  Schedule as Clock, 
+  Person as User 
+} from '@mui/icons-material';
 import api from '../services/api';
 
 export default function PublicSigning() {
@@ -166,7 +171,7 @@ export default function PublicSigning() {
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Document size={24} color="#7B5CFF" />
+              <Document sx={{ color: '#7B5CFF', fontSize: 24 }} />
               <Typography variant="h6">
                 {workflowData?.document?.title || 'Document'}
               </Typography>
@@ -174,12 +179,12 @@ export default function PublicSigning() {
             
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
               <Chip 
-                icon={<User size={16} />}
+                icon={<User sx={{ fontSize: 16 }} />}
                 label={`Signing Order: #${workflowData?.participant?.signing_order || 1}`}
                 variant="outlined"
               />
               <Chip 
-                icon={isCompleted ? <CheckCircle size={16} /> : <Clock size={16} />}
+                icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : <Clock sx={{ fontSize: 16 }} />}
                 label={isCompleted ? 'Completed' : 'Pending'}
                 color={isCompleted ? 'success' : 'default'}
                 variant="outlined"
@@ -253,7 +258,7 @@ export default function PublicSigning() {
         ) : (
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
-              <CheckCircle size={48} color="#4CAF50" style={{ marginBottom: 16 }} />
+              <CheckCircle sx={{ fontSize: 48, color: '#4CAF50', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 Document Already Signed
               </Typography>
