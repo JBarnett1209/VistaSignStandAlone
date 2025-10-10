@@ -68,6 +68,17 @@ export default function Workflows() {
     }
   };
 
+  const handleResendWorkflow = async (workflowId) => {
+    try {
+      await workflowsAPI.send(workflowId);
+      await loadWorkflows();
+      setError(null);
+    } catch (err) {
+      setError('Failed to re-send workflow emails');
+      console.error('Error re-sending workflow:', err);
+    }
+  };
+
   const handleDeleteWorkflow = (workflowId) => {
     setConfirmDialog({
       open: true,
@@ -211,6 +222,15 @@ export default function Workflows() {
                           size="small" 
                           title="Send for Signing"
                           onClick={() => handleSendWorkflow(workflow.id)}
+                        >
+                          <SendIcon />
+                        </IconButton>
+                      )}
+                      {workflow.status === 'active' && (
+                        <IconButton 
+                          size="small" 
+                          title="Re-send Signing Emails"
+                          onClick={() => handleResendWorkflow(workflow.id)}
                         >
                           <SendIcon />
                         </IconButton>
