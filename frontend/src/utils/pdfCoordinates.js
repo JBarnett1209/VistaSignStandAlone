@@ -180,5 +180,13 @@ export const findSignatureForField = (field, signatures, documentId) => {
  * @returns {boolean} - Whether field is signed
  */
 export const isFieldSigned = (field, signatures, documentId) => {
-  return findSignatureForField(field, signatures, documentId) !== null;
+  const signature = findSignatureForField(field, signatures, documentId);
+  
+  // Only consider a field signed if:
+  // 1. A signature exists for this field
+  // 2. The signature has been completed (has signed_at timestamp)
+  // 3. The signature is not just a template (has actual signature data)
+  return signature && 
+         signature.signed_at && 
+         (signature.signature_image || signature.digital_signature || signature.signature_data);
 };

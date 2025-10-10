@@ -793,7 +793,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Chip
             label={field.type === FIELD_TYPES.SIGNATURE ? 'Template Set' : field.value}
             size="small"
-            color="info"
+            color={field.type === FIELD_TYPES.SIGNATURE ? "warning" : "info"}
             variant="outlined"
           />
         ) : (

@@ -147,6 +147,9 @@ const UniversalDocumentViewer = ({
     // Use centralized signature checking with improved field matching
     const isSigned = isFieldSigned(field, signatures, document?.id);
     const signature = findSignatureForField(field, signatures, document?.id);
+    
+    // Check if this field has a signature template (from document editing)
+    const hasTemplate = field.type === 'signature' && field.value && field.value !== '';
 
     // For UniversalDocumentViewer, use a simple offset calculation
     // since we don't have direct access to the PDF container
@@ -155,14 +158,27 @@ const UniversalDocumentViewer = ({
     // Convert field coordinates to screen coordinates
     const screenCoords = fieldToScreenCoords(field, pdfOffset, zoom);
 
+    // Determine field styling based on status
+    let borderColor, backgroundColor;
+    if (isSigned) {
+      borderColor = '#4caf50';
+      backgroundColor = 'rgba(76, 175, 80, 0.1)';
+    } else if (hasTemplate) {
+      borderColor = '#ff9800';
+      backgroundColor = 'rgba(255, 152, 0, 0.1)';
+    } else {
+      borderColor = '#ff9800';
+      backgroundColor = 'rgba(255, 152, 0, 0.1)';
+    }
+
     const fieldStyle = {
       position: 'absolute',
       left: `${screenCoords.x}px`,
       top: `${screenCoords.y}px`,
       width: `${screenCoords.width}px`,
       height: `${screenCoords.height}px`,
-      border: isSigned ? '2px solid #4caf50' : '2px dashed #ff9800',
-      backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
+      border: isSigned ? `2px solid ${borderColor}` : `2px dashed ${borderColor}`,
+      backgroundColor: backgroundColor,
       borderRadius: '4px',
       display: 'flex',
       alignItems: 'center',
@@ -180,8 +196,12 @@ const UniversalDocumentViewer = ({
             <Typography variant="body2">
               {field.label || field.name || 'Signature Field'}
             </Typography>
-            <Typography variant="caption" color={isSigned ? 'success.main' : 'warning.main'}>
-              {isSigned ? 'Signed' : 'Unsigned'}
+            <Typography variant="caption" color={
+              isSigned ? 'success.main' : 
+              hasTemplate ? 'warning.main' : 
+              'warning.main'
+            }>
+              {isSigned ? 'Signed' : hasTemplate ? 'Template Set' : 'Unsigned'}
             </Typography>
             {isSigned && (() => {
               const signature = signatures.find(sig => 
@@ -242,10 +262,16 @@ const UniversalDocumentViewer = ({
           style={fieldStyle}
           onClick={() => onFieldClick && onFieldClick(field, pageNum)}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = isSigned ? 'rgba(76, 175, 80, 0.2)' : 'rgba(255, 152, 0, 0.2)';
+            if (isSigned) {
+              e.target.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+            } else if (hasTemplate) {
+              e.target.style.backgroundColor = 'rgba(255, 152, 0, 0.2)';
+            } else {
+              e.target.style.backgroundColor = 'rgba(255, 152, 0, 0.2)';
+            }
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = isSigned ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)';
+            e.target.style.backgroundColor = backgroundColor;
           }}
         >
           {isSigned ? (
@@ -397,6 +423,62 @@ const UniversalDocumentViewer = ({
                   </Box>
                 );
               })()}
+            </Box>
+          ) : hasTemplate ? (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              p: 0.5
+            }}>
+              {/* Template Status Badge */}
+              <Box sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                backgroundColor: '#ff9800',
+                color: 'white',
+                borderRadius: '50%',
+                width: 16,
+                height: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold'
+              }}>
+                T
+              </Box>
+
+              {/* Template Content */}
+              <Typography variant="caption" sx={{ 
+                color: '#E65100', 
+                fontSize: field.height > 40 ? '11px' : '9px',
+                fontFamily: "'Dancing Script', cursive",
+                display: 'block',
+                fontWeight: 'bold',
+                lineHeight: 1.2,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                Template Set
+              </Typography>
+
+              {/* Template Info */}
+              <Typography variant="caption" sx={{ 
+                color: '#E65100', 
+                fontSize: '8px',
+                textAlign: 'center',
+                lineHeight: 1,
+                display: 'block',
+                fontWeight: 'bold'
+              }}>
+                Ready to Sign
+              </Typography>
             </Box>
           ) : (
             <Box sx={{ 
