@@ -1201,6 +1201,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               pageNumber={pageNumber}
               fixedWidth={800}
               showSignatureStatus={false}
+              showPageNavigation={false}
             />
               
               {/* Render whiteout boxes for current page */}
