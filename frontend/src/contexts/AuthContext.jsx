@@ -17,16 +17,42 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Attempt to refresh on load (cookie-based refresh)
-    const attemptRefresh = async () => {
-      // Check for refresh cookie
-      const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
-      console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh);
+    const attemptRefresh = async (retryCount = 0) => {
+      const maxRetries = 3;
+      
+      // Check for refresh cookie with more robust parsing
+      const hasRefresh = (() => {
+        if (typeof document === 'undefined') return false;
+        try {
+          const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
+            const [key, value] = cookie.split('=');
+            acc[key] = value;
+            return acc;
+          }, {});
+          const refreshToken = cookies['vst_refresh'];
+          return refreshToken && refreshToken.length > 0;
+        } catch (e) {
+          console.log('AuthContext: Error parsing cookies:', e);
+          return false;
+        }
+      })();
+      console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh, 'retry:', retryCount);
       
       if (!hasRefresh) {
-        console.log('AuthContext: No refresh token found, setting user to null');
-        setUser(null);
-        setLoading(false);
-        return;
+        console.log('AuthContext: No refresh token found, trying direct profile check...');
+        // Try to get user profile directly in case we have a valid access token
+        try {
+          const me = await api.get('/api/v1/auth/me');
+          console.log('AuthContext: Direct profile check succeeded:', me.data);
+          setUser(me.data);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.log('AuthContext: Direct profile check failed:', e);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
       }
       
       try {
@@ -42,6 +68,7 @@ export const AuthProvider = ({ children }) => {
         const me = await api.get('/api/v1/auth/me');
         console.log('AuthContext: User profile loaded:', me.data);
         setUser(me.data);
+        setLoading(false);
         
       } catch (e) {
         console.log('AuthContext: Refresh failed:', e);
@@ -52,22 +79,22 @@ export const AuthProvider = ({ children }) => {
         }
         setUser(null);
         
-        // If it's a network error or server error, don't immediately fail
-        // Give it a moment and try again
-        if (e.code === 'NETWORK_ERROR' || e.response?.status >= 500) {
-          console.log('AuthContext: Network/server error, will retry...');
+        // If it's a network error or server error, retry with exponential backoff
+        if ((e.code === 'NETWORK_ERROR' || e.response?.status >= 500) && retryCount < maxRetries) {
+          const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          console.log(`AuthContext: Network/server error, retrying in ${delay}ms... (attempt ${retryCount + 1}/${maxRetries})`);
           setTimeout(() => {
-            attemptRefresh();
-          }, 1000);
+            attemptRefresh(retryCount + 1);
+          }, delay);
           return;
         }
-      } finally {
+        
         setLoading(false);
       }
     };
     
-    // Add a small delay to ensure cookies are fully loaded
-    const timeoutId = setTimeout(attemptRefresh, 100);
+    // Add a small delay to ensure cookies are fully loaded, then attempt refresh
+    const timeoutId = setTimeout(() => attemptRefresh(), 100);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
