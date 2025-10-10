@@ -43,6 +43,7 @@ export default function PublicSigning() {
   const [consentData, setConsentData] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
   const documentRef = useRef(null);
   const pdfContainerRef = useRef(null);
 
@@ -50,9 +51,48 @@ export default function PublicSigning() {
     loadSigningData();
   }, [workflowId, participantId]);
 
+  // Calculate PDF offset relative to container (same as Document Editor)
+  const calculatePdfOffset = () => {
+    if (pdfContainerRef.current) {
+      const containerRect = pdfContainerRef.current.getBoundingClientRect();
+      // The PDF is centered in the container, so calculate the offset
+      const pdfWidth = 800; // Fixed width we're using
+      const containerWidth = containerRect.width;
+      const offsetX = (containerWidth - pdfWidth) / 2;
+      
+      console.log('PublicSigning: PDF offset calculated:', { 
+        offsetX, 
+        pdfWidth, 
+        containerWidth,
+        containerRect: {
+          width: containerRect.width,
+          height: containerRect.height
+        }
+      });
+      
+      setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF is at top
+    } else {
+      console.log('PublicSigning: PDF container ref not available for offset calculation');
+    }
+  };
+
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
+    // Calculate PDF offset after document loads
+    setTimeout(calculatePdfOffset, 100);
   };
+
+  // Calculate PDF offset on mount and window resize
+  useEffect(() => {
+    calculatePdfOffset();
+    
+    const handleResize = () => {
+      setTimeout(calculatePdfOffset, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadSigningData = async () => {
     try {
@@ -216,8 +256,9 @@ export default function PublicSigning() {
       width: field.width,
       height: field.height,
       page: field.page,
-      renderedX: field.x,
-      renderedY: field.y
+      pdfOffset: pdfOffset,
+      renderedX: field.x + pdfOffset.x,
+      renderedY: field.y + pdfOffset.y
     });
 
     return (
@@ -226,9 +267,9 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Both views now have identical containers with p: 2 padding, so use coordinates directly
-          left: `${field.x}px`,
-          top: `${field.y}px`,
+          // Use PDF offset calculation (same as Document Editor)
+          left: field.x + pdfOffset.x,
+          top: field.y + pdfOffset.y,
           width: `${field.width}px`,
           height: `${field.height}px`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
@@ -479,10 +520,10 @@ export default function PublicSigning() {
                   const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
                   console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
                   console.log('PublicSigning: PDF container dimensions:', {
-                    containerWidth: '800px (fixed)',
+                    containerWidth: pdfContainerRef.current?.getBoundingClientRect().width || 'unknown',
                     pdfWidth: '800px (fixed)',
-                    offsetX: 0,
-                    offsetY: 0
+                    offsetX: pdfOffset.x,
+                    offsetY: pdfOffset.y
                   });
                   return currentPageFields.map(renderSignatureField);
                 })()}
