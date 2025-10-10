@@ -77,12 +77,7 @@ const UniversalDocumentViewer = ({
     const type = mimeType?.toLowerCase() || '';
     const name = filename?.toLowerCase() || '';
     
-    console.log('UniversalDocumentViewer: getDocumentType called with:', { mimeType, filename, type, name });
-    
-    if (type.includes('pdf') || name.endsWith('.pdf')) {
-      console.log('UniversalDocumentViewer: Detected PDF document');
-      return 'pdf';
-    }
+    if (type.includes('pdf') || name.endsWith('.pdf')) return 'pdf';
     if (type.includes('word') || name.endsWith('.docx') || name.endsWith('.doc')) return 'word';
     if (type.includes('excel') || type.includes('spreadsheet') || name.endsWith('.xlsx') || name.endsWith('.xls')) return 'excel';
     if (type.includes('image') || /\.(jpg|jpeg|png|gif|bmp|tiff)$/i.test(name)) return 'image';
@@ -90,7 +85,6 @@ const UniversalDocumentViewer = ({
     if (type.includes('text') || name.endsWith('.txt')) return 'text';
     if (type.includes('csv') || name.endsWith('.csv')) return 'csv';
     
-    console.log('UniversalDocumentViewer: Document type unknown, returning "unknown"');
     return 'unknown';
   };
 

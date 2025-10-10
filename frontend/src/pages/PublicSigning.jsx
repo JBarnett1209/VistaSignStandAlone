@@ -21,11 +21,13 @@ import {
   Person as User,
   Edit as EditIcon
 } from '@mui/icons-material';
+import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
-import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -459,26 +461,20 @@ export default function PublicSigning() {
                   </Box>
                 )}
                 
-                <UniversalDocumentViewer
-                  document={workflowData.document}
+                <PDFDocument
+                  file={workflowData.document.file_url}
                   onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={(error) => {
-                    console.error('Document load error:', error);
-                    setError(`Failed to load document: ${error.message || 'Unknown error'}`);
-                  }}
-                  pageNumber={pageNumber}
-                  fixedWidth={800}
-                />
-                {/* Debug: Log document object */}
-                {console.log('PublicSigning: Document object passed to UniversalDocumentViewer:', {
-                  id: workflowData.document?.id,
-                  title: workflowData.document?.title,
-                  filename: workflowData.document?.filename,
-                  mime_type: workflowData.document?.mime_type,
-                  file_url: workflowData.document?.file_url,
-                  file_path: workflowData.document?.file_path,
-                  url: workflowData.document?.url
-                })}
+                  loading={<CircularProgress />}
+                  error={<Alert severity="error">Failed to load document</Alert>}
+                >
+                  {/* Render only current page */}
+                  <Page 
+                    pageNumber={pageNumber} 
+                    width={800}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                </PDFDocument>
                 
                 {/* Signature Fields Overlay - positioned absolutely over PDF */}
                 {(() => {
