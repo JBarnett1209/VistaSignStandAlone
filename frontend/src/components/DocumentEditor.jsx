@@ -194,6 +194,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   
   // Drag over state
   const [isDragOver, setIsDragOver] = useState(false);
+  
+  // PDF position tracking
+  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
+  const pdfContainerRef = useRef(null);
 
   // Snackbar helper function
   const showSnackbar = (message, severity = 'success') => {
@@ -204,6 +208,19 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
+  };
+
+  // Calculate PDF offset relative to container
+  const calculatePdfOffset = () => {
+    if (pdfContainerRef.current) {
+      const containerRect = pdfContainerRef.current.getBoundingClientRect();
+      // The PDF is centered in the container, so calculate the offset
+      const pdfWidth = 800; // Fixed width we're using
+      const containerWidth = containerRect.width;
+      const offsetX = (containerWidth - pdfWidth) / 2;
+      setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
+      console.log('PDF offset calculated:', { x: offsetX, y: 0, containerWidth, pdfWidth });
+    }
   };
 
 
@@ -228,6 +245,18 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     // Load signature templates
     loadSignatureTemplates();
   }, [document]);
+
+  // Calculate PDF offset when component mounts and window resizes
+  useEffect(() => {
+    calculatePdfOffset();
+    
+    const handleResize = () => {
+      calculatePdfOffset();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const loadSignatureTemplates = async () => {
     try {
@@ -289,12 +318,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const maxSigningOrder = Math.max(0, ...fields.map(f => f.signingOrder || 0));
     const nextSigningOrder = maxSigningOrder + 1;
 
-    // Both views now use fixed 800px width, so save coordinates directly
+    // Account for PDF offset when saving coordinates
+    // Public signing doesn't have this offset, so we need to subtract it
     const newField = {
       id: Date.now().toString(),
       type: dragField,
-      x: x,  // Save coordinates directly (both views use 800px width)
-      y: y,  // Save coordinates directly (both views use 800px width)
+      x: x - pdfOffset.x,  // Remove editor PDF offset to match public signing
+      y: y - pdfOffset.y,  // Remove editor PDF offset to match public signing
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
@@ -360,7 +390,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const handleFieldMouseMove = (e) => {
     if (!isDraggingField || !selectedField) return;
     
-    // Both views now use fixed 800px width, so use coordinates directly
     const deltaX = e.clientX - dragStartPos.x;
     const deltaY = e.clientY - dragStartPos.y;
     
@@ -687,9 +716,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const config = FIELD_TYPE_CONFIG[field.type];
     const isSelected = selectedField === field.id;
     
-    // Both views now use fixed 800px width, so coordinates should match directly
-    // No scaling needed since both editor and public signing use the same fixed width
-    
+    // Use calculated PDF offset to position fields correctly
     console.log(`Rendering field ${field.id}:`, {
       type: field.type,
       x: field.x,
@@ -698,8 +725,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       height: field.height,
       page: field.page,
       scale: scale,
-      renderedX: field.x,
-      renderedY: field.y
+      pdfOffset: pdfOffset,
+      renderedX: field.x + pdfOffset.x,
+      renderedY: field.y + pdfOffset.y
     });
     
     return (
@@ -716,8 +744,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         }}
         sx={{
           position: 'absolute',
-          left: field.x,
-          top: field.y,
+          left: field.x + pdfOffset.x,
+          top: field.y + pdfOffset.y,
           width: field.width,
           height: field.height,
           border: `2px solid ${isSelected ? '#1976d2' : config.color}`,
@@ -1101,7 +1129,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           </Box>
 
           {/* PDF Viewer */}
-          <Box           sx={{ 
+          <Box 
+            ref={pdfContainerRef}
+            sx={{ 
             flex: 1, 
             overflow: 'auto', 
             p: 2,
