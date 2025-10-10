@@ -21,13 +21,11 @@ import {
   Person as User,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { Document as PDFDocument, Page, pdfjs } from 'react-pdf';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
+import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -229,7 +227,7 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Both views now have identical containers, so use coordinates directly
+          // Both views now have identical containers with p: 2 padding, so use coordinates directly
           left: `${field.x}px`,
           top: `${field.y}px`,
           width: `${field.width}px`,
@@ -420,86 +418,71 @@ export default function PublicSigning() {
                 position: 'relative',
                 minHeight: '100%',
                 display: 'flex',
-                justifyContent: 'center'
-                // Removed p: 2 to match Document Editor container
+                justifyContent: 'center',
+                p: 2  // Match Document Editor padding
               }}>
-              <Box sx={{ 
-                position: 'relative',
-                backgroundColor: '#fff',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                borderRadius: 1,
-                overflow: 'hidden'
-              }}>
+                {/* Page Navigation */}
+                {numPages && numPages > 1 && (
                   <Box sx={{ 
-                  width: '800px', 
-                    maxHeight: '1000px',
-                    overflow: 'auto',
-                    border: '1px solid #ddd',
-                    backgroundColor: '#f5f5f5'
+                    position: 'absolute',
+                    top: 8,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 2, 
+                    p: 1, 
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderRadius: 1,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    zIndex: 10
                   }}>
-                    {/* Page Navigation */}
-                    {numPages && numPages > 1 && (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center', 
-                        gap: 2, 
-                        p: 1, 
-                        backgroundColor: '#fff',
-                        borderBottom: '1px solid #ddd'
-                      }}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                          disabled={pageNumber <= 1}
-                        >
-                          Previous
-                        </Button>
-                        <Typography variant="body2">
-                          Page {pageNumber} of {numPages}
-                        </Typography>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                          disabled={pageNumber >= numPages}
-                        >
-                          Next
-                        </Button>
-                      </Box>
-                    )}
-                    
-                    <PDFDocument
-                      file={workflowData.document.file_url}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      loading={<CircularProgress />}
-                      error={<Alert severity="error">Failed to load document</Alert>}
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                      disabled={pageNumber <= 1}
                     >
-                      {/* Render only current page */}
-                      <Page 
-                        pageNumber={pageNumber} 
-                        width={800}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                      />
-                    </PDFDocument>
+                      Previous
+                    </Button>
+                    <Typography variant="body2">
+                      Page {pageNumber} of {numPages}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                      disabled={pageNumber >= numPages}
+                    >
+                      Next
+                    </Button>
                   </Box>
-                  
-                  {/* Signature Fields Overlay - positioned absolutely over PDF */}
-                  {(() => {
-                    const allFields = workflowData?.document?.fields || [];
-                    const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
-                    console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
-                    console.log('PublicSigning: PDF container dimensions:', {
-                      containerWidth: '800px (fixed)',
-                      pdfWidth: '800px (fixed)',
-                      offsetX: 0,
-                      offsetY: 0
-                    });
-                    return currentPageFields.map(renderSignatureField);
-                  })()}
-                </Box>
+                )}
+                
+                <UniversalDocumentViewer
+                  document={workflowData.document}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={(error) => {
+                    console.error('Document load error:', error);
+                    setError(`Failed to load document: ${error.message || 'Unknown error'}`);
+                  }}
+                  pageNumber={pageNumber}
+                  fixedWidth={800}
+                />
+                
+                {/* Signature Fields Overlay - positioned absolutely over PDF */}
+                {(() => {
+                  const allFields = workflowData?.document?.fields || [];
+                  const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
+                  console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
+                  console.log('PublicSigning: PDF container dimensions:', {
+                    containerWidth: '800px (fixed)',
+                    pdfWidth: '800px (fixed)',
+                    offsetX: 0,
+                    offsetY: 0
+                  });
+                  return currentPageFields.map(renderSignatureField);
+                })()}
               </Box>
             </Box>
           ) : (
