@@ -26,17 +26,20 @@ export const AuthProvider = ({ children }) => {
         try {
           const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
             const [key, value] = cookie.split('=');
-            acc[key] = value;
+            if (key && value) {
+              acc[key] = value;
+            }
             return acc;
           }, {});
           const refreshToken = cookies['vst_refresh'];
-          return refreshToken && refreshToken.length > 0;
+          return Boolean(refreshToken && refreshToken.length > 0);
         } catch (e) {
           console.log('AuthContext: Error parsing cookies:', e);
           return false;
         }
       })();
       console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh, 'retry:', retryCount);
+      console.log('AuthContext: All cookies:', document.cookie);
       
       if (!hasRefresh) {
         console.log('AuthContext: No refresh token found, trying direct profile check...');
