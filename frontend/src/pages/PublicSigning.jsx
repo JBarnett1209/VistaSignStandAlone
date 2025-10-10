@@ -12,7 +12,9 @@ import {
   Divider,
   Chip,
   IconButton,
-  Tooltip
+  Tooltip,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import { 
   Description as Document, 
@@ -44,6 +46,9 @@ export default function PublicSigning() {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
+  const [signingComplete, setSigningComplete] = useState(false);
+  const [autoProgressing, setAutoProgressing] = useState(false);
+  const [autoProgressEnabled, setAutoProgressEnabled] = useState(true);
   const documentRef = useRef(null);
   const pdfContainerRef = useRef(null);
 
@@ -62,8 +67,6 @@ export default function PublicSigning() {
       
       
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF is at top
-    } else {
-      console.log('PublicSigning: PDF container ref not available for offset calculation');
     }
   };
 
@@ -91,15 +94,11 @@ export default function PublicSigning() {
       setError(null);
       
       const response = await api.get(`/api/v1/workflows/${workflowId}/sign/${participantId}`);
-      console.log('PublicSigning: Loaded workflow data:', response.data);
-      console.log('PublicSigning: Document fields:', response.data.document?.fields);
-      console.log('PublicSigning: Participant signature data:', response.data.participant?.signature_data);
       setWorkflowData(response.data);
       
       // Load existing signature data if participant has already signed
       if (response.data.participant.status === 'completed' && response.data.participant.signature_data) {
         const signatureData = response.data.participant.signature_data;
-        console.log('PublicSigning: Loading existing signature data:', signatureData);
         
         // Extract field signatures from the signature data
         if (signatureData.fields && Array.isArray(signatureData.fields)) {
@@ -120,7 +119,6 @@ export default function PublicSigning() {
               };
             }
           });
-          console.log('PublicSigning: Setting existing signatures:', existingSignatures);
           setSignedFields(existingSignatures);
         }
         
@@ -178,33 +176,87 @@ export default function PublicSigning() {
     setError('You must accept the consent terms to sign this document.');
   };
 
+  const findNextFieldToSign = () => {
+    const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+    const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
+    
+    // Sort fields by page first, then by position (top to bottom, left to right)
+    const sortedFields = requiredFields.sort((a, b) => {
+      if (a.page !== b.page) {
+        return (a.page || 1) - (b.page || 1);
+      }
+      // If same page, sort by Y position (top to bottom), then X position (left to right)
+      if (a.y !== b.y) {
+        return a.y - b.y;
+      }
+      return a.x - b.x;
+    });
+
+    // Find the first unsigned field
+    return sortedFields.find(field => !signedFields[field.id]);
+  };
+
+  const autoProgressToNextField = () => {
+    const nextField = findNextFieldToSign();
+    
+    if (nextField) {
+      setAutoProgressing(true);
+      
+      // If the next field is on a different page, navigate to that page first
+      const nextFieldPage = nextField.page || 1;
+      if (nextFieldPage !== pageNumber) {
+        setPageNumber(nextFieldPage);
+        // Wait a bit for page to load, then open signature dialog
+        setTimeout(() => {
+          setSelectedField(nextField);
+          setSignatureDialogOpen(true);
+          setAutoProgressing(false);
+        }, 500);
+      } else {
+        // Same page, open signature dialog immediately
+        setSelectedField(nextField);
+        setSignatureDialogOpen(true);
+        setAutoProgressing(false);
+      }
+    } else {
+      // No more fields to sign
+      setAutoProgressing(false);
+    }
+  };
+
   const handleSignatureSubmit = async (signatureData) => {
     try {
       setSigningField(true);
       setError(null);
 
       // Mark this field as signed locally
-      setSignedFields(prev => ({
-        ...prev,
+      const updatedSignedFields = {
+        ...signedFields,
         [selectedField.id]: {
           ...signatureData,
           timestamp: new Date().toISOString(),
           fieldId: selectedField.id
         }
-      }));
+      };
+      setSignedFields(updatedSignedFields);
 
       setSignatureDialogOpen(false);
       setSelectedField(null);
 
-      // Check if all required fields are signed
+      // Check if all required fields are signed using the updated state
       const participantSigningOrder = workflowData?.participant?.signing_order || 1;
       const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
-      const signedFieldIds = Object.keys(signedFields);
+      const signedFieldIds = Object.keys(updatedSignedFields);
       const allFieldsSigned = requiredFields.every(field => signedFieldIds.includes(field.id));
 
       if (allFieldsSigned) {
         // Submit all signatures to backend
         await submitAllSignatures();
+      } else if (autoProgressEnabled) {
+        // Auto-progress to next field if there are more to sign and auto-progress is enabled
+        setTimeout(() => {
+          autoProgressToNextField();
+        }, 1000); // Small delay to show the signed field
       }
 
     } catch (err) {
@@ -240,7 +292,6 @@ export default function PublicSigning() {
         }
       });
 
-      console.log('PublicSigning: Signing response:', response.data);
 
       // Update workflow data with response from backend
       setWorkflowData(prev => ({
@@ -280,6 +331,7 @@ export default function PublicSigning() {
         : 'Document signed successfully! Click "Finish" to complete the signing process.';
       
       setError(message);
+      setSigningComplete(true);
 
     } catch (err) {
       console.error('Error submitting signatures:', err);
@@ -292,17 +344,6 @@ export default function PublicSigning() {
     const participantSigningOrder = workflowData?.participant?.signing_order || 1;
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
-
-    console.log(`PublicSigning: Rendering field ${field.id}:`, {
-      x: field.x,
-      y: field.y,
-      width: field.width,
-      height: field.height,
-      page: field.page,
-      pdfOffset: pdfOffset,
-      renderedX: field.x + pdfOffset.x,
-      renderedY: field.y + pdfOffset.y
-    });
 
     return (
       <Box
@@ -331,66 +372,159 @@ export default function PublicSigning() {
         }}
       >
         {isSigned ? (
-          <Box sx={{ textAlign: 'center', p: 1 }}>
-            <CheckCircle sx={{ color: '#4CAF50', fontSize: 16, mb: 0.5 }} />
+          <Box sx={{ 
+            textAlign: 'center', 
+            p: 0.5,
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            position: 'relative',
+            background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(76, 175, 80, 0.1) 100%)',
+            borderRadius: '4px',
+            border: '1px solid rgba(76, 175, 80, 0.3)'
+          }}>
+            {/* Professional Signature Display */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              mb: 0.5,
+              gap: 0.5
+            }}>
+              <CheckCircle sx={{ color: '#2E7D32', fontSize: 14 }} />
+              <Typography variant="caption" sx={{ 
+                color: '#2E7D32', 
+                fontSize: '8px', 
+                fontWeight: 'bold',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
+                Signed
+              </Typography>
+            </Box>
+
+            {/* Signature Content */}
             {signedFields[field.id]?.type === 'typed' || signedFields[field.id]?.type === 'adopted' ? (
               <Typography 
                 variant="caption" 
                 sx={{ 
-                  color: '#4CAF50', 
-                  fontSize: '10px',
+                  color: '#1B5E20', 
+                  fontSize: field.height > 40 ? '11px' : '9px',
                   fontFamily: "'Dancing Script', cursive",
-                  display: 'block'
+                  display: 'block',
+                  fontWeight: 'bold',
+                  lineHeight: 1.2,
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {signedFields[field.id]?.text}
               </Typography>
             ) : signedFields[field.id]?.type === 'drawn' ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center',
+                alignItems: 'center',
+                maxWidth: '100%',
+                maxHeight: field.height > 40 ? '30px' : '20px'
+              }}>
                 <img 
                   src={signedFields[field.id]?.image} 
                   alt="Signature" 
                   style={{ 
-                    maxWidth: '60px', 
-                    maxHeight: '20px',
-                    objectFit: 'contain'
+                    maxWidth: '100%', 
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
                   }}
                 />
               </Box>
             ) : (
-              <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '10px' }}>
-                Signed
+              <Typography variant="caption" sx={{ 
+                color: '#1B5E20', 
+                fontSize: '9px',
+                fontWeight: 'bold'
+              }}>
+                ✓ Signed
               </Typography>
             )}
-            <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '8px', display: 'block' }}>
-              {signedFields[field.id]?.signatureType}
-            </Typography>
+
+            {/* Timestamp and Type */}
+            <Box sx={{ 
+              mt: 0.5,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 0.25
+            }}>
+              <Typography variant="caption" sx={{ 
+                color: '#4CAF50', 
+                fontSize: '7px', 
+                fontWeight: '500',
+                opacity: 0.8
+              }}>
+                {signedFields[field.id]?.signatureType}
+              </Typography>
+              
+              {/* Timestamp */}
+              {signedFields[field.id]?.timestamp && (
+                <Typography variant="caption" sx={{ 
+                  color: '#666', 
+                  fontSize: '6px',
+                  opacity: 0.7
+                }}>
+                  {new Date(signedFields[field.id].timestamp).toLocaleDateString()}
+                </Typography>
+              )}
+            </Box>
+
             {/* Digital Signature Badge */}
             {signedFields[field.id]?.digitalSignature && (
               <Box sx={{ 
-                mt: 0.5, 
+                position: 'absolute',
+                top: 2,
+                right: 2,
                 display: 'flex', 
                 alignItems: 'center', 
-                justifyContent: 'center',
-                gap: 0.5
+                gap: 0.25,
+                backgroundColor: 'rgba(46, 125, 50, 0.9)',
+                borderRadius: '2px',
+                px: 0.5,
+                py: 0.25
               }}>
                 <Box sx={{ 
-                  width: 4, 
-                  height: 4, 
-                  backgroundColor: '#4CAF50', 
+                  width: 3, 
+                  height: 3, 
+                  backgroundColor: '#fff', 
                   borderRadius: '50%' 
                 }} />
                 <Typography variant="caption" sx={{ 
-                  color: '#4CAF50', 
-                  fontSize: '6px', 
+                  color: '#fff', 
+                  fontSize: '5px', 
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
+                  letterSpacing: '0.3px'
                 }}>
-                  Digitally Signed
+                  Digital
                 </Typography>
               </Box>
             )}
+
+            {/* Professional Border Effect */}
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              border: '1px solid rgba(76, 175, 80, 0.2)',
+              borderRadius: '4px',
+              pointerEvents: 'none'
+            }} />
           </Box>
         ) : isClickable ? (
           <Typography variant="caption" sx={{ color: '#7B5CFF', fontSize: '10px', textAlign: 'center' }}>
@@ -484,6 +618,19 @@ export default function PublicSigning() {
               color={isCompleted ? 'success' : 'default'}
               variant="outlined"
             />
+            {autoProgressing && (
+              <Chip 
+                icon={<CircularProgress size={12} sx={{ color: '#7B5CFF' }} />}
+                label="Moving to next field..."
+                color="primary"
+                variant="outlined"
+                sx={{ 
+                  backgroundColor: 'rgba(123, 92, 255, 0.1)',
+                  borderColor: '#7B5CFF',
+                  color: '#7B5CFF'
+                }}
+              />
+            )}
             <Button
               variant="outlined"
               size="small"
@@ -510,9 +657,9 @@ export default function PublicSigning() {
         }}>
           {error && (
             <Alert 
-              severity={isCompleted ? "success" : "error"} 
+              severity={isCompleted || signingComplete ? "success" : "error"} 
               sx={{ m: 2, mb: 0 }}
-              action={isCompleted ? (
+              action={isCompleted || signingComplete ? (
                 <Button
                   color="inherit"
                   size="small"
@@ -613,13 +760,6 @@ export default function PublicSigning() {
                 {(() => {
                   const allFields = workflowData?.document?.fields || [];
                   const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
-                  console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
-                  console.log('PublicSigning: PDF container dimensions:', {
-                    containerWidth: pdfContainerRef.current?.getBoundingClientRect().width || 'unknown',
-                    pdfWidth: '800px (fixed)',
-                    offsetX: pdfOffset.x,
-                    offsetY: pdfOffset.y
-                  });
                   return currentPageFields.map(renderSignatureField);
                 })()}
               </Box>
@@ -635,6 +775,40 @@ export default function PublicSigning() {
               <Typography color="text.secondary">
                 Document preview not available
               </Typography>
+            </Box>
+          )}
+          
+          {/* Finish Button - Show when signing is complete but no error message */}
+          {signingComplete && !error && (
+            <Box sx={{ 
+              p: 2, 
+              display: 'flex', 
+              justifyContent: 'center',
+              borderTop: '1px solid #e0e0e0',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => navigate('/signing-complete', { 
+                  state: { 
+                    documentTitle: workflowData?.document?.title,
+                    workflowName: workflowData?.workflow?.name,
+                    participantEmail: workflowData?.participant?.email,
+                    signedAt: workflowData?.participant?.signed_at || new Date().toISOString(),
+                    workflowCompleted: workflowData?.workflow?.completed || false,
+                    workflowStatus: workflowData?.workflow?.status
+                  }
+                })}
+                sx={{ 
+                  backgroundColor: '#4CAF50',
+                  '&:hover': { backgroundColor: '#45a049' },
+                  px: 4,
+                  py: 1.5
+                }}
+              >
+                Finish Signing
+              </Button>
             </Box>
           )}
         </Box>
@@ -655,6 +829,33 @@ export default function PublicSigning() {
               <Typography variant="body2" color="text.secondary" paragraph>
                 Click on the signature fields highlighted in purple to sign this document.
               </Typography>
+              
+              {/* Auto-Progress Toggle */}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={autoProgressEnabled}
+                    onChange={(e) => setAutoProgressEnabled(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      Auto-Progress
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Automatically move to next field after signing
+                    </Typography>
+                  </Box>
+                }
+                sx={{ 
+                  alignItems: 'flex-start',
+                  '& .MuiFormControlLabel-label': {
+                    marginLeft: 1
+                  }
+                }}
+              />
               
               {workflowData?.workflow?.description && (
                 <>
@@ -691,6 +892,47 @@ export default function PublicSigning() {
                 </Box>
               )}
               
+              {/* Progress Indicator */}
+              {(() => {
+                const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+                const userFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
+                const signedCount = userFields.filter(f => signedFields[f.id]).length;
+                const totalCount = userFields.length;
+                
+                if (totalCount > 0) {
+                  return (
+                    <Box sx={{ mb: 2, p: 2, backgroundColor: '#f0f8ff', borderRadius: 1, border: '1px solid #e3f2fd' }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ color: '#1976d2', fontWeight: 'bold' }}>
+                        Signing Progress
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <Box sx={{ 
+                          flex: 1, 
+                          height: 8, 
+                          backgroundColor: '#e3f2fd', 
+                          borderRadius: 4,
+                          overflow: 'hidden'
+                        }}>
+                          <Box sx={{ 
+                            width: `${(signedCount / totalCount) * 100}%`, 
+                            height: '100%', 
+                            backgroundColor: '#4CAF50',
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </Box>
+                        <Typography variant="caption" sx={{ color: '#1976d2', fontWeight: 'bold', minWidth: '60px' }}>
+                          {signedCount}/{totalCount}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" sx={{ color: '#666' }}>
+                        {signedCount === totalCount ? 'All fields completed!' : `${totalCount - signedCount} field${totalCount - signedCount === 1 ? '' : 's'} remaining`}
+                      </Typography>
+                    </Box>
+                  );
+                }
+                return null;
+              })()}
+              
               <Typography variant="subtitle2" gutterBottom>
                 Your Fields to Sign:
               </Typography>
@@ -706,60 +948,121 @@ export default function PublicSigning() {
                   }}>
                     <Typography variant="body2">
                       {signedFields[field.id] ? (
-                        <Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                            <CheckCircle sx={{ color: '#4CAF50', fontSize: 16 }} />
-                            <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>Signed</span>
-                          </Box>
-                          <Typography variant="caption" sx={{ color: '#4CAF50', display: 'block' }}>
-                            Type: {signedFields[field.id].signatureType}
-                          </Typography>
-                          {signedFields[field.id].type === 'typed' || signedFields[field.id].type === 'adopted' ? (
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
+                        <Box sx={{
+                          p: 1.5,
+                          backgroundColor: 'rgba(76, 175, 80, 0.05)',
+                          borderRadius: 2,
+                          border: '1px solid rgba(76, 175, 80, 0.2)',
+                          borderLeft: '4px solid #4CAF50'
+                        }}>
+                          {/* Professional Header */}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                            <CheckCircle sx={{ color: '#2E7D32', fontSize: 18 }} />
+                            <Box>
+                              <Typography variant="caption" sx={{ 
+                                color: '#2E7D32', 
+                                fontWeight: 'bold',
+                                fontSize: '11px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                ✓ Signed
+                              </Typography>
+                              <Typography variant="caption" sx={{ 
                                 color: '#4CAF50', 
-                                fontFamily: "'Dancing Script', cursive",
-                                display: 'block'
-                              }}
-                            >
-                              {signedFields[field.id].text}
-                            </Typography>
+                                display: 'block',
+                                fontSize: '9px',
+                                fontWeight: '500'
+                              }}>
+                                {signedFields[field.id].signatureType}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Signature Content */}
+                          {signedFields[field.id].type === 'typed' || signedFields[field.id].type === 'adopted' ? (
+                            <Box sx={{ 
+                              p: 1, 
+                              backgroundColor: '#fff', 
+                              borderRadius: 1, 
+                              border: '1px solid rgba(76, 175, 80, 0.1)',
+                              mb: 1
+                            }}>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  color: '#1B5E20', 
+                                  fontFamily: "'Dancing Script', cursive",
+                                  fontSize: '14px',
+                                  fontWeight: 'bold',
+                                  display: 'block',
+                                  textAlign: 'center'
+                                }}
+                              >
+                                {signedFields[field.id].text}
+                              </Typography>
+                            </Box>
                           ) : signedFields[field.id].type === 'drawn' ? (
-                            <Box sx={{ mt: 1 }}>
+                            <Box sx={{ 
+                              p: 1, 
+                              backgroundColor: '#fff', 
+                              borderRadius: 1, 
+                              border: '1px solid rgba(76, 175, 80, 0.1)',
+                              mb: 1,
+                              display: 'flex',
+                              justifyContent: 'center'
+                            }}>
                               <img 
                                 src={signedFields[field.id].image} 
                                 alt="Signature" 
                                 style={{ 
-                                  maxWidth: '100px', 
-                                  maxHeight: '40px',
+                                  maxWidth: '120px', 
+                                  maxHeight: '50px',
                                   objectFit: 'contain',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '4px'
+                                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                                 }}
                               />
                             </Box>
                           ) : null}
+
+                          {/* Timestamp */}
+                          {signedFields[field.id]?.timestamp && (
+                            <Typography variant="caption" sx={{ 
+                              color: '#666', 
+                              fontSize: '8px',
+                              display: 'block',
+                              mb: 1,
+                              fontStyle: 'italic'
+                            }}>
+                              Signed on {new Date(signedFields[field.id].timestamp).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </Typography>
+                          )}
+
                           {/* Digital Signature Information */}
                           {signedFields[field.id]?.digitalSignature && (
                             <Box sx={{ 
-                              mt: 1, 
                               p: 1, 
-                              backgroundColor: 'rgba(76, 175, 80, 0.05)', 
+                              backgroundColor: 'rgba(46, 125, 50, 0.1)', 
                               borderRadius: 1, 
-                              border: '1px solid rgba(76, 175, 80, 0.2)',
-                              borderLeft: '3px solid #4CAF50'
+                              border: '1px solid rgba(46, 125, 50, 0.3)',
+                              borderLeft: '3px solid #2E7D32'
                             }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
                                 <Box sx={{ 
-                                  width: 6, 
-                                  height: 6, 
-                                  backgroundColor: '#4CAF50', 
+                                  width: 8, 
+                                  height: 8, 
+                                  backgroundColor: '#2E7D32', 
                                   borderRadius: '50%' 
                                 }} />
                                 <Typography variant="caption" sx={{ 
-                                  color: '#4CAF50', 
-                                  fontSize: '9px', 
+                                  color: '#2E7D32', 
+                                  fontSize: '10px', 
                                   fontWeight: 'bold',
                                   textTransform: 'uppercase',
                                   letterSpacing: '0.5px'
@@ -768,10 +1071,11 @@ export default function PublicSigning() {
                                 </Typography>
                               </Box>
                               <Typography variant="caption" sx={{ 
-                                color: '#666', 
-                                fontSize: '8px', 
+                                color: '#1B5E20', 
+                                fontSize: '9px', 
                                 display: 'block',
-                                fontStyle: 'italic'
+                                fontStyle: 'italic',
+                                lineHeight: 1.3
                               }}>
                                 This signature is cryptographically secured and legally binding
                               </Typography>
