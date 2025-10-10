@@ -132,7 +132,7 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/pricing" element={<Pricing />} />
-              <Route path="/sign/:publicId" element={<PublicSigning />} />
+              <Route path="/sign/:workflowId/:participantId" element={<PublicSigning />} />
               
               {/* Protected routes */}
               <Route path="/" element={
