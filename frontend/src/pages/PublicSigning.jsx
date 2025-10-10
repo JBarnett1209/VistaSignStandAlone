@@ -287,7 +287,7 @@ export default function PublicSigning() {
                 sx={{ 
                   color: '#4CAF50', 
                   fontSize: '10px',
-                  fontFamily: 'cursive',
+                  fontFamily: "'Dancing Script', cursive",
                   display: 'block'
                 }}
               >
@@ -313,6 +313,32 @@ export default function PublicSigning() {
             <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '8px', display: 'block' }}>
               {signedFields[field.id]?.signatureType}
             </Typography>
+            {/* Digital Signature Badge */}
+            {signedFields[field.id]?.digitalSignature && (
+              <Box sx={{ 
+                mt: 0.5, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                gap: 0.5
+              }}>
+                <Box sx={{ 
+                  width: 4, 
+                  height: 4, 
+                  backgroundColor: '#4CAF50', 
+                  borderRadius: '50%' 
+                }} />
+                <Typography variant="caption" sx={{ 
+                  color: '#4CAF50', 
+                  fontSize: '6px', 
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Digitally Signed
+                </Typography>
+              </Box>
+            )}
           </Box>
         ) : isClickable ? (
           <Typography variant="caption" sx={{ color: '#7B5CFF', fontSize: '10px', textAlign: 'center' }}>
@@ -615,7 +641,7 @@ export default function PublicSigning() {
                               variant="caption" 
                               sx={{ 
                                 color: '#4CAF50', 
-                                fontFamily: 'cursive',
+                                fontFamily: "'Dancing Script', cursive",
                                 display: 'block'
                               }}
                             >
@@ -636,6 +662,43 @@ export default function PublicSigning() {
                               />
                             </Box>
                           ) : null}
+                          {/* Digital Signature Information */}
+                          {signedFields[field.id]?.digitalSignature && (
+                            <Box sx={{ 
+                              mt: 1, 
+                              p: 1, 
+                              backgroundColor: 'rgba(76, 175, 80, 0.05)', 
+                              borderRadius: 1, 
+                              border: '1px solid rgba(76, 175, 80, 0.2)',
+                              borderLeft: '3px solid #4CAF50'
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Box sx={{ 
+                                  width: 6, 
+                                  height: 6, 
+                                  backgroundColor: '#4CAF50', 
+                                  borderRadius: '50%' 
+                                }} />
+                                <Typography variant="caption" sx={{ 
+                                  color: '#4CAF50', 
+                                  fontSize: '9px', 
+                                  fontWeight: 'bold',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px'
+                                }}>
+                                  Digitally Signed
+                                </Typography>
+                              </Box>
+                              <Typography variant="caption" sx={{ 
+                                color: '#666', 
+                                fontSize: '8px', 
+                                display: 'block',
+                                fontStyle: 'italic'
+                              }}>
+                                This signature is cryptographically secured and legally binding
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
                       ) : (
                         <span style={{ color: '#7B5CFF' }}>Click to sign</span>
