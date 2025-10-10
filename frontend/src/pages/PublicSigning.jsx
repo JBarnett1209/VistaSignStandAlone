@@ -218,8 +218,9 @@ export default function PublicSigning() {
       width: field.width,
       height: field.height,
       page: field.page,
-      renderedX: field.x,
-      renderedY: field.y
+      containerPadding: 16,
+      renderedX: field.x + 16,
+      renderedY: field.y + 16
     });
 
     return (
@@ -228,10 +229,10 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Fields are saved in document coordinates (not scaled), so use them directly
-          // The PDF is rendered at 800px width, so coordinates should match
-          left: `${field.x}px`,
-          top: `${field.y}px`,
+          // Account for container padding in Public Signing view
+          // The container has p: 2 (16px padding) that the Document Editor doesn't have
+          left: `${field.x + 16}px`,  // Add 16px for container padding
+          top: `${field.y + 16}px`,   // Add 16px for container padding
           width: `${field.width}px`,
           height: `${field.height}px`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
