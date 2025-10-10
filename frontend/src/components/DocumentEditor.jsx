@@ -20,6 +20,7 @@ import {
   Select,
   FormControlLabel,
   Checkbox as MUICheckbox,
+  Snackbar,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -167,6 +168,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [signatureTemplates, setSignatureTemplates] = useState([]);
   
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  
   // Drag and drop state
   const [isDraggingField, setIsDraggingField] = useState(false);
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
@@ -188,6 +194,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   
   // Drag over state
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Snackbar helper function
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
 
 
   // Load document fields and signers on mount
@@ -577,6 +594,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const response = await documentsAPI.update(document.id, updatedDocument);
       console.log('Document saved successfully, response:', response);
       
+      // Show success message
+      showSnackbar('Document saved successfully!', 'success');
+      
       // Update the local document state with the response
       if (response && response.data) {
         console.log('Updated document from response:', response.data);
@@ -590,7 +610,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       console.error('Error response:', err.response);
       console.error('Error status:', err.response?.status);
       console.error('Error data:', err.response?.data);
-      setError(`Failed to save document: ${err.response?.data?.detail || err.message}`);
+      
+      const errorMessage = `Failed to save document: ${err.response?.data?.detail || err.message}`;
+      setError(errorMessage);
+      showSnackbar(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -608,10 +631,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       };
 
       await documentsAPI.update(document.id, updatedDocument);
+      showSnackbar('Document saved successfully!', 'success');
       onSave(updatedDocument);
       onClose(); // Close after saving
     } catch (err) {
-      setError('Failed to save document');
+      const errorMessage = 'Failed to save document';
+      setError(errorMessage);
+      showSnackbar(errorMessage, 'error');
       console.error('Error saving document:', err);
     } finally {
       setLoading(false);
@@ -1362,6 +1388,23 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           {error}
         </Alert>
       )}
+
+      {/* Snackbar for save notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ mt: 8 }} // Add some top margin to avoid overlapping with dialog title
+      >
+        <Alert 
+          onClose={handleSnackbarClose} 
+          severity={snackbarSeverity}
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }
