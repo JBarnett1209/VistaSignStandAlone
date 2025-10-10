@@ -282,22 +282,19 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setFields(prev => [...prev, newField]);
     setDragField(null);
     setSelectedField(newField.id);
-    setEditingField(newField);
-    setFieldDialogOpen(true);
   };
 
   const handleFieldClick = (fieldId) => {
-    // Don't open field properties if we just finished dragging or are currently dragging
-    if (hasDragged || isDraggingField) {
-      setHasDragged(false); // Reset for next interaction
-      return;
-    }
-    
+    // Just select the field on single click, don't open properties
+    setSelectedField(fieldId);
+  };
+
+  const handleFieldDoubleClick = (fieldId) => {
+    // Open field properties dialog on double-click
     setSelectedField(fieldId);
     const field = fields.find(f => f.id === fieldId);
     if (field) {
       setEditingField(field);
-      // Always open the field dialog for editing properties
       setFieldDialogOpen(true);
     }
   };
@@ -635,6 +632,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         onClick={(e) => {
           e.stopPropagation();
           handleFieldClick(field.id);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          handleFieldDoubleClick(field.id);
         }}
         sx={{
           position: 'absolute',
