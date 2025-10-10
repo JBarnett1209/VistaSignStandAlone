@@ -140,6 +140,21 @@ export default function PublicSigning() {
     }
   };
 
+  const getAllSignatures = () => {
+    // Convert signedFields state to the format expected by UniversalDocumentViewer
+    return Object.entries(signedFields).map(([fieldId, signatureData]) => ({
+      id: fieldId,
+      document_id: workflowData?.document?.id,
+      field_id: fieldId,
+      signature_data: signatureData.signature || '',
+      signature_image: signatureData.image,
+      digital_signature: signatureData.signature,
+      participant_email: workflowData?.participant?.email,
+      signed_at: signatureData.timestamp || new Date().toISOString(),
+      signature_type: signatureData.type || 'typed'
+    }));
+  };
+
   const handleFieldClick = (field) => {
     if (isCompleted) return;
     
@@ -806,46 +821,11 @@ export default function PublicSigning() {
                 minHeight: 0, // Allow flex shrinking
                 position: 'relative'
               }}>
-                {/* Page Navigation */}
-                {numPages && numPages > 1 && (
-                  <Box sx={{ 
-                    position: 'absolute',
-                    top: 8,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 2, 
-                    p: 1, 
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    borderRadius: 1,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                    zIndex: 10
-                  }}>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                      disabled={pageNumber <= 1}
-                    >
-                      Previous
-                    </Button>
-                    <Typography variant="body2">
-                      Page {pageNumber} of {numPages}
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                      disabled={pageNumber >= numPages}
-                    >
-                      Next
-                    </Button>
-                  </Box>
-                )}
-                
                 <UniversalDocumentViewer
                   document={workflowData.document}
+                  signatures={getAllSignatures()}
+                  showSignatureStatus={true}
+                  showPageNavigation={true}
                   onLoadSuccess={onDocumentLoadSuccess}
                   onLoadError={(error) => {
                     console.error('Document load error:', error);
@@ -853,15 +833,8 @@ export default function PublicSigning() {
                     setError(`Failed to load document: ${error.message || 'Unknown error'}`);
                   }}
                   pageNumber={pageNumber}
-                  fixedWidth={800}
+                  onFieldClick={handleFieldClick}
                 />
-                
-                {/* Signature Fields Overlay - positioned absolutely over PDF */}
-                {(() => {
-                  const allFields = workflowData?.document?.fields || [];
-                  const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
-                  return currentPageFields.map(renderSignatureField);
-                })()}
               </Box>
             </Box>
           ) : (
