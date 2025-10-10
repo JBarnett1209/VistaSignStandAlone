@@ -18,38 +18,56 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Attempt to refresh on load (cookie-based refresh)
     const attemptRefresh = async () => {
-      // Only try if refresh cookie exists to avoid 401 spam for anonymous users
+      // Check for refresh cookie
       const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
       console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh);
+      
       if (!hasRefresh) {
         console.log('AuthContext: No refresh token found, setting user to null');
         setUser(null);
         setLoading(false);
         return;
       }
+      
       try {
         console.log('AuthContext: Attempting to refresh token...');
         const res = await api.post('/api/v1/auth/refresh', {});
+        
         // Keep access token only in memory
         if (typeof window !== 'undefined') {
           window.__vstAccessToken = res.data.access_token;
         }
+        
         console.log('AuthContext: Token refreshed, getting user profile...');
         const me = await api.get('/api/v1/auth/me');
         console.log('AuthContext: User profile loaded:', me.data);
         setUser(me.data);
+        
       } catch (e) {
         console.log('AuthContext: Refresh failed:', e);
+        
         // Clear any stored tokens and user state on auth failure
         if (typeof window !== 'undefined') {
           window.__vstAccessToken = null;
         }
         setUser(null);
+        
+        // If it's a network error or server error, don't immediately fail
+        // Give it a moment and try again
+        if (e.code === 'NETWORK_ERROR' || e.response?.status >= 500) {
+          console.log('AuthContext: Network/server error, will retry...');
+          setTimeout(() => {
+            attemptRefresh();
+          }, 1000);
+          return;
+        }
       } finally {
         setLoading(false);
       }
     };
-    attemptRefresh();
+    
+    // Add a small delay to ensure cookies are fully loaded
+    const timeoutId = setTimeout(attemptRefresh, 100);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
@@ -61,8 +79,14 @@ export const AuthProvider = ({ children }) => {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('auth-failed', handleAuthFailed);
-      return () => window.removeEventListener('auth-failed', handleAuthFailed);
     }
+    
+    return () => {
+      clearTimeout(timeoutId);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('auth-failed', handleAuthFailed);
+      }
+    };
   }, []);
 
   const login = async (email, password) => {
