@@ -25,7 +25,8 @@ const UniversalDocumentViewer = ({
   onLoadSuccess,
   zoom = 1.0,
   onZoomChange,
-  pageNumber = 1
+  pageNumber = 1,
+  fixedWidth = null
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -166,7 +167,7 @@ const UniversalDocumentViewer = ({
         {numPages && (
           <Page
             pageNumber={currentPage}
-            scale={zoom}
+            {...(fixedWidth ? { width: fixedWidth } : { scale: zoom })}
             renderTextLayer={false}
             renderAnnotationLayer={false}
           />

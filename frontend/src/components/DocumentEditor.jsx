@@ -289,17 +289,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const maxSigningOrder = Math.max(0, ...fields.map(f => f.signingOrder || 0));
     const nextSigningOrder = maxSigningOrder + 1;
 
-    // Normalize coordinates to match public signing view (800px width)
-    // The public signing view renders PDF at 800px width, so we need to save coordinates accordingly
-    const STANDARD_PDF_WIDTH = 800;
-    const currentPdfWidth = 800 * scale; // Current PDF width in editor
-    const coordinateScale = currentPdfWidth / STANDARD_PDF_WIDTH;
-    
+    // Both views now use fixed 800px width, so save coordinates directly
     const newField = {
       id: Date.now().toString(),
       type: dragField,
-      x: x / coordinateScale,  // Save in normalized coordinates (800px width)
-      y: y / coordinateScale,  // Save in normalized coordinates (800px width)
+      x: x,  // Save coordinates directly (both views use 800px width)
+      y: y,  // Save coordinates directly (both views use 800px width)
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
@@ -314,7 +309,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
     };
     
-    console.log('Creating field on page:', pageNumber, 'Raw coords:', {x, y}, 'Scale:', scale, 'CoordinateScale:', coordinateScale, 'Saved coords:', {x: newField.x, y: newField.y}, 'Field:', newField);
+    console.log('Creating field on page:', pageNumber, 'Raw coords:', {x, y}, 'Scale:', scale, 'Saved coords:', {x: newField.x, y: newField.y}, 'Field:', newField);
 
     setFields(prev => {
       const updatedFields = [...prev, newField];
@@ -365,13 +360,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   const handleFieldMouseMove = (e) => {
     if (!isDraggingField || !selectedField) return;
     
-    // Normalize coordinates to match public signing view (800px width)
-    const STANDARD_PDF_WIDTH = 800;
-    const currentPdfWidth = 800 * scale; // Current PDF width in editor
-    const coordinateScale = currentPdfWidth / STANDARD_PDF_WIDTH;
-    
-    const deltaX = (e.clientX - dragStartPos.x) / coordinateScale;
-    const deltaY = (e.clientY - dragStartPos.y) / coordinateScale;
+    // Both views now use fixed 800px width, so use coordinates directly
+    const deltaX = e.clientX - dragStartPos.x;
+    const deltaY = e.clientY - dragStartPos.y;
     
     // Check if we've moved enough to consider it a drag (threshold of 5 pixels)
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
@@ -696,11 +687,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const config = FIELD_TYPE_CONFIG[field.type];
     const isSelected = selectedField === field.id;
     
-    // Normalize coordinates to match public signing view (800px width)
-    // The public signing view renders PDF at 800px width, so we need to scale accordingly
-    const STANDARD_PDF_WIDTH = 800;
-    const currentPdfWidth = 800 * scale; // Current PDF width in editor
-    const coordinateScale = currentPdfWidth / STANDARD_PDF_WIDTH;
+    // Both views now use fixed 800px width, so coordinates should match directly
+    // No scaling needed since both editor and public signing use the same fixed width
     
     console.log(`Rendering field ${field.id}:`, {
       type: field.type,
@@ -710,9 +698,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       height: field.height,
       page: field.page,
       scale: scale,
-      coordinateScale: coordinateScale,
-      renderedX: field.x * coordinateScale,
-      renderedY: field.y * coordinateScale
+      renderedX: field.x,
+      renderedY: field.y
     });
     
     return (
@@ -729,10 +716,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         }}
         sx={{
           position: 'absolute',
-          left: field.x * coordinateScale,
-          top: field.y * coordinateScale,
-          width: field.width * coordinateScale,
-          height: field.height * coordinateScale,
+          left: field.x,
+          top: field.y,
+          width: field.width,
+          height: field.height,
           border: `2px solid ${isSelected ? '#1976d2' : config.color}`,
           borderRadius: 1,
           backgroundColor: field.value && field.value !== '' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(255, 255, 255, 0.9)',
@@ -1169,6 +1156,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 setError(`Failed to load document: ${error.message || 'Unknown error'}`);
               }}
               pageNumber={pageNumber}
+              fixedWidth={800}
             />
               
               {/* Render whiteout boxes for current page */}
