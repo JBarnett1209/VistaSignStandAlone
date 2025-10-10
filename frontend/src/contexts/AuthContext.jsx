@@ -20,20 +20,26 @@ export const AuthProvider = ({ children }) => {
     const attemptRefresh = async () => {
       // Only try if refresh cookie exists to avoid 401 spam for anonymous users
       const hasRefresh = typeof document !== 'undefined' && document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
+      console.log('AuthContext: Checking for refresh token, hasRefresh:', hasRefresh);
       if (!hasRefresh) {
+        console.log('AuthContext: No refresh token found, setting user to null');
         setUser(null);
         setLoading(false);
         return;
       }
       try {
+        console.log('AuthContext: Attempting to refresh token...');
         const res = await api.post('/api/v1/auth/refresh', {});
         // Keep access token only in memory
         if (typeof window !== 'undefined') {
           window.__vstAccessToken = res.data.access_token;
         }
+        console.log('AuthContext: Token refreshed, getting user profile...');
         const me = await api.get('/api/v1/auth/me');
+        console.log('AuthContext: User profile loaded:', me.data);
         setUser(me.data);
       } catch (e) {
+        console.log('AuthContext: Refresh failed:', e);
         // Clear any stored tokens and user state on auth failure
         if (typeof window !== 'undefined') {
           window.__vstAccessToken = null;

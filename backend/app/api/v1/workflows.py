@@ -458,15 +458,16 @@ async def send_workflow(
                 detail="Workflow not found"
             )
         
-        if workflow.status != WorkflowStatus.DRAFT:
+        if workflow.status not in [WorkflowStatus.DRAFT, WorkflowStatus.ACTIVE]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only draft workflows can be sent"
+                detail="Only draft or active workflows can be sent"
             )
         
-        # Update workflow status to active
-        workflow.status = WorkflowStatus.ACTIVE
-        workflow.started_at = datetime.utcnow()
+        # Update workflow status to active (only set started_at for draft workflows)
+        if workflow.status == WorkflowStatus.DRAFT:
+            workflow.status = WorkflowStatus.ACTIVE
+            workflow.started_at = datetime.utcnow()
         
         await db.commit()
         await db.refresh(workflow)
