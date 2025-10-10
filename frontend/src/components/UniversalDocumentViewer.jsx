@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -51,10 +51,49 @@ const UniversalDocumentViewer = ({
   const [error, setError] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [currentPage, setCurrentPage] = useState(pageNumber);
+  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
+  
+  // Ref for PDF container to calculate proper offset
+  const pdfContainerRef = useRef(null);
+
+  // Calculate PDF offset using centralized system
+  const updatePdfOffset = () => {
+    if (pdfContainerRef.current) {
+      const offset = calculatePdfOffset(pdfContainerRef.current, PDF_CONFIG.STANDARD_WIDTH, zoom);
+      setPdfOffset(offset);
+    }
+  };
 
   useEffect(() => {
     setCurrentPage(pageNumber);
   }, [pageNumber]);
+
+  // Calculate PDF offset when component mounts, window resizes, or zoom changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updatePdfOffset();
+    }, 100);
+    
+    const handleResize = () => {
+      updatePdfOffset();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [zoom]);
+
+  // Recalculate offset when document changes
+  useEffect(() => {
+    if (document) {
+      const timer = setTimeout(() => {
+        updatePdfOffset();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [document]);
 
   useEffect(() => {
     if (!document) {
@@ -151,11 +190,7 @@ const UniversalDocumentViewer = ({
     // Check if this field has a signature template (from document editing)
     const hasTemplate = field.type === 'signature' && field.value && field.value !== '';
 
-    // For UniversalDocumentViewer, use a simple offset calculation
-    // since we don't have direct access to the PDF container
-    const pdfOffset = { x: 0, y: 0 }; // Simplified for this viewer
-
-    // Convert field coordinates to screen coordinates
+    // Convert field coordinates to screen coordinates using proper PDF offset
     const screenCoords = fieldToScreenCoords(field, pdfOffset, zoom);
 
     // Determine field styling based on status
@@ -602,7 +637,7 @@ const UniversalDocumentViewer = ({
         )}
 
         {/* PDF Document Container */}
-        <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <Box ref={pdfContainerRef} sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
           <Document
             file={document?.file_url || document?.file_path || document?.url}
             onLoadSuccess={(payload) => {
@@ -614,6 +649,10 @@ const UniversalDocumentViewer = ({
                 setNumPages(pages);
               }
               setLoading(false);
+              // Recalculate PDF offset after document loads
+              setTimeout(() => {
+                updatePdfOffset();
+              }, 100);
               onLoadSuccess?.(payload);
             }}
             onLoadError={(error) => {
