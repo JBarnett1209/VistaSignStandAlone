@@ -717,15 +717,6 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const isSelected = selectedField === field.id;
     
     // Use calculated PDF offset to position fields correctly
-      y: field.y,
-      width: field.width,
-      height: field.height,
-      page: field.page,
-      scale: scale,
-      pdfOffset: pdfOffset,
-      renderedX: field.x + pdfOffset.x,
-      renderedY: field.y + pdfOffset.y
-    });
     
     return (
       <Box
