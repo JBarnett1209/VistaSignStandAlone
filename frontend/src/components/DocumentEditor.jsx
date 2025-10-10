@@ -289,7 +289,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     
     console.log('Creating field on page:', pageNumber, 'Raw coords:', {x, y}, 'Scale:', scale, 'Saved coords:', {x: newField.x, y: newField.y}, 'Field:', newField);
 
-    setFields(prev => [...prev, newField]);
+    setFields(prev => {
+      const updatedFields = [...prev, newField];
+      console.log('Updated fields array:', updatedFields);
+      return updatedFields;
+    });
     setDragField(null);
     setSelectedField(newField.id);
   };
@@ -560,6 +564,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       setError(null);
       
       console.log('Saving document with fields:', fields);
+      console.log('Document ID:', document.id);
+      console.log('Document object:', document);
       
       const updatedDocument = {
         ...document,
@@ -568,13 +574,23 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       };
 
       console.log('Sending update request with document:', updatedDocument);
-      await documentsAPI.update(document.id, updatedDocument);
-      console.log('Document saved successfully');
-      onSave(updatedDocument);
+      const response = await documentsAPI.update(document.id, updatedDocument);
+      console.log('Document saved successfully, response:', response);
+      
+      // Update the local document state with the response
+      if (response && response.data) {
+        console.log('Updated document from response:', response.data);
+        onSave(response.data);
+      } else {
+        onSave(updatedDocument);
+      }
       // Don't close the editor - just save
     } catch (err) {
-      setError('Failed to save document');
-      console.error('Error saving document:', err);
+      console.error('Detailed save error:', err);
+      console.error('Error response:', err.response);
+      console.error('Error status:', err.response?.status);
+      console.error('Error data:', err.response?.data);
+      setError(`Failed to save document: ${err.response?.data?.detail || err.message}`);
     } finally {
       setLoading(false);
     }
