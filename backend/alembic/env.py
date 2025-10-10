@@ -70,6 +70,10 @@ def run_migrations_online() -> None:
     if not database_url:
         raise ValueError("DATABASE_URL environment variable is required")
     
+    # Convert async URL to sync URL for Alembic
+    if database_url.startswith("postgresql+asyncpg://"):
+        database_url = database_url.replace("postgresql+asyncpg://", "postgresql://")
+    
     # Override the config with the environment variable
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = database_url
