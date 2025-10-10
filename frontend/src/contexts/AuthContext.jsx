@@ -42,20 +42,10 @@ export const AuthProvider = ({ children }) => {
       console.log('AuthContext: All cookies:', document.cookie);
       
       if (!hasRefresh) {
-        console.log('AuthContext: No refresh token found, trying direct profile check...');
-        // Try to get user profile directly in case we have a valid access token
-        try {
-          const me = await api.get('/api/v1/auth/me');
-          console.log('AuthContext: Direct profile check succeeded:', me.data);
-          setUser(me.data);
-          setLoading(false);
-          return;
-        } catch (e) {
-          console.log('AuthContext: Direct profile check failed:', e);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
+        console.log('AuthContext: No refresh token found, user not authenticated');
+        setUser(null);
+        setLoading(false);
+        return;
       }
       
       try {
