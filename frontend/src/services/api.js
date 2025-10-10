@@ -143,7 +143,10 @@ export const documentsAPI = {
   },
   list: (params) => api.get('/api/v1/documents/', { params }),
   get: (id) => api.get(`/api/v1/documents/${id}`),
-  update: (id, data) => api.put(`/api/v1/documents/${id}`, data),
+  update: (id, data) => {
+    console.log('documentsAPI.update called with:', { id, data });
+    return api.put(`/api/v1/documents/${id}`, data);
+  },
   delete: (id) => api.delete(`/api/v1/documents/${id}`)
 };
 

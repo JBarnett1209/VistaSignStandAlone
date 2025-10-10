@@ -851,7 +851,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Button
             variant="outlined"
             startIcon={<SaveIcon />}
-            onClick={handleSave}
+            onClick={() => {
+              console.log('Save button clicked!');
+              console.log('Current fields before save:', fields);
+              handleSave();
+            }}
             disabled={loading}
             size="small"
           >
