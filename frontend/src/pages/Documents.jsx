@@ -30,10 +30,11 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { documentsAPI } from '../services/api';
+import { documentsAPI, signaturesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentEditor from '../components/DocumentEditor';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -94,6 +95,8 @@ export default function Documents() {
   const [error, setError] = useState(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
+  const [viewingDocument, setViewingDocument] = useState(null);
+  const [documentSignatures, setDocumentSignatures] = useState([]);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, documentId: null, documentTitle: '' });
 
   const fetchDocuments = async () => {
@@ -156,6 +159,76 @@ export default function Documents() {
       doc.id === updatedDocument.id ? updatedDocument : doc
     ));
     // Don't close the editor - just update the document list
+  };
+
+  const handleViewDocument = async (document) => {
+    try {
+      // Fetch the latest document data to ensure we have current signatures
+      const response = await documentsAPI.get(document.id);
+      setViewingDocument(response.data);
+      
+      // Also fetch signatures for this document
+      try {
+        const signaturesResponse = await signaturesAPI.adminListAll({ 
+          document_id: document.id,
+          limit: 100 
+        });
+        setDocumentSignatures(signaturesResponse.data.signatures || []);
+      } catch (sigErr) {
+        console.log('Could not fetch signatures for document:', sigErr);
+        setDocumentSignatures([]);
+      }
+    } catch (err) {
+      console.error('Error fetching document for viewing:', err);
+      setError('Failed to load document for viewing');
+      // Fallback to the document from the list
+      setViewingDocument(document);
+      setDocumentSignatures([]);
+    }
+  };
+
+  const handleDownloadDocument = async (document) => {
+    try {
+      // Check if document has signatures
+      let hasSignatures = false;
+      try {
+        const signaturesResponse = await signaturesAPI.adminListAll({ 
+          document_id: document.id,
+          limit: 1 
+        });
+        hasSignatures = signaturesResponse.data.signatures && signaturesResponse.data.signatures.length > 0;
+      } catch (sigErr) {
+        // If we can't check signatures (e.g., not admin), continue with regular download
+        console.log('Could not check signatures:', sigErr);
+      }
+
+      // For now, we'll download the original file
+      // TODO: In the future, we can enhance this to download a version with signatures embedded
+      const response = await documentsAPI.download(document.id);
+      
+      // Create blob URL for download
+      const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Create a temporary link to download the file
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = document.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(url);
+      
+      // Show info about signatures if present
+      if (hasSignatures) {
+        console.log('Document has signatures - consider implementing signed document download');
+      }
+    } catch (err) {
+      console.error('Error downloading document:', err);
+      setError('Failed to download document');
+    }
   };
 
   return (
@@ -315,7 +388,12 @@ export default function Documents() {
                       gap: 0.5,
                       flexWrap: 'nowrap'
                     }}>
-                      <IconButton size="small" title="View" sx={{ flexShrink: 0 }}>
+                      <IconButton 
+                        size="small" 
+                        title="View" 
+                        onClick={() => handleViewDocument(doc)}
+                        sx={{ flexShrink: 0 }}
+                      >
                         <ViewIcon />
                       </IconButton>
                       <IconButton 
@@ -326,7 +404,12 @@ export default function Documents() {
                       >
                         <EditIcon />
                       </IconButton>
-                      <IconButton size="small" title="Download" sx={{ flexShrink: 0 }}>
+                      <IconButton 
+                        size="small" 
+                        title="Download" 
+                        onClick={() => handleDownloadDocument(doc)}
+                        sx={{ flexShrink: 0 }}
+                      >
                         <DownloadIcon />
                       </IconButton>
                       <IconButton
@@ -368,6 +451,58 @@ export default function Documents() {
         onClose={() => setEditingDocument(null)}
         onSave={handleDocumentSave}
       />
+
+      {/* Document Viewer Dialog */}
+      <Dialog
+        open={!!viewingDocument}
+        onClose={() => {
+          setViewingDocument(null);
+          setDocumentSignatures([]);
+        }}
+        maxWidth="lg"
+        fullWidth
+        fullScreen
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6">
+                {viewingDocument?.title || 'Document Viewer'}
+              </Typography>
+              {documentSignatures.length > 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {documentSignatures.length} signature{documentSignatures.length !== 1 ? 's' : ''} on this document
+                </Typography>
+              )}
+            </Box>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
+              size="small"
+            >
+              Download
+            </Button>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, height: '100%' }}>
+          {viewingDocument && (
+            <Box sx={{ height: '100%', width: '100%' }}>
+              <UniversalDocumentViewer
+                document={viewingDocument}
+                onLoadError={(error) => {
+                  console.error('Document load error:', error);
+                  setError(`Failed to load document: ${error.message || 'Unknown error'}`);
+                }}
+                onLoadSuccess={() => {
+                  console.log('Document loaded successfully');
+                }}
+                fixedWidth={null}
+              />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

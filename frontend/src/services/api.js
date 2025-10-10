@@ -150,13 +150,15 @@ export const documentsAPI = {
   update: (id, data) => {
     return api.put(`/api/v1/documents/${id}`, data);
   },
-  delete: (id) => api.delete(`/api/v1/documents/${id}`)
+  delete: (id) => api.delete(`/api/v1/documents/${id}`),
+  download: (id) => api.get(`/api/v1/documents/${id}/file`, { responseType: 'blob' })
 };
 
 // Signatures API
 export const signaturesAPI = {
   create: (data) => api.post('/api/v1/signatures/', data),
   list: (params) => api.get('/api/v1/signatures/', { params }),
+  adminListAll: (params) => api.get('/api/v1/signatures/admin/all', { params }),
   get: (id) => api.get(`/api/v1/signatures/${id}`),
   delete: (id, reason) => api.delete(`/api/v1/signatures/${id}`, { data: { deletion_reason: reason } }),
   restore: (id) => api.post(`/api/v1/signatures/${id}/restore`),
