@@ -193,7 +193,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
   // Load document fields and signers on mount
   useEffect(() => {
     if (document?.fields) {
+      console.log('Loading document fields:', document.fields);
       setFields(document.fields);
+    } else {
+      console.log('No fields found in document, initializing empty array');
+      setFields([]);
     }
     
     // Reset page number to 1 when document changes
@@ -267,8 +271,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const newField = {
       id: Date.now().toString(),
       type: dragField,
-      x: x / scale,
-      y: y / scale,
+      x: x / scale,  // Save in document coordinates (not scaled)
+      y: y / scale,  // Save in document coordinates (not scaled)
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
@@ -283,7 +287,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
     };
     
-    console.log('Creating field on page:', pageNumber, 'Field:', newField);
+    console.log('Creating field on page:', pageNumber, 'Raw coords:', {x, y}, 'Scale:', scale, 'Saved coords:', {x: newField.x, y: newField.y}, 'Field:', newField);
 
     setFields(prev => [...prev, newField]);
     setDragField(null);
@@ -555,13 +559,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       setLoading(true);
       setError(null);
       
+      console.log('Saving document with fields:', fields);
+      
       const updatedDocument = {
         ...document,
         fields: fields,
         status: 'pending_signature'
       };
 
+      console.log('Sending update request with document:', updatedDocument);
       await documentsAPI.update(document.id, updatedDocument);
+      console.log('Document saved successfully');
       onSave(updatedDocument);
       // Don't close the editor - just save
     } catch (err) {
@@ -1097,9 +1105,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               )}
               
               {/* Render fields for current page */}
-              {fields
-                .filter(field => field.page === pageNumber)
-                .map(renderField)}
+              {(() => {
+                const currentPageFields = fields.filter(field => (field.page || 1) === pageNumber);
+                console.log(`Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
+                return currentPageFields.map(renderField);
+              })()}
             </Box>
           </Box>
         </Box>

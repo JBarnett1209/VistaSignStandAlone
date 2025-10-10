@@ -216,7 +216,8 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Fields in editor are saved in document pixel coords; render with pixels
+          // Fields are saved in document coordinates (not scaled), so use them directly
+          // The PDF is rendered at 800px width, so coordinates should match
           left: `${field.x}px`,
           top: `${field.y}px`,
           width: `${field.width}px`,
