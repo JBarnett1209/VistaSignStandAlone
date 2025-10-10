@@ -639,6 +639,18 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const config = FIELD_TYPE_CONFIG[field.type];
     const isSelected = selectedField === field.id;
     
+    console.log(`Rendering field ${field.id}:`, {
+      type: field.type,
+      x: field.x,
+      y: field.y,
+      width: field.width,
+      height: field.height,
+      page: field.page,
+      scale: scale,
+      renderedX: field.x * scale,
+      renderedY: field.y * scale
+    });
+    
     return (
       <Box
         key={field.id}
@@ -939,6 +951,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           <Typography variant="h6" gutterBottom>
             Fields ({fields.length})
           </Typography>
+          {fields.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 2, textAlign: 'center' }}>
+              No fields found. Drag fields from the palette to add them.
+            </Typography>
+          )}
           {fields.map(field => (
             <Box
               key={field.id}
@@ -1020,6 +1037,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 >
                   Next
                 </Button>
+                <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                  Fields on this page: {fields.filter(f => (f.page || 1) === pageNumber).length}
+                </Typography>
               </>
             )}
             <Box sx={{ flex: 1 }} />
@@ -1106,6 +1126,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
               
               {/* Render fields for current page */}
               {(() => {
+                console.log(`All fields:`, fields);
+                console.log(`Current page: ${pageNumber}, Total pages: ${numPages}`);
                 const currentPageFields = fields.filter(field => (field.page || 1) === pageNumber);
                 console.log(`Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
                 return currentPageFields.map(renderField);
