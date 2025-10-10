@@ -101,13 +101,13 @@ async def csrf_protect(request: Request, call_next):
 
     path = request.url.path
     # Exempt endpoints that either mint tokens or already require Bearer auth
-    # Auth endpoints and file upload (upload guarded by Bearer via dependency)
+    # Auth endpoints, file upload, and public signing endpoints
     if path in [
         "/api/v1/auth/login",
         "/api/v1/auth/csrf",
         "/api/v1/auth/refresh",
         "/api/v1/documents/upload",
-    ]:
+    ] or path.startswith("/api/v1/workflows/") and "/sign/" in path:
         logger.info(f"CSRF: exempting {request.method} {path}")
         return await call_next(request)
 
