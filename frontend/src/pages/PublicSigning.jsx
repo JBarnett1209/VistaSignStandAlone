@@ -93,10 +93,37 @@ export default function PublicSigning() {
       const response = await api.get(`/api/v1/workflows/${workflowId}/sign/${participantId}`);
       console.log('PublicSigning: Loaded workflow data:', response.data);
       console.log('PublicSigning: Document fields:', response.data.document?.fields);
+      console.log('PublicSigning: Participant signature data:', response.data.participant?.signature_data);
       setWorkflowData(response.data);
       
-      // Check if already signed
-      if (response.data.participant.status === 'completed') {
+      // Load existing signature data if participant has already signed
+      if (response.data.participant.status === 'completed' && response.data.participant.signature_data) {
+        const signatureData = response.data.participant.signature_data;
+        console.log('PublicSigning: Loading existing signature data:', signatureData);
+        
+        // Extract field signatures from the signature data
+        if (signatureData.fields && Array.isArray(signatureData.fields)) {
+          const existingSignatures = {};
+          signatureData.fields.forEach(fieldSig => {
+            if (fieldSig.fieldId && fieldSig.signature) {
+              existingSignatures[fieldSig.fieldId] = {
+                signature: fieldSig.signature,
+                timestamp: fieldSig.timestamp,
+                type: fieldSig.type || 'typed',
+                text: fieldSig.text || fieldSig.signature,
+                image: fieldSig.image,
+                signatureType: fieldSig.signatureType || 'Typed Signature',
+                // Include digital signature metadata if available
+                digitalSignature: signatureData.legal_signature_metadata?.digital_signature,
+                documentHash: signatureData.legal_signature_metadata?.document_hash,
+                certificateThumbprint: signatureData.legal_signature_metadata?.certificate_thumbprint
+              };
+            }
+          });
+          console.log('PublicSigning: Setting existing signatures:', existingSignatures);
+          setSignedFields(existingSignatures);
+        }
+        
         setError('This document has already been signed.');
       }
     } catch (err) {
@@ -196,7 +223,11 @@ export default function PublicSigning() {
       const signatureData = requiredFields.map(field => ({
         fieldId: field.id,
         signature: signedFields[field.id]?.signature || '',
-        timestamp: signedFields[field.id]?.timestamp || new Date().toISOString()
+        timestamp: signedFields[field.id]?.timestamp || new Date().toISOString(),
+        type: signedFields[field.id]?.type || 'typed',
+        text: signedFields[field.id]?.text || signedFields[field.id]?.signature,
+        image: signedFields[field.id]?.image,
+        signatureType: signedFields[field.id]?.signatureType || 'Typed Signature'
       }));
 
       const response = await api.post(`/api/v1/workflows/${workflowId}/sign/${participantId}`, {
@@ -225,6 +256,21 @@ export default function PublicSigning() {
           signed_at: response.data.participant?.signed_at || new Date().toISOString()
         }
       }));
+
+      // Update signedFields with digital signature metadata from backend
+      const updatedSignedFields = { ...signedFields };
+      requiredFields.forEach(field => {
+        if (updatedSignedFields[field.id]) {
+          updatedSignedFields[field.id] = {
+            ...updatedSignedFields[field.id],
+            // Add digital signature metadata if available in response
+            digitalSignature: response.data.digital_signature,
+            documentHash: response.data.document_hash,
+            certificateThumbprint: response.data.certificate_thumbprint
+          };
+        }
+      });
+      setSignedFields(updatedSignedFields);
 
       // Show completion success message
       const isWorkflowComplete = response.data.workflow?.completed;
