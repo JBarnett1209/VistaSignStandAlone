@@ -880,39 +880,82 @@ async def sign_workflow_document(
         # Create individual signature records for each field signed (for admin tracking)
         created_signature_ids = []
         if signature_data.get('fields') and isinstance(signature_data['fields'], list):
-            from app.models.signature import Signature, SignatureType, SignatureStatus
-            
-            for field_signature in signature_data['fields']:
-                if field_signature.get('fieldId') and field_signature.get('signature'):
-                    # Create signature record for admin tracking
-                    signature_record = Signature(
-                        document_id=workflow.document_id,
-                        signer_id=str(participant.id),  # Use participant ID as signer
-                        signature_type=SignatureType.ELECTRONIC,
-                        status=SignatureStatus.SIGNED,
-                        signature_data=field_signature.get('signature', ''),
-                        signature_image=field_signature.get('image'),
-                        signature_position={"field_id": field_signature.get('fieldId')},
-                        signing_reason=signing_context.get('signing_reason', 'Workflow signature'),
-                        signing_location=signing_context.get('signing_location', 'Online'),
-                        ip_address=request.client.host if request.client else None,
-                        user_agent=request.headers.get('user-agent'),
-                        signed_at=datetime.utcnow(),
-                        # Digital signature fields
-                        digital_signature=legal_signature_metadata.get("digital_signature") if legal_signature_metadata else None,
-                        document_hash=legal_signature_metadata.get("document_hash") if legal_signature_metadata else None,
-                        certificate_thumbprint=legal_signature_metadata.get("certificate_thumbprint") if legal_signature_metadata else None,
-                        signature_metadata=legal_signature_metadata,
-                        verification_status="verified" if legal_signature_metadata else "pending",
-                        signature_level="advanced" if legal_signature_metadata else "simple",
-                        is_legally_binding=legal_signature_metadata.get("is_legally_binding", True) if legal_signature_metadata else False,
-                        compliance_standard=legal_signature_metadata.get("compliance_standard", "ESIGN_UETA") if legal_signature_metadata else "ESIGN",
-                        certificate_chain=legal_signature_metadata.get("certificate_chain", []) if legal_signature_metadata else None,
-                        timestamp_data=legal_signature_metadata.get("timestamp_data", {}) if legal_signature_metadata else None,
-                        legal_metadata=legal_signature_metadata.get("legal_metadata", {}) if legal_signature_metadata else None
+            try:
+                from app.models.signature import Signature, SignatureType, SignatureStatus
+                from app.models.user import User
+                
+                logger.info(f"Creating signature records for {len(signature_data['fields'])} fields")
+                
+                # Get or create a system user for workflow participants who don't have user accounts
+                system_user = None
+                if not participant.user_id:
+                    # Try to find existing system user for this email
+                    system_user_result = await db.execute(
+                        select(User).where(User.email == participant.email)
                     )
-                    db.add(signature_record)
-                    created_signature_ids.append(str(signature_record.id))
+                    system_user = system_user_result.scalar_one_or_none()
+                    
+                    if not system_user:
+                        # Create a system user for this participant
+                        system_user = User(
+                            email=participant.email,
+                            password_hash="",  # No password for system users
+                            first_name=participant.email.split('@')[0],
+                            last_name="",
+                            is_verified=True,
+                            is_active=True,
+                            role="USER"
+                        )
+                        db.add(system_user)
+                        await db.commit()
+                        await db.refresh(system_user)
+                        
+                        # Update participant with the new user_id
+                        participant.user_id = system_user.id
+                        await db.commit()
+                        logger.info(f"Created system user for participant {participant.email}")
+                
+                signer_id = participant.user_id or system_user.id if system_user else None
+                logger.info(f"Using signer_id: {signer_id} for participant {participant.email}")
+                
+                for field_signature in signature_data['fields']:
+                    if field_signature.get('fieldId') and field_signature.get('signature') and signer_id:
+                        # Create signature record for admin tracking
+                        signature_record = Signature(
+                            document_id=workflow.document_id,
+                            signer_id=signer_id,  # Use user ID as signer
+                            signature_type=SignatureType.ELECTRONIC,
+                            status=SignatureStatus.SIGNED,
+                            signature_data=field_signature.get('signature', ''),
+                            signature_image=field_signature.get('image'),
+                            signature_position={"field_id": field_signature.get('fieldId')},
+                            signing_reason=signing_context.get('signing_reason', 'Workflow signature'),
+                            signing_location=signing_context.get('signing_location', 'Online'),
+                            ip_address=request.client.host if request.client else None,
+                            user_agent=request.headers.get('user-agent'),
+                            signed_at=datetime.utcnow(),
+                            # Digital signature fields
+                            digital_signature=legal_signature_metadata.get("digital_signature") if legal_signature_metadata else None,
+                            document_hash=legal_signature_metadata.get("document_hash") if legal_signature_metadata else None,
+                            certificate_thumbprint=legal_signature_metadata.get("certificate_thumbprint") if legal_signature_metadata else None,
+                            signature_metadata=legal_signature_metadata,
+                            verification_status="verified" if legal_signature_metadata else "pending",
+                            signature_level="advanced" if legal_signature_metadata else "simple",
+                            is_legally_binding=legal_signature_metadata.get("is_legally_binding", True) if legal_signature_metadata else False,
+                            compliance_standard=legal_signature_metadata.get("compliance_standard", "ESIGN_UETA") if legal_signature_metadata else "ESIGN",
+                            certificate_chain=legal_signature_metadata.get("certificate_chain", []) if legal_signature_metadata else None,
+                            timestamp_data=legal_signature_metadata.get("timestamp_data", {}) if legal_signature_metadata else None,
+                            legal_metadata=legal_signature_metadata.get("legal_metadata", {}) if legal_signature_metadata else None
+                        )
+                        db.add(signature_record)
+                        created_signature_ids.append(str(signature_record.id))
+                        logger.info(f"Created signature record for field {field_signature.get('fieldId')} by participant {participant.email}")
+                    else:
+                        logger.warning(f"Skipping field signature - missing data: fieldId={field_signature.get('fieldId')}, signature={bool(field_signature.get('signature'))}, signer_id={signer_id}")
+                        
+            except Exception as e:
+                logger.error(f"Error creating signature records: {str(e)}")
+                # Don't fail the entire signing process if signature record creation fails
         
         await db.commit()
         await db.refresh(participant)
