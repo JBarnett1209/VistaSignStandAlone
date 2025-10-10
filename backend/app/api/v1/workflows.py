@@ -11,6 +11,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.core.security.auth import get_current_user
+from app.core.legal_signature import legal_signature_service
 from app.models.workflow import Workflow, WorkflowStep, WorkflowParticipant, WorkflowStatus
 from app.models.document import Document
 from app.schemas.workflow import (
