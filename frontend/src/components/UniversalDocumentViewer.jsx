@@ -147,12 +147,9 @@ const UniversalDocumentViewer = ({
     const isSigned = isFieldSigned(field, signatures, document?.id);
     const signature = findSignatureForField(field, signatures, document?.id);
 
-    // Calculate PDF offset for this viewer
-    const pdfOffset = calculatePdfOffset(
-      document.querySelector('.pdf-container') || document.body,
-      PDF_CONFIG.STANDARD_WIDTH,
-      zoom
-    );
+    // For UniversalDocumentViewer, use a simple offset calculation
+    // since we don't have direct access to the PDF container
+    const pdfOffset = { x: 0, y: 0 }; // Simplified for this viewer
 
     // Convert field coordinates to screen coordinates
     const screenCoords = fieldToScreenCoords(field, pdfOffset, zoom);
