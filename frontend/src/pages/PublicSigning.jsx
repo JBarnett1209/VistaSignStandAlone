@@ -212,6 +212,16 @@ export default function PublicSigning() {
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
 
+    console.log(`PublicSigning: Rendering field ${field.id}:`, {
+      x: field.x,
+      y: field.y,
+      width: field.width,
+      height: field.height,
+      page: field.page,
+      renderedX: field.x,
+      renderedY: field.y
+    });
+
     return (
       <Box
         key={field.id}
@@ -479,6 +489,12 @@ export default function PublicSigning() {
                     const allFields = workflowData?.document?.fields || [];
                     const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
                     console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
+                    console.log('PublicSigning: PDF container dimensions:', {
+                      containerWidth: '800px (fixed)',
+                      pdfWidth: '800px (fixed)',
+                      offsetX: 0,
+                      offsetY: 0
+                    });
                     return currentPageFields.map(renderSignatureField);
                   })()}
                 </Box>

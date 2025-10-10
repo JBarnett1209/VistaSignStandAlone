@@ -219,7 +219,20 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const containerWidth = containerRect.width;
       const offsetX = (containerWidth - pdfWidth) / 2;
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
-      console.log('PDF offset calculated:', { x: offsetX, y: 0, containerWidth, pdfWidth });
+      console.log('PDF offset calculated:', { 
+        x: offsetX, 
+        y: 0, 
+        containerWidth, 
+        pdfWidth,
+        containerRect: {
+          left: containerRect.left,
+          top: containerRect.top,
+          width: containerRect.width,
+          height: containerRect.height
+        }
+      });
+    } else {
+      console.log('PDF container ref not available for offset calculation');
     }
   };
 
