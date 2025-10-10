@@ -179,11 +179,27 @@ const UniversalDocumentViewer = ({
               
               return (
                 <Box>
-                  {signature?.participant_email && (
-                    <Typography variant="caption" display="block" sx={{ fontWeight: 'bold' }}>
-                      Digitally signed by: {signature.participant_email}
-                    </Typography>
-                  )}
+                  {(() => {
+                    // Show the actual signature content as the "signature"
+                    let signatureContent = '';
+                    if (signature?.signature_image) {
+                      signatureContent = '[Handwritten Signature]';
+                    } else if (signature?.digital_signature) {
+                      signatureContent = signature.digital_signature;
+                    } else if (signature?.signature_data) {
+                      signatureContent = signature.signature_data;
+                    } else if (signature?.participant_email) {
+                      signatureContent = signature.participant_email;
+                    } else {
+                      signatureContent = '[Signature]';
+                    }
+                    
+                    return (
+                      <Typography variant="caption" display="block" sx={{ fontWeight: 'bold' }}>
+                        Digitally signed by: {signatureContent}
+                      </Typography>
+                    );
+                  })()}
                   {signature?.signed_at && (
                     <Typography variant="caption" display="block">
                       Signed: {new Date(signature.signed_at).toLocaleString()}
@@ -362,7 +378,7 @@ const UniversalDocumentViewer = ({
                         display: 'block',
                         fontWeight: 'bold'
                       }}>
-                        {signature.participant_email}
+                        by {signature.participant_email}
                       </Typography>
                     )}
                   </Box>
