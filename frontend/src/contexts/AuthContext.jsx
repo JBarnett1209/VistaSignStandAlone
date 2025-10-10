@@ -141,10 +141,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('AuthContext: Starting login process...');
+    }
     const response = await api.post('/api/v1/auth/login', { email, password });
     const { access_token, user: userData } = response.data;
     if (typeof window !== 'undefined') {
       window.__vstAccessToken = access_token;
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('AuthContext: Login successful, setting user:', userData);
     }
     setUser(userData);
   };
@@ -161,6 +167,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('AuthContext: Logout called');
+    }
     try { await api.post('/api/v1/auth/logout'); } catch (_) {}
     if (typeof window !== 'undefined') {
       window.__vstAccessToken = null;
@@ -175,8 +184,17 @@ export const AuthProvider = ({ children }) => {
     let cancelled = false;
     const checkSession = async () => {
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Checking session validity...');
+        }
         await api.get('/api/v1/auth/me');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Session check successful');
+        }
       } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Session check failed:', e);
+        }
         // On any auth failure (e.g., 401 due to deactivation), immediately logout
         if (!cancelled) {
           await logout();
@@ -184,12 +202,18 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Immediate check, then interval
-    checkSession();
+    // Add a small delay before the first check to avoid race conditions with login
+    const initialCheckTimeout = setTimeout(() => {
+      if (!cancelled) {
+        checkSession();
+      }
+    }, 1000); // 1 second delay
+    
     const intervalId = setInterval(checkSession, 30000); // 30s
 
     return () => {
       cancelled = true;
+      clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
   }, [user]);
