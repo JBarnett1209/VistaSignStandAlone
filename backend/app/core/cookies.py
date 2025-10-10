@@ -28,7 +28,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     # Set secure and samesite based on environment
     if settings.COOKIE_SECURE:
         cookie_kwargs["secure"] = True
-        cookie_kwargs["samesite"] = "none"
+        cookie_kwargs["samesite"] = "lax"
     else:
         cookie_kwargs["secure"] = False
         cookie_kwargs["samesite"] = "lax"
@@ -59,7 +59,7 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     # Set secure and samesite based on environment
     if settings.COOKIE_SECURE:
         cookie_kwargs["secure"] = True
-        cookie_kwargs["samesite"] = "none"
+        cookie_kwargs["samesite"] = "lax"
     else:
         cookie_kwargs["secure"] = False
         cookie_kwargs["samesite"] = "lax"
