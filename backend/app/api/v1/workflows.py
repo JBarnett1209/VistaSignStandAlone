@@ -456,8 +456,78 @@ async def send_workflow(
         await db.commit()
         await db.refresh(workflow)
         
-        # TODO: Send emails to participants
-        # This would integrate with the email service to send signing invitations
+        # Send emails to participants
+        participants_result = await db.execute(
+            select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
+        )
+        participants = participants_result.scalars().all()
+        
+        # Get document details
+        document_result = await db.execute(
+            select(Document).where(Document.id == workflow.document_id)
+        )
+        document = document_result.scalar_one_or_none()
+        
+        if participants and document:
+            from app.core.email import send_email
+            
+            # Send email to each participant
+            for participant in participants:
+                try:
+                    # Create signing URL (you may want to customize this)
+                    signing_url = f"https://vistasign.unitvista.com/sign/{workflow_id}/{participant.id}"
+                    
+                    subject = f"Document Signing Request: {workflow.name}"
+                    
+                    html_body = f"""
+                    <html>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <h2 style="color: #7E3AF2;">Document Signing Request</h2>
+                            
+                            <p>Hello,</p>
+                            
+                            <p>You have been requested to sign a document as part of the workflow: <strong>{workflow.name}</strong></p>
+                            
+                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                <h3 style="margin-top: 0; color: #7E3AF2;">Document Details:</h3>
+                                <p><strong>Document:</strong> {document.title}</p>
+                                <p><strong>Workflow:</strong> {workflow.name}</p>
+                                <p><strong>Signing Order:</strong> #{participant.signingOrder}</p>
+                                {f'<p><strong>Description:</strong> {workflow.description}</p>' if workflow.description else ''}
+                            </div>
+                            
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{signing_url}" 
+                                   style="background-color: #7E3AF2; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                                    Sign Document
+                                </a>
+                            </div>
+                            
+                            <p style="color: #666; font-size: 14px;">
+                                If the button doesn't work, you can copy and paste this link into your browser:<br>
+                                <a href="{signing_url}">{signing_url}</a>
+                            </p>
+                            
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                            <p style="color: #666; font-size: 12px;">
+                                This email was sent by VistaSign. If you have any questions, please contact the workflow creator.
+                            </p>
+                        </div>
+                    </body>
+                    </html>
+                    """
+                    
+                    # Send the email
+                    email_sent = send_email(participant.email, subject, html_body)
+                    
+                    if email_sent:
+                        logger.info(f"Successfully sent signing invitation to {participant.email}")
+                    else:
+                        logger.error(f"Failed to send signing invitation to {participant.email}")
+                        
+                except Exception as e:
+                    logger.error(f"Error sending email to {participant.email}: {str(e)}")
         
         return {"message": "Workflow sent successfully", "workflow_id": workflow_id}
         
