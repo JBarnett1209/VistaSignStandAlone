@@ -47,6 +47,7 @@ export default function PublicSigning() {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const documentRef = useRef(null);
+  const pdfContainerRef = useRef(null);
 
   useEffect(() => {
     loadSigningData();
@@ -218,9 +219,8 @@ export default function PublicSigning() {
       width: field.width,
       height: field.height,
       page: field.page,
-      containerPadding: 16,
-      renderedX: field.x + 16,
-      renderedY: field.y + 16
+      renderedX: field.x,
+      renderedY: field.y
     });
 
     return (
@@ -229,10 +229,9 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Account for container padding in Public Signing view
-          // The container has p: 2 (16px padding) that the Document Editor doesn't have
-          left: `${field.x + 16}px`,  // Add 16px for container padding
-          top: `${field.y + 16}px`,   // Add 16px for container padding
+          // Both views now have identical containers, so use coordinates directly
+          left: `${field.x}px`,
+          top: `${field.y}px`,
           width: `${field.width}px`,
           height: `${field.height}px`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
@@ -415,12 +414,14 @@ export default function PublicSigning() {
               overflow: 'auto',
               backgroundColor: '#f0f0f0'
             }}>
-              <Box sx={{ 
+              <Box 
+                ref={pdfContainerRef}
+                sx={{ 
                 position: 'relative',
                 minHeight: '100%',
                 display: 'flex',
-                justifyContent: 'center',
-                p: 2
+                justifyContent: 'center'
+                // Removed p: 2 to match Document Editor container
               }}>
               <Box sx={{ 
                 position: 'relative',
