@@ -35,7 +35,7 @@ import { documentsAPI, signaturesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentEditor from '../components/DocumentEditor';
 import ConfirmationDialog from '../components/ConfirmationDialog';
-import DocumentViewer from '../components/DocumentViewer';
+import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -434,61 +434,84 @@ export default function Documents() {
         onSave={handleDocumentSave}
       />
 
-      {/* Document Viewer Dialog */}
+      {/* Document Viewer Dialog - Same structure as Document Editor */}
       <Dialog
         open={!!viewingDocument}
         onClose={() => {
           setViewingDocument(null);
           setDocumentSignatures([]);
         }}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
-        fullScreen
+        PaperProps={{
+          sx: { 
+            height: '90vh',
+            maxHeight: '90vh'
+          }
+        }}
       >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography variant="h6">
-                {viewingDocument?.title || 'Document Viewer'}
-              </Typography>
-              {documentSignatures.length > 0 && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  {documentSignatures.length} signature{documentSignatures.length !== 1 ? 's' : ''} on this document
-                </Typography>
-              )}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
-                size="small"
-              >
-                Download
-              </Button>
-              <IconButton
-                onClick={() => {
-                  setViewingDocument(null);
-                  setDocumentSignatures([]);
-                }}
-                size="small"
-              >
-                <CloseIcon />
-              </IconButton>
-            </Box>
+        <DialogTitle sx={{ 
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 1
+        }}>
+          <Typography variant="h6">
+            View Document: {viewingDocument?.title || 'Untitled Document'}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
+              size="small"
+            >
+              Download
+            </Button>
+            <IconButton
+              onClick={() => {
+                setViewingDocument(null);
+                setDocumentSignatures([]);
+              }}
+              size="small"
+            >
+              <CloseIcon />
+            </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ p: 0, height: '100%' }}>
+        <DialogContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
           {viewingDocument && (
-            <Box sx={{ height: '100%', width: '100%' }}>
-              <DocumentViewer
-                document={viewingDocument}
-                signatures={documentSignatures}
-                onClose={() => setViewingDocument(null)}
-                onFieldClick={(field, pageNum) => {
-                  // You can add additional functionality here, like showing signature details
-                }}
-              />
+            <Box sx={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {/* Document Viewer - Same layout as Document Editor but without sidebar */}
+              <Box sx={{ 
+                flex: 1, 
+                overflow: 'auto', 
+                p: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                backgroundColor: '#f5f5f5',
+                minHeight: 0,
+                position: 'relative'
+              }}>
+                <UniversalDocumentViewer
+                  document={viewingDocument}
+                  signatures={documentSignatures}
+                  showSignatureStatus={true}
+                  showPageNavigation={true}
+                  onLoadSuccess={() => {}}
+                  onLoadError={(error) => {
+                    console.error('Document load error:', error);
+                  }}
+                  onFieldClick={(field, pageNum) => {
+                    // You can add additional functionality here, like showing signature details
+                  }}
+                />
+              </Box>
             </Box>
           )}
         </DialogContent>
