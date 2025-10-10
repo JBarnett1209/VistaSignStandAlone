@@ -209,6 +209,11 @@ export default function PublicSigning() {
     const participantSigningOrder = workflowData?.participant?.signing_order || 1;
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
+    
+    // Calculate position accounting for page offset
+    const pageNumber = field.pageNumber || 1;
+    const pageHeight = 800; // Approximate page height in pixels
+    const pageOffset = (pageNumber - 1) * pageHeight;
 
     return (
       <Box
@@ -217,7 +222,7 @@ export default function PublicSigning() {
         sx={{
           position: 'absolute',
           left: `${field.x}%`,
-          top: `${field.y}%`,
+          top: `calc(${field.y}% + ${pageOffset}px)`,
           width: `${field.width}%`,
           height: `${field.height}%`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
@@ -416,23 +421,60 @@ export default function PublicSigning() {
                 }}>
                   <Box sx={{ 
                     width: '800px', 
-                    height: '1000px',
+                    maxHeight: '1000px',
                     overflow: 'auto',
                     border: '1px solid #ddd',
                     backgroundColor: '#f5f5f5'
                   }}>
+                    {/* Page Navigation */}
+                    {numPages && numPages > 1 && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center', 
+                        gap: 2, 
+                        p: 1, 
+                        backgroundColor: '#fff',
+                        borderBottom: '1px solid #ddd'
+                      }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                          disabled={pageNumber <= 1}
+                        >
+                          Previous
+                        </Button>
+                        <Typography variant="body2">
+                          Page {pageNumber} of {numPages}
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                          disabled={pageNumber >= numPages}
+                        >
+                          Next
+                        </Button>
+                      </Box>
+                    )}
+                    
                     <PDFDocument
                       file={workflowData.document.file_url}
                       onLoadSuccess={onDocumentLoadSuccess}
                       loading={<CircularProgress />}
                       error={<Alert severity="error">Failed to load document</Alert>}
                     >
-                      <Page 
-                        pageNumber={pageNumber} 
-                        width={800}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                      />
+                      {/* Render all pages */}
+                      {numPages && Array.from({ length: numPages }, (_, index) => (
+                        <Page 
+                          key={index + 1}
+                          pageNumber={index + 1} 
+                          width={800}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                        />
+                      ))}
                     </PDFDocument>
                   </Box>
                   
