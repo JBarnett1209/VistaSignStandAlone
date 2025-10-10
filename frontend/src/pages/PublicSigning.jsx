@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Typography, 
@@ -10,13 +10,22 @@ import {
   CircularProgress,
   Paper,
   Divider,
-  Chip
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import { 
   Description as Document, 
   CheckCircle, 
   Schedule as Clock, 
-  Person as User 
+  Person as User,
+  Close as CloseIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import api from '../services/api';
 
@@ -28,6 +37,11 @@ export default function PublicSigning() {
   const [error, setError] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
   const [signatureData, setSignatureData] = useState('');
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [selectedField, setSelectedField] = useState(null);
+  const [signedFields, setSignedFields] = useState({});
+  const [showSidebar, setShowSidebar] = useState(true);
+  const documentRef = useRef(null);
 
   useEffect(() => {
     loadSigningData();
@@ -59,7 +73,22 @@ export default function PublicSigning() {
     }
   };
 
-  const handleSignDocument = async () => {
+  const handleFieldClick = (field) => {
+    if (isCompleted) return;
+    
+    // Check if this field is assigned to this participant's signing order
+    const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+    if (field.signingOrder !== participantSigningOrder) {
+      setError(`This field is assigned to signing order #${field.signingOrder}. Your signing order is #${participantSigningOrder}.`);
+      return;
+    }
+
+    setSelectedField(field);
+    setSignatureDialogOpen(true);
+    setError(null);
+  };
+
+  const handleSignatureSubmit = async () => {
     if (!signatureData.trim()) {
       setError('Please provide your signature.');
       return;
@@ -69,10 +98,54 @@ export default function PublicSigning() {
       setSigning(true);
       setError(null);
 
+      // Mark this field as signed locally
+      setSignedFields(prev => ({
+        ...prev,
+        [selectedField.id]: {
+          signature: signatureData,
+          timestamp: new Date().toISOString(),
+          fieldId: selectedField.id
+        }
+      }));
+
+      setSignatureDialogOpen(false);
+      setSignatureData('');
+      setSelectedField(null);
+
+      // Check if all required fields are signed
+      const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+      const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
+      const signedFieldIds = Object.keys(signedFields);
+      const allFieldsSigned = requiredFields.every(field => signedFieldIds.includes(field.id));
+
+      if (allFieldsSigned) {
+        // Submit all signatures to backend
+        await submitAllSignatures();
+      }
+
+    } catch (err) {
+      console.error('Error signing field:', err);
+      setError('Failed to sign field. Please try again.');
+    } finally {
+      setSigning(false);
+    }
+  };
+
+  const submitAllSignatures = async () => {
+    try {
+      const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+      const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
+      
+      const signatureData = requiredFields.map(field => ({
+        fieldId: field.id,
+        signature: signedFields[field.id]?.signature || '',
+        timestamp: signedFields[field.id]?.timestamp || new Date().toISOString()
+      }));
+
       const response = await api.post(`/api/v1/workflows/${workflowId}/sign/${participantId}`, {
         signature_data: {
-          type: 'typed',
-          text: signatureData,
+          type: 'field_signatures',
+          fields: signatureData,
           timestamp: new Date().toISOString()
         }
       });
@@ -88,7 +161,7 @@ export default function PublicSigning() {
         }
       }));
 
-      // Redirect to success page or show success message
+      // Redirect to success page
       setTimeout(() => {
         navigate('/login', { 
           state: { 
@@ -98,11 +171,60 @@ export default function PublicSigning() {
       }, 3000);
 
     } catch (err) {
-      console.error('Error signing document:', err);
-      setError('Failed to sign document. Please try again.');
-    } finally {
-      setSigning(false);
+      console.error('Error submitting signatures:', err);
+      setError('Failed to submit signatures. Please try again.');
     }
+  };
+
+  const renderSignatureField = (field) => {
+    const isSigned = signedFields[field.id];
+    const participantSigningOrder = workflowData?.participant?.signing_order || 1;
+    const isAssignedToMe = field.signingOrder === participantSigningOrder;
+    const isClickable = !isCompleted && isAssignedToMe && !isSigned;
+
+    return (
+      <Box
+        key={field.id}
+        onClick={() => handleFieldClick(field)}
+        sx={{
+          position: 'absolute',
+          left: `${field.x}%`,
+          top: `${field.y}%`,
+          width: `${field.width}%`,
+          height: `${field.height}%`,
+          border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
+          backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : isClickable ? 'rgba(123, 92, 255, 0.1)' : 'rgba(204, 204, 204, 0.1)',
+          borderRadius: '4px',
+          cursor: isClickable ? 'pointer' : 'default',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '30px',
+          transition: 'all 0.2s ease',
+          '&:hover': isClickable ? {
+            backgroundColor: 'rgba(123, 92, 255, 0.2)',
+            borderColor: '#7B5CFF'
+          } : {},
+        }}
+      >
+        {isSigned ? (
+          <Box sx={{ textAlign: 'center', p: 1 }}>
+            <CheckCircle sx={{ color: '#4CAF50', fontSize: 16, mb: 0.5 }} />
+            <Typography variant="caption" sx={{ color: '#4CAF50', fontSize: '10px' }}>
+              {signedFields[field.id]?.signature}
+            </Typography>
+          </Box>
+        ) : isClickable ? (
+          <Typography variant="caption" sx={{ color: '#7B5CFF', fontSize: '10px', textAlign: 'center' }}>
+            Click to sign
+          </Typography>
+        ) : (
+          <Typography variant="caption" sx={{ color: '#999', fontSize: '10px', textAlign: 'center' }}>
+            Order #{field.signingOrder}
+          </Typography>
+        )}
+      </Box>
+    );
   };
 
   if (loading) {
@@ -153,128 +275,232 @@ export default function PublicSigning() {
   return (
     <Box sx={{ 
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      p: 3
+      backgroundColor: '#f5f5f5',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
-      <Box sx={{ maxWidth: 800, mx: 'auto', mt: 4 }}>
-        {/* Header */}
-        <Paper sx={{ p: 4, mb: 3, textAlign: 'center' }}>
-          <Typography variant="h4" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
-            Document Signing Request
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            You have been requested to sign a document
-          </Typography>
-        </Paper>
-
-        {/* Document Info */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Document sx={{ color: '#7B5CFF', fontSize: 24 }} />
-              <Typography variant="h6">
+      {/* Header */}
+      <Paper sx={{ 
+        p: 2, 
+        borderRadius: 0,
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        backgroundColor: '#fff'
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Document sx={{ color: '#7B5CFF', fontSize: 28 }} />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 {workflowData?.document?.title || 'Document'}
               </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Signing Order #{workflowData?.participant?.signing_order || 1}
+              </Typography>
             </Box>
-            
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-              <Chip 
-                icon={<User sx={{ fontSize: 16 }} />}
-                label={`Signing Order: #${workflowData?.participant?.signing_order || 1}`}
-                variant="outlined"
-              />
-              <Chip 
-                icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : <Clock sx={{ fontSize: 16 }} />}
-                label={isCompleted ? 'Completed' : 'Pending'}
-                color={isCompleted ? 'success' : 'default'}
-                variant="outlined"
-              />
+          </Box>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Chip 
+              icon={isCompleted ? <CheckCircle sx={{ fontSize: 16 }} /> : <Clock sx={{ fontSize: 16 }} />}
+              label={isCompleted ? 'Completed' : 'Pending'}
+              color={isCompleted ? 'success' : 'default'}
+              variant="outlined"
+            />
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setShowSidebar(!showSidebar)}
+            >
+              {showSidebar ? 'Hide' : 'Show'} Details
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Main Content */}
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Document Viewer */}
+        <Box sx={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column',
+          backgroundColor: '#fff',
+          margin: 2,
+          borderRadius: 2,
+          overflow: 'hidden',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
+          {error && (
+            <Alert severity="error" sx={{ m: 2, mb: 0 }}>
+              {error}
+            </Alert>
+          )}
+          
+          {workflowData?.document?.file_url ? (
+            <Box sx={{ 
+              flex: 1, 
+              position: 'relative',
+              overflow: 'auto',
+              backgroundColor: '#f0f0f0'
+            }}>
+              <Box sx={{ 
+                position: 'relative',
+                minHeight: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                p: 2
+              }}>
+                <Box sx={{ 
+                  position: 'relative',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  borderRadius: 1,
+                  overflow: 'hidden'
+                }}>
+                  <iframe
+                    ref={documentRef}
+                    src={workflowData.document.file_url}
+                    style={{
+                      width: '800px',
+                      height: '1000px',
+                      border: 'none',
+                      display: 'block'
+                    }}
+                    title="Document Preview"
+                  />
+                  
+                  {/* Signature Fields Overlay */}
+                  {workflowData?.document?.fields?.map(field => renderSignatureField(field))}
+                </Box>
+              </Box>
             </Box>
+          ) : (
+            <Box sx={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              p: 3
+            }}>
+              <Typography color="text.secondary">
+                Document preview not available
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
-            {workflowData?.workflow?.description && (
-              <>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Description:</strong> {workflowData.workflow.description}
-                </Typography>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Signing Form */}
-        {!isCompleted ? (
-          <Card>
-            <CardContent>
+        {/* Sidebar */}
+        {showSidebar && (
+          <Box sx={{ 
+            width: 300, 
+            backgroundColor: '#fff',
+            borderLeft: '1px solid #e0e0e0',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
               <Typography variant="h6" gutterBottom>
-                Sign Document
+                Signing Instructions
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Click on the signature fields highlighted in purple to sign this document.
               </Typography>
               
-              {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {error}
-                </Alert>
+              {workflowData?.workflow?.description && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Description:</strong> {workflowData.workflow.description}
+                  </Typography>
+                </>
               )}
+            </Box>
 
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Type your full name to sign this document:
-                </Typography>
-                <input
-                  type="text"
-                  value={signatureData}
-                  onChange={(e) => setSignatureData(e.target.value)}
-                  placeholder="Enter your full name"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '16px',
-                    fontFamily: 'cursive'
-                  }}
-                />
-              </Box>
-
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                onClick={handleSignDocument}
-                disabled={signing || !signatureData.trim()}
-                sx={{ py: 1.5 }}
-              >
-                {signing ? (
-                  <>
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                    Signing Document...
-                  </>
-                ) : (
-                  'Sign Document'
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <CheckCircle sx={{ fontSize: 48, color: '#4CAF50', mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                Document Already Signed
+            <Box sx={{ flex: 1, p: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Your Fields to Sign:
               </Typography>
-              <Typography color="text.secondary" paragraph>
-                This document was signed on {new Date(workflowData.participant.signed_at).toLocaleDateString()}
-              </Typography>
-              <Button 
-                variant="outlined" 
-                onClick={() => navigate('/login')}
-              >
-                Go to Login
-              </Button>
-            </CardContent>
-          </Card>
+              {workflowData?.document?.fields
+                ?.filter(f => f.signingOrder === (workflowData?.participant?.signing_order || 1))
+                ?.map(field => (
+                  <Box key={field.id} sx={{ 
+                    p: 1, 
+                    mb: 1, 
+                    border: '1px solid #e0e0e0', 
+                    borderRadius: 1,
+                    backgroundColor: signedFields[field.id] ? '#e8f5e8' : '#f9f9f9'
+                  }}>
+                    <Typography variant="body2">
+                      {signedFields[field.id] ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <CheckCircle sx={{ color: '#4CAF50', fontSize: 16 }} />
+                          <span style={{ color: '#4CAF50' }}>Signed: {signedFields[field.id].signature}</span>
+                        </Box>
+                      ) : (
+                        <span style={{ color: '#7B5CFF' }}>Click to sign</span>
+                      )}
+                    </Typography>
+                  </Box>
+                ))}
+            </Box>
+          </Box>
         )}
       </Box>
+
+      {/* Signature Dialog */}
+      <Dialog 
+        open={signatureDialogOpen} 
+        onClose={() => setSignatureDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Sign Document</Typography>
+            <IconButton onClick={() => setSignatureDialogOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Type your full name to sign this field:
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            value={signatureData}
+            onChange={(e) => setSignatureData(e.target.value)}
+            placeholder="Enter your full name"
+            variant="outlined"
+            sx={{ 
+              '& .MuiInputBase-input': { 
+                fontFamily: 'cursive',
+                fontSize: '18px'
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSignatureDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSignatureSubmit}
+            variant="contained"
+            disabled={signing || !signatureData.trim()}
+          >
+            {signing ? (
+              <>
+                <CircularProgress size={20} sx={{ mr: 1 }} />
+                Signing...
+              </>
+            ) : (
+              'Sign Field'
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
