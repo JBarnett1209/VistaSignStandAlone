@@ -605,6 +605,9 @@ async def get_workflow_signing_page(
                 detail="Document not found"
             )
         
+        # Debug: Log document fields for workflow signing
+        logger.info(f"Workflow signing - Document ID: {document.id}, Fields: {document.fields}")
+        
         # Check if already signed
         if participant.status == 'completed':
             return {

@@ -62,6 +62,8 @@ export default function PublicSigning() {
       setError(null);
       
       const response = await api.get(`/api/v1/workflows/${workflowId}/sign/${participantId}`);
+      console.log('PublicSigning: Loaded workflow data:', response.data);
+      console.log('PublicSigning: Document fields:', response.data.document?.fields);
       setWorkflowData(response.data);
       
       // Check if already signed
@@ -473,9 +475,12 @@ export default function PublicSigning() {
                   </Box>
                   
                   {/* Signature Fields Overlay - positioned absolutely over PDF */}
-                  {workflowData?.document?.fields
-                    ?.filter(field => (field.page || 1) === pageNumber)
-                    .map(renderSignatureField)}
+                  {(() => {
+                    const allFields = workflowData?.document?.fields || [];
+                    const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
+                    console.log(`PublicSigning: Rendering ${currentPageFields.length} fields for page ${pageNumber}:`, currentPageFields);
+                    return currentPageFields.map(renderSignatureField);
+                  })()}
                 </Box>
               </Box>
             </Box>
