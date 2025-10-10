@@ -44,6 +44,15 @@ export const AuthProvider = ({ children }) => {
           const refreshToken = cookies['vst_refresh'];
           const hasValidRefresh = Boolean(refreshToken && refreshToken.length > 0 && refreshToken !== 'undefined' && refreshToken !== 'null');
           
+          // Debug logging for troubleshooting
+          if (process.env.NODE_ENV === 'development') {
+            console.log('AuthContext: Cookie check on refresh:', {
+              allCookies: document.cookie,
+              parsedCookies: cookies,
+              refreshToken: refreshToken,
+              hasValidRefresh: hasValidRefresh
+            });
+          }
           
           return hasValidRefresh;
         } catch (e) {
@@ -58,6 +67,9 @@ export const AuthProvider = ({ children }) => {
       }
       
       try {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Attempting token refresh...');
+        }
         const res = await api.post('/api/v1/auth/refresh', {});
         
         // Keep access token only in memory
@@ -69,7 +81,14 @@ export const AuthProvider = ({ children }) => {
         setUser(me.data);
         setLoading(false);
         
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Token refresh successful, user loaded:', me.data);
+        }
+        
       } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Token refresh failed:', e);
+        }
         
         // Clear any stored tokens and user state on auth failure
         if (typeof window !== 'undefined') {
