@@ -22,6 +22,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     // Attach CSRF token from cookie if present for unsafe methods
     const method = (config.method || 'get').toLowerCase();
     if (['post', 'put', 'patch', 'delete'].includes(method)) {
@@ -30,6 +31,18 @@ api.interceptors.request.use(
         config.headers['X-CSRF-Token'] = csrf.split('=')[1];
       }
     }
+    
+    // Debug logging for development
+    if (process.env.NODE_ENV === 'development' && config.url?.includes('/auth/')) {
+      console.log('API Request:', {
+        url: config.url,
+        method: config.method,
+        hasToken: !!token,
+        hasCsrf: !!config.headers['X-CSRF-Token'],
+        cookies: document.cookie
+      });
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)

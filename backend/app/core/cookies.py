@@ -8,6 +8,14 @@ from app.core.config import settings
 import secrets
 
 
+def _apply_development_cookie_settings(cookie_kwargs: dict) -> dict:
+    """Apply development-friendly cookie settings"""
+    if settings.ENVIRONMENT == "development":
+        cookie_kwargs["samesite"] = "lax"
+        cookie_kwargs["secure"] = False
+    return cookie_kwargs
+
+
 def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     """Set refresh token cookie with standardized attributes"""
     max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60 if hasattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS") else 14 * 24 * 60 * 60
@@ -32,6 +40,9 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     else:
         cookie_kwargs["secure"] = False
         cookie_kwargs["samesite"] = "lax"
+    
+    # Apply development-friendly settings if needed
+    cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
     
     response.set_cookie(**cookie_kwargs)
 
@@ -63,6 +74,9 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     else:
         cookie_kwargs["secure"] = False
         cookie_kwargs["samesite"] = "lax"
+    
+    # Apply development-friendly settings if needed
+    cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
     
     response.set_cookie(**cookie_kwargs)
     

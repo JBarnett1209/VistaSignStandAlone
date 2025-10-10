@@ -24,17 +24,39 @@ export const AuthProvider = ({ children }) => {
       const hasRefresh = (() => {
         if (typeof document === 'undefined') return false;
         try {
-          const cookies = document.cookie.split('; ').reduce((acc, cookie) => {
-            const [key, value] = cookie.split('=');
-            if (key && value) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {});
+          // More robust cookie parsing that handles edge cases
+          const cookies = document.cookie
+            .split(';')
+            .map(cookie => cookie.trim())
+            .filter(cookie => cookie.length > 0)
+            .reduce((acc, cookie) => {
+              const equalIndex = cookie.indexOf('=');
+              if (equalIndex > 0) {
+                const key = cookie.substring(0, equalIndex).trim();
+                const value = cookie.substring(equalIndex + 1).trim();
+                if (key && value) {
+                  acc[key] = decodeURIComponent(value);
+                }
+              }
+              return acc;
+            }, {});
+          
           const refreshToken = cookies['vst_refresh'];
-          return Boolean(refreshToken && refreshToken.length > 0);
+          const hasValidRefresh = Boolean(refreshToken && refreshToken.length > 0 && refreshToken !== 'undefined' && refreshToken !== 'null');
+          
+          // Debug logging for troubleshooting
+          if (process.env.NODE_ENV === 'development') {
+            console.log('AuthContext: Cookie parsing debug:', {
+              allCookies: document.cookie,
+              parsedCookies: cookies,
+              refreshToken: refreshToken,
+              hasValidRefresh: hasValidRefresh
+            });
+          }
+          
+          return hasValidRefresh;
         } catch (e) {
-          console.log('AuthContext: Error parsing cookies:', e);
+          console.error('AuthContext: Error parsing cookies:', e);
           return false;
         }
       })();
@@ -87,7 +109,14 @@ export const AuthProvider = ({ children }) => {
     };
     
     // Add a small delay to ensure cookies are fully loaded, then attempt refresh
+    // Also add a longer fallback in case cookies take time to be available
     const timeoutId = setTimeout(() => attemptRefresh(), 100);
+    const fallbackTimeoutId = setTimeout(() => {
+      // If still loading after 2 seconds, try one more time
+      if (loading) {
+        attemptRefresh();
+      }
+    }, 2000);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
@@ -103,6 +132,7 @@ export const AuthProvider = ({ children }) => {
     
     return () => {
       clearTimeout(timeoutId);
+      clearTimeout(fallbackTimeoutId);
       if (typeof window !== 'undefined') {
         window.removeEventListener('auth-failed', handleAuthFailed);
       }
