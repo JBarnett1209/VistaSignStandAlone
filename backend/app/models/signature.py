@@ -71,10 +71,11 @@ class Signature(Base):
     user_agent = Column(Text, nullable=True)
     signing_reason = Column(Text, nullable=True)
     signing_location = Column(String(255), nullable=True)
+    participant_email = Column(String(255), nullable=True)  # For workflow participants without user accounts
     
     # Relationships
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False)
-    signer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    signer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     template_id = Column(UUID(as_uuid=True), ForeignKey("signature_templates.id"), nullable=True)
     
     # Timestamps

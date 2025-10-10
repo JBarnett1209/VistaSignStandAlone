@@ -886,44 +886,38 @@ async def sign_workflow_document(
                 
                 logger.info(f"Creating signature records for {len(signature_data['fields'])} fields")
                 
-                # Get or create a system user for workflow participants who don't have user accounts
-                system_user = None
-                if not participant.user_id:
-                    # Try to find existing system user for this email
-                    system_user_result = await db.execute(
+                # Check if participant has a valid user account
+                signer_id = None
+                if participant.user_id:
+                    # Participant already has a user account, use that
+                    signer_id = participant.user_id
+                    logger.info(f"Using existing user account for participant {participant.email}")
+                else:
+                    # Check if a user account exists for this email
+                    user_result = await db.execute(
                         select(User).where(User.email == participant.email)
                     )
-                    system_user = system_user_result.scalar_one_or_none()
+                    existing_user = user_result.scalar_one_or_none()
                     
-                    if not system_user:
-                        # Create a system user for this participant
-                        system_user = User(
-                            email=participant.email,
-                            password_hash="",  # No password for system users
-                            first_name=participant.email.split('@')[0],
-                            last_name="",
-                            is_verified=True,
-                            is_active=True,
-                            role="USER"
-                        )
-                        db.add(system_user)
+                    if existing_user:
+                        # User account exists, link participant to it
+                        participant.user_id = existing_user.id
+                        signer_id = existing_user.id
                         await db.commit()
-                        await db.refresh(system_user)
-                        
-                        # Update participant with the new user_id
-                        participant.user_id = system_user.id
-                        await db.commit()
-                        logger.info(f"Created system user for participant {participant.email}")
-                
-                signer_id = participant.user_id or system_user.id if system_user else None
+                        logger.info(f"Linked participant {participant.email} to existing user account")
+                    else:
+                        # No user account exists, use NULL for signer_id
+                        # This allows us to track signatures without requiring user accounts
+                        signer_id = None
+                        logger.info(f"Using NULL signer_id for participant {participant.email} (no user account)")
                 logger.info(f"Using signer_id: {signer_id} for participant {participant.email}")
                 
                 for field_signature in signature_data['fields']:
-                    if field_signature.get('fieldId') and field_signature.get('signature') and signer_id:
+                    if field_signature.get('fieldId') and field_signature.get('signature'):
                         # Create signature record for admin tracking
                         signature_record = Signature(
                             document_id=workflow.document_id,
-                            signer_id=signer_id,  # Use user ID as signer
+                            signer_id=signer_id,  # Use user ID as signer (NULL if no user account)
                             signature_type=SignatureType.ELECTRONIC,
                             status=SignatureStatus.SIGNED,
                             signature_data=field_signature.get('signature', ''),
@@ -933,6 +927,7 @@ async def sign_workflow_document(
                             signing_location=signing_context.get('signing_location', 'Online'),
                             ip_address=request.client.host if request.client else None,
                             user_agent=request.headers.get('user-agent'),
+                            participant_email=participant.email,  # Track participant email for signatures without user accounts
                             signed_at=datetime.utcnow(),
                             # Digital signature fields
                             digital_signature=legal_signature_metadata.get("digital_signature") if legal_signature_metadata else None,
