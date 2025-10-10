@@ -22,6 +22,7 @@ import SigningComplete from './pages/SigningComplete';
 import Invites from './pages/Invites';
 import Users from './pages/Users';
 import AdminSignatures from './pages/AdminSignatures';
+import CertificateValidation from './pages/CertificateValidation';
 
 // Create theme (UnitVista color feel)
 const theme = createTheme({
@@ -152,6 +153,7 @@ function App() {
                 <Route path="settings/invites" element={<Invites />} />
                 <Route path="settings/users" element={<Users />} />
                 <Route path="admin/signatures" element={<AdminSignatures />} />
+                <Route path="admin/certificates" element={<CertificateValidation />} />
                 <Route path="pricing" element={<Pricing />} />
               </Route>
             </Routes>
