@@ -218,6 +218,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       const pdfWidth = 800; // Fixed width we're using
       const containerWidth = containerRect.width;
       const offsetX = (containerWidth - pdfWidth) / 2;
+      
       setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
       console.log('PDF offset calculated:', { 
         x: offsetX, 
@@ -347,13 +348,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const maxSigningOrder = Math.max(0, ...fields.map(f => f.signingOrder || 0));
     const nextSigningOrder = maxSigningOrder + 1;
 
-    // Account for PDF offset when saving coordinates
-    // Public signing doesn't have this offset, so we need to subtract it
+    // Store coordinates as-is (relative to PDF container)
+    // Both editor and public signing will add the same PDF offset when rendering
     const newField = {
       id: Date.now().toString(),
       type: dragField,
-      x: x - pdfOffset.x,  // Remove editor PDF offset to match public signing
-      y: y - pdfOffset.y,  // Remove editor PDF offset to match public signing
+      x: x,  // Store raw coordinates - both components will add PDF offset when rendering
+      y: y,  // Store raw coordinates - both components will add PDF offset when rendering
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
