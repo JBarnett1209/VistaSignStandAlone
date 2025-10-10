@@ -248,8 +248,8 @@ const SignatureCapture = ({
               variant="outlined"
               sx={{ 
                 '& .MuiInputBase-input': { 
-                  fontFamily: "'Dancing Script', cursive",
-                  fontSize: '20px',
+                  fontFamily: 'Arial, sans-serif',
+                  fontSize: '16px',
                   textAlign: 'center'
                 }
               }}
