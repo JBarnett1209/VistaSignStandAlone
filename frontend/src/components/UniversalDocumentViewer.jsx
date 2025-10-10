@@ -170,19 +170,41 @@ const UniversalDocumentViewer = ({
             <Typography variant="caption" color={isSigned ? 'success.main' : 'warning.main'}>
               {isSigned ? 'Signed' : 'Unsigned'}
             </Typography>
-            {isSigned && (
-              <Typography variant="caption" display="block">
-                {signatures.find(sig => 
-                  sig.document_id === document?.id && 
-                  sig.signature_position && 
-                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
-                )?.signed_at ? new Date(signatures.find(sig => 
-                  sig.document_id === document?.id && 
-                  sig.signature_position && 
-                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
-                ).signed_at).toLocaleString() : 'Unknown date'}
-              </Typography>
-            )}
+            {isSigned && (() => {
+              const signature = signatures.find(sig => 
+                sig.document_id === document?.id && 
+                sig.signature_position && 
+                JSON.stringify(sig.signature_position) === JSON.stringify(field)
+              );
+              
+              return (
+                <Box>
+                  {signature?.participant_email && (
+                    <Typography variant="caption" display="block" sx={{ fontWeight: 'bold' }}>
+                      Digitally signed by: {signature.participant_email}
+                    </Typography>
+                  )}
+                  {signature?.signed_at && (
+                    <Typography variant="caption" display="block">
+                      Signed: {new Date(signature.signed_at).toLocaleString()}
+                    </Typography>
+                  )}
+                  {signature?.signature_type && (
+                    <Typography variant="caption" display="block">
+                      Type: {signature.signature_type}
+                    </Typography>
+                  )}
+                  {signature?.verification_status && (
+                    <Typography variant="caption" display="block" color={
+                      signature.verification_status === 'verified' ? 'success.main' : 
+                      signature.verification_status === 'failed' ? 'error.main' : 'warning.main'
+                    }>
+                      Status: {signature.verification_status}
+                    </Typography>
+                  )}
+                </Box>
+              );
+            })()}
           </Box>
         }
         arrow
@@ -198,9 +220,199 @@ const UniversalDocumentViewer = ({
           }}
         >
           {isSigned ? (
-            <SignedIcon sx={{ color: '#4caf50', fontSize: 20 }} />
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              p: 0.5
+            }}>
+              {/* Signed Status Badge */}
+              <Box sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                backgroundColor: '#4CAF50',
+                color: 'white',
+                borderRadius: '50%',
+                width: 16,
+                height: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold'
+              }}>
+                ✓
+              </Box>
+
+              {/* Signature Content */}
+              {(() => {
+                const signature = signatures.find(sig => 
+                  sig.document_id === document?.id && 
+                  sig.signature_position && 
+                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
+                );
+                
+                if (signature?.signature_image) {
+                  // Show signature image if available
+                  return (
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      maxWidth: '100%',
+                      maxHeight: field.height > 40 ? '30px' : '20px'
+                    }}>
+                      <img 
+                        src={`data:image/png;base64,${signature.signature_image}`}
+                        alt="Signature" 
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                        }}
+                      />
+                    </Box>
+                  );
+                } else if (signature?.digital_signature) {
+                  // Show digital signature text
+                  return (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: '#1B5E20', 
+                        fontSize: field.height > 40 ? '11px' : '9px',
+                        fontFamily: "'Dancing Script', cursive",
+                        display: 'block',
+                        fontWeight: 'bold',
+                        lineHeight: 1.2,
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {signature.digital_signature}
+                    </Typography>
+                  );
+                } else if (signature?.signature_data) {
+                  // Show signature data as text
+                  return (
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: '#1B5E20', 
+                        fontSize: field.height > 40 ? '11px' : '9px',
+                        fontFamily: "'Dancing Script', cursive",
+                        display: 'block',
+                        fontWeight: 'bold',
+                        lineHeight: 1.2,
+                        maxWidth: '100%',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                    >
+                      {signature.signature_data}
+                    </Typography>
+                  );
+                } else {
+                  // Fallback to checkmark
+                  return (
+                    <Typography variant="caption" sx={{ 
+                      color: '#1B5E20', 
+                      fontSize: '9px',
+                      fontWeight: 'bold'
+                    }}>
+                      ✓ Signed
+                    </Typography>
+                  );
+                }
+              })()}
+
+              {/* Timestamp and Signer Info */}
+              {(() => {
+                const signature = signatures.find(sig => 
+                  sig.document_id === document?.id && 
+                  sig.signature_position && 
+                  JSON.stringify(sig.signature_position) === JSON.stringify(field)
+                );
+                
+                return (
+                  <Box sx={{ mt: 0.5 }}>
+                    {signature?.signed_at && (
+                      <Typography variant="caption" sx={{ 
+                        color: '#2E7D32', 
+                        fontSize: '8px',
+                        textAlign: 'center',
+                        lineHeight: 1,
+                        display: 'block'
+                      }}>
+                        {new Date(signature.signed_at).toLocaleDateString()}
+                      </Typography>
+                    )}
+                    {signature?.participant_email && (
+                      <Typography variant="caption" sx={{ 
+                        color: '#2E7D32', 
+                        fontSize: '8px',
+                        textAlign: 'center',
+                        lineHeight: 1,
+                        display: 'block',
+                        fontWeight: 'bold'
+                      }}>
+                        {signature.participant_email}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })()}
+            </Box>
           ) : (
-            <UnsignedIcon sx={{ color: '#ff9800', fontSize: 20 }} />
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%',
+              p: 0.5
+            }}>
+              {/* Field Type Icon */}
+              <Box sx={{ 
+                color: '#666',
+                fontSize: field.height > 40 ? '16px' : '12px',
+                mb: 0.5
+              }}>
+                <EditIcon />
+              </Box>
+
+              {/* Field Label */}
+              <Typography variant="caption" sx={{ 
+                color: '#666', 
+                fontSize: '8px',
+                textAlign: 'center',
+                lineHeight: 1,
+                fontWeight: 'bold'
+              }}>
+                {field.label || field.name || 'Signature'}
+              </Typography>
+
+              {/* Required indicator */}
+              {field.required && (
+                <Typography variant="caption" sx={{ 
+                  color: '#f44336', 
+                  fontSize: '8px',
+                  fontWeight: 'bold',
+                  position: 'absolute',
+                  top: -6,
+                  right: -6
+                }}>
+                  *
+                </Typography>
+              )}
+            </Box>
           )}
         </Box>
       </Tooltip>
