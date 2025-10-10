@@ -153,7 +153,7 @@ const FIELD_TYPE_CONFIG = {
 
 export default function DocumentEditor({ document, onClose, onSave }) {
   const [numPages, setNumPages] = useState(null);
-  const [pageNumber] = useState(1);
+  const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
   const [fields, setFields] = useState([]);
   const [selectedField, setSelectedField] = useState(null);
@@ -1027,6 +1027,39 @@ export default function DocumentEditor({ document, onClose, onSave }) {
             }
           }}
           >
+            {/* Page Navigation */}
+            {numPages && numPages > 1 && (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: 2, 
+                p: 1, 
+                backgroundColor: '#f5f5f5',
+                borderBottom: '1px solid #ddd'
+              }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                  disabled={pageNumber <= 1}
+                >
+                  Previous
+                </Button>
+                <Typography variant="body2">
+                  Page {pageNumber} of {numPages}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                  disabled={pageNumber >= numPages}
+                >
+                  Next
+                </Button>
+              </Box>
+            )}
+            
             <UniversalDocumentViewer
               document={document}
               zoom={scale}
@@ -1037,6 +1070,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
                 console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
                 setError(`Failed to load document: ${error.message || 'Unknown error'}`);
               }}
+              pageNumber={pageNumber}
             />
               
               {/* Render whiteout boxes for current page */}
