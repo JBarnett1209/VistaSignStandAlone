@@ -146,7 +146,7 @@ export default function Documents() {
     setDocuments(prev => prev.map(doc => 
       doc.id === updatedDocument.id ? updatedDocument : doc
     ));
-    setEditingDocument(null);
+    // Don't close the editor - just update the document list
   };
 
   return (

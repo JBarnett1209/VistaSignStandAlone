@@ -649,9 +649,9 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           }
         }}
       >
-        {/* Signing order indicator */}
+        {/* Page number indicator */}
         <Chip
-          label={`#${field.signingOrder || 1}`}
+          label={`P${field.page || 1}`}
           size="small"
           color="primary"
           variant="filled"
