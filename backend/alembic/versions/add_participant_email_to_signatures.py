@@ -1,7 +1,7 @@
 """Add participant_email to signatures and make signer_id nullable
 
-Revision ID: 002_add_participant_email_to_signatures
-Revises: 001_add_signature_soft_delete_fields
+Revision ID: 002_participant_email
+Revises: 001_signature_fields
 Create Date: 2025-01-10 12:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '002_add_participant_email_to_signatures'
+revision = '002_participant_email'
 down_revision = '001_signature_fields'
 branch_labels = None
 depends_on = None
