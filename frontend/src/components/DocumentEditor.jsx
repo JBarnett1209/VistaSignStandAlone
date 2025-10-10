@@ -196,6 +196,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       setFields(document.fields);
     }
     
+    // Reset page number to 1 when document changes
+    setPageNumber(1);
+    console.log('Document loaded, resetting page number to 1');
+    
     // Load signature templates
     loadSignatureTemplates();
   }, [document]);
@@ -278,6 +282,8 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       allowedFileTypes: dragField === FIELD_TYPES.ATTACHMENT ? '' : undefined,
       maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
     };
+    
+    console.log('Creating field on page:', pageNumber, 'Field:', newField);
 
     setFields(prev => [...prev, newField]);
     setDragField(null);
