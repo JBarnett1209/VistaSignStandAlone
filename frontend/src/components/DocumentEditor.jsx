@@ -350,6 +350,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
 
     // Store coordinates as-is (relative to PDF container)
     // Both editor and public signing will add the same PDF offset when rendering
+    // This ensures consistent positioning across all document formats and interfaces
     const newField = {
       id: Date.now().toString(),
       type: dragField,
