@@ -669,6 +669,89 @@ async def get_workflow_signing_page(
             detail="Failed to get signing page"
         )
 
+async def handle_participant_decline(workflow_id: str, participant_id: str, decline_data: dict, db: AsyncSession):
+    """Handle participant declining to sign"""
+    try:
+        # Verify workflow and participant exist
+        workflow_result = await db.execute(
+            select(Workflow).where(Workflow.id == workflow_id)
+        )
+        workflow = workflow_result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        participant_result = await db.execute(
+            select(WorkflowParticipant).where(
+                and_(
+                    WorkflowParticipant.id == participant_id,
+                    WorkflowParticipant.workflow_id == workflow_id
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        
+        if not participant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Participant not found"
+            )
+        
+        # Check if already completed or declined
+        if participant.status in ['completed', 'declined']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Participant has already {participant.status}"
+            )
+        
+        # Update participant status to declined
+        participant.status = 'declined'
+        participant.declined_at = datetime.utcnow()
+        participant.decline_reason = decline_data.get('reason', 'Participant declined to sign')
+        
+        await db.commit()
+        await db.refresh(participant)
+        
+        # Check if workflow should be marked as failed due to decline
+        all_participants_result = await db.execute(
+            select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
+        )
+        all_participants = all_participants_result.scalars().all()
+        
+        # If any participant declined, mark workflow as failed
+        if any(p.status == 'declined' for p in all_participants):
+            workflow.status = WorkflowStatus.FAILED
+            workflow.completed_at = datetime.utcnow()
+            await db.commit()
+        
+        return {
+            "message": "Document signing declined successfully",
+            "participant": {
+                "id": str(participant.id),
+                "email": participant.email,
+                "status": participant.status,
+                "declined_at": participant.declined_at,
+                "decline_reason": participant.decline_reason
+            },
+            "workflow": {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "status": workflow.status.value
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error handling participant decline: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process decline"
+        )
+
 @router.post("/{workflow_id}/sign/{participant_id}")
 async def sign_workflow_document(
     workflow_id: str,
@@ -679,6 +762,9 @@ async def sign_workflow_document(
 ):
     """Sign a workflow document (public endpoint)"""
     try:
+        # Check if this is a decline action
+        if signature_data.get("action") == "decline":
+            return await handle_participant_decline(workflow_id, participant_id, signature_data, db)
         # Verify workflow and participant exist
         workflow_result = await db.execute(
             select(Workflow).where(Workflow.id == workflow_id)

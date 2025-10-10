@@ -176,6 +176,34 @@ export default function PublicSigning() {
     setError('You must accept the consent terms to sign this document.');
   };
 
+  const handleDeclineSigning = async () => {
+    try {
+      setLoading(true);
+      
+      // Call backend to mark participant as declined
+      await api.post(`/api/v1/workflows/${workflowId}/sign/${participantId}`, {
+        action: 'decline',
+        reason: 'Participant declined to sign'
+      });
+      
+      // Navigate to decline completion page
+      navigate('/signing-declined', {
+        state: {
+          documentTitle: workflowData?.document?.title,
+          workflowName: workflowData?.workflow?.name,
+          participantEmail: workflowData?.participant?.email,
+          declinedAt: new Date().toISOString()
+        }
+      });
+      
+    } catch (err) {
+      console.error('Error declining signature:', err);
+      setError('Failed to record your decline. Please contact the document owner.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const findNextFieldToSign = () => {
     const participantSigningOrder = workflowData?.participant?.signing_order || 1;
     const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
@@ -631,6 +659,25 @@ export default function PublicSigning() {
                 }}
               />
             )}
+            {!isCompleted && !signingComplete && (
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                onClick={handleDeclineSigning}
+                disabled={loading}
+                sx={{ 
+                  borderColor: '#f44336',
+                  color: '#f44336',
+                  '&:hover': {
+                    borderColor: '#d32f2f',
+                    backgroundColor: 'rgba(244, 67, 54, 0.04)'
+                  }
+                }}
+              >
+                Decline to Sign
+              </Button>
+            )}
             <Button
               variant="outlined"
               size="small"
@@ -658,7 +705,14 @@ export default function PublicSigning() {
           {error && (
             <Alert 
               severity={isCompleted || signingComplete ? "success" : "error"} 
-              sx={{ m: 2, mb: 0 }}
+              sx={{ 
+                m: 2, 
+                mb: 0,
+                '& .MuiAlert-action': {
+                  alignItems: 'center',
+                  padding: '8px 0'
+                }
+              }}
               action={isCompleted || signingComplete ? (
                 <Button
                   color="inherit"
@@ -676,7 +730,9 @@ export default function PublicSigning() {
                   })}
                   sx={{ 
                     backgroundColor: '#4CAF50',
-                    '&:hover': { backgroundColor: '#45a049' }
+                    '&:hover': { backgroundColor: '#45a049' },
+                    minWidth: '80px',
+                    height: '32px'
                   }}
                 >
                   Finish

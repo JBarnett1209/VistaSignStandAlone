@@ -19,6 +19,7 @@ import Settings from './pages/Settings';
 import Pricing from './pages/Pricing';
 import PublicSigning from './pages/PublicSigning';
 import SigningComplete from './pages/SigningComplete';
+import SigningDeclined from './pages/SigningDeclined';
 import Invites from './pages/Invites';
 import Users from './pages/Users';
 import AdminSignatures from './pages/AdminSignatures';
@@ -136,6 +137,7 @@ function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/sign/:workflowId/:participantId" element={<PublicSigning />} />
               <Route path="/signing-complete" element={<SigningComplete />} />
+              <Route path="/signing-declined" element={<SigningDeclined />} />
               
               {/* Protected routes */}
               <Route path="/" element={
