@@ -55,6 +55,9 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
 
 def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     """Set CSRF token cookie with standardized attributes"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if csrf_token is None:
         csrf_token = secrets.token_urlsafe(32)
     
@@ -83,6 +86,9 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     
     # Apply development-friendly settings if needed
     cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
+    
+    # Debug logging
+    logger.info(f"Setting CSRF cookie with attributes: {cookie_kwargs}")
     
     response.set_cookie(**cookie_kwargs)
     

@@ -26,9 +26,12 @@ api.interceptors.request.use(
     // Attach CSRF token from cookie if present for unsafe methods
     const method = (config.method || 'get').toLowerCase();
     if (['post', 'put', 'patch', 'delete'].includes(method)) {
-      const csrf = document.cookie.split('; ').find((c) => c.startsWith('vst_csrf='));
-      if (csrf) {
-        config.headers['X-CSRF-Token'] = csrf.split('=')[1];
+      // Get the most recent CSRF token (last one in the cookie string)
+      const csrfCookies = document.cookie.split('; ').filter((c) => c.startsWith('vst_csrf='));
+      if (csrfCookies.length > 0) {
+        // Use the last (most recent) CSRF token
+        const latestCsrf = csrfCookies[csrfCookies.length - 1];
+        config.headers['X-CSRF-Token'] = latestCsrf.split('=')[1];
       }
     }
     
