@@ -123,6 +123,13 @@ class WorkflowParticipant(Base):
     role = Column(String(50), nullable=False)  # signer, approver, reviewer, etc.
     permissions = Column(JSON, nullable=True)  # Participant-specific permissions
     
+    # Signing status and data
+    status = Column(String(50), default='pending')  # pending, completed, declined
+    signed_at = Column(DateTime(timezone=True), nullable=True)  # When they signed
+    signature_data = Column(JSON, nullable=True)  # Signature data (image, coordinates, etc.)
+    ip_address = Column(String(45), nullable=True)  # IP address when signing
+    user_agent = Column(Text, nullable=True)  # User agent when signing
+    
     # Relationships
     workflow_id = Column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # Optional - may be null if user doesn't exist yet

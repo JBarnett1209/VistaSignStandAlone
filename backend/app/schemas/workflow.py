@@ -29,6 +29,11 @@ class WorkflowParticipantResponse(BaseModel):
     role: str
     user_id: Optional[str] = None
     permissions: Optional[Dict[str, Any]] = None
+    status: Optional[str] = 'pending'
+    signed_at: Optional[datetime] = None
+    signature_data: Optional[Dict[str, Any]] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     

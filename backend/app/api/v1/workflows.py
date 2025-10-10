@@ -143,6 +143,11 @@ async def list_workflows(
                         permissions=participant.permissions,
                         workflow_id=str(participant.workflow_id),
                         user_id=str(participant.user_id) if participant.user_id else None,
+                        status=participant.status,
+                        signed_at=participant.signed_at,
+                        signature_data=participant.signature_data,
+                        ip_address=participant.ip_address,
+                        user_agent=participant.user_agent,
                         created_at=participant.created_at,
                         updated_at=participant.updated_at
                     ) for participant in participants
@@ -212,6 +217,11 @@ async def get_workflow(
                     permissions=participant.permissions,
                     workflow_id=str(participant.workflow_id),
                     user_id=str(participant.user_id) if participant.user_id else None,
+                    status=participant.status,
+                    signed_at=participant.signed_at,
+                    signature_data=participant.signature_data,
+                    ip_address=participant.ip_address,
+                    user_agent=participant.user_agent,
                     created_at=participant.created_at,
                     updated_at=participant.updated_at
                 ) for participant in participants
@@ -342,6 +352,11 @@ async def add_workflow_participant(
             role=participant.role,
             user_id=str(participant.user_id) if participant.user_id else None,
             permissions=participant.permissions,
+            status=participant.status,
+            signed_at=participant.signed_at,
+            signature_data=participant.signature_data,
+            ip_address=participant.ip_address,
+            user_agent=participant.user_agent,
             created_at=participant.created_at,
             updated_at=participant.updated_at
         )
@@ -538,6 +553,218 @@ async def send_workflow(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to send workflow"
+        )
+
+@router.get("/{workflow_id}/sign/{participant_id}")
+async def get_workflow_signing_page(
+    workflow_id: str,
+    participant_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get workflow signing page for a participant (public endpoint)"""
+    try:
+        # Verify workflow and participant exist
+        workflow_result = await db.execute(
+            select(Workflow).where(Workflow.id == workflow_id)
+        )
+        workflow = workflow_result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        participant_result = await db.execute(
+            select(WorkflowParticipant).where(
+                and_(
+                    WorkflowParticipant.id == participant_id,
+                    WorkflowParticipant.workflow_id == workflow_id
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        
+        if not participant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Participant not found"
+            )
+        
+        # Get document details
+        document_result = await db.execute(
+            select(Document).where(Document.id == workflow.document_id)
+        )
+        document = document_result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Check if already signed
+        if participant.status == 'completed':
+            return {
+                "message": "Document already signed",
+                "signed_at": participant.signed_at,
+                "workflow": {
+                    "id": str(workflow.id),
+                    "name": workflow.name,
+                    "status": workflow.status.value
+                },
+                "participant": {
+                    "email": participant.email,
+                    "signing_order": participant.signingOrder,
+                    "status": participant.status
+                },
+                "document": {
+                    "id": str(document.id),
+                    "title": document.title
+                }
+            }
+        
+        return {
+            "workflow": {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "status": workflow.status.value,
+                "description": workflow.description
+            },
+            "participant": {
+                "id": str(participant.id),
+                "email": participant.email,
+                "signing_order": participant.signingOrder,
+                "status": participant.status or 'pending'
+            },
+            "document": {
+                "id": str(document.id),
+                "title": document.title,
+                "fields": document.fields or []
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get workflow signing page error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get signing page"
+        )
+
+@router.post("/{workflow_id}/sign/{participant_id}")
+async def sign_workflow_document(
+    workflow_id: str,
+    participant_id: str,
+    signature_data: dict,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Sign a workflow document (public endpoint)"""
+    try:
+        # Verify workflow and participant exist
+        workflow_result = await db.execute(
+            select(Workflow).where(Workflow.id == workflow_id)
+        )
+        workflow = workflow_result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found"
+            )
+        
+        participant_result = await db.execute(
+            select(WorkflowParticipant).where(
+                and_(
+                    WorkflowParticipant.id == participant_id,
+                    WorkflowParticipant.workflow_id == workflow_id
+                )
+            )
+        )
+        participant = participant_result.scalar_one_or_none()
+        
+        if not participant:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Participant not found"
+            )
+        
+        # Check if already signed
+        if participant.status == 'completed':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Document already signed"
+            )
+        
+        # Check if workflow is still active
+        if workflow.status != WorkflowStatus.ACTIVE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Workflow is not active"
+            )
+        
+        # Update participant status
+        participant.status = 'completed'
+        participant.signed_at = datetime.utcnow()
+        participant.signature_data = signature_data
+        participant.ip_address = request.client.host if request.client else None
+        participant.user_agent = request.headers.get('user-agent')
+        
+        await db.commit()
+        await db.refresh(participant)
+        
+        # Check if all participants have signed
+        all_participants_result = await db.execute(
+            select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
+        )
+        all_participants = all_participants_result.scalars().all()
+        
+        all_signed = all(participant.status == 'completed' for participant in all_participants)
+        
+        if all_signed:
+            # Mark workflow as completed
+            workflow.status = WorkflowStatus.COMPLETED
+            workflow.completed_at = datetime.utcnow()
+            await db.commit()
+            await db.refresh(workflow)
+            
+            logger.info(f"Workflow {workflow_id} completed - all participants signed")
+        
+        # Get document details for response
+        document_result = await db.execute(
+            select(Document).where(Document.id == workflow.document_id)
+        )
+        document = document_result.scalar_one_or_none()
+        
+        return {
+            "message": "Document signed successfully",
+            "workflow": {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "status": workflow.status.value,
+                "completed": all_signed
+            },
+            "participant": {
+                "email": participant.email,
+                "signing_order": participant.signingOrder,
+                "status": participant.status,
+                "signed_at": participant.signed_at
+            },
+            "document": {
+                "id": str(document.id) if document else None,
+                "title": document.title if document else None
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Sign workflow document error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sign document"
         )
 
 @router.put("/{workflow_id}")
