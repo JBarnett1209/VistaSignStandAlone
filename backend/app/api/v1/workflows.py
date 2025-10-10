@@ -922,7 +922,8 @@ async def sign_workflow_document(
                             status=SignatureStatus.SIGNED,
                             signature_data=field_signature.get('signature', ''),
                             signature_image=field_signature.get('image'),
-                            signature_position={"field_id": field_signature.get('fieldId')},
+                            signature_position=field_signature.get('position', {}),  # Store full field position data
+                            field_id=field_signature.get('fieldId'),  # Store field ID for reliable matching
                             signing_reason=signing_context.get('signing_reason', 'Workflow signature'),
                             signing_location=signing_context.get('signing_location', 'Online'),
                             ip_address=request.client.host if request.client else None,
@@ -976,6 +977,16 @@ async def sign_workflow_document(
                 document.status = DocumentStatus.COMPLETED
                 document.updated_at = datetime.utcnow()
                 logger.info(f"Updated document {document.id} status to COMPLETED")
+            
+            # Validate that all required fields have signatures
+            if document and hasattr(document, 'fields') and document.fields:
+                required_fields = [f for f in document.fields if f.get('required', True)]
+                signature_count = len(created_signature_ids)
+                
+                if signature_count < len(required_fields):
+                    logger.warning(f"Workflow completed but only {signature_count} signatures created for {len(required_fields)} required fields")
+                else:
+                    logger.info(f"Workflow completed with {signature_count} signatures for {len(required_fields)} required fields")
             
             await db.commit()
             await db.refresh(workflow)

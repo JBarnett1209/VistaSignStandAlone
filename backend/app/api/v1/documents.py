@@ -679,3 +679,102 @@ async def delete_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete document"
         )
+
+@router.post("/{document_id}/convert")
+async def convert_document_to_pdf(
+    document_id: str,
+    conversion_request: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Convert document to PDF for viewing"""
+    try:
+        # Get document
+        result = await db.execute(
+            select(Document).where(
+                and_(
+                    Document.id == document_id,
+                    Document.owner_id == current_user["user_id"]
+                )
+            )
+        )
+        document = result.scalar_one_or_none()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Check if file exists
+        if not document.file_path or not os.path.exists(document.file_path):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document file not found"
+            )
+        
+        # Check if conversion is needed
+        mime_type = conversion_request.get('mime_type', document.mime_type)
+        title = conversion_request.get('title', document.title or document.filename)
+        
+        if not DocumentConverter.needs_conversion(mime_type):
+            # Document doesn't need conversion, return original
+            return {
+                "success": True,
+                "converted": False,
+                "file_url": document.file_url,
+                "message": "Document does not require conversion"
+            }
+        
+        # Create converted file path
+        import tempfile
+        import shutil
+        from pathlib import Path
+        
+        # Create a unique filename for the converted PDF
+        converted_filename = f"{uuid.uuid4()}.pdf"
+        converted_path = os.path.join(tempfile.gettempdir(), converted_filename)
+        
+        # Convert document
+        success = await DocumentConverter.convert_to_pdf(
+            document.file_path,
+            converted_path,
+            mime_type,
+            title
+        )
+        
+        if success and os.path.exists(converted_path):
+            # Move converted file to permanent storage
+            upload_dir = getattr(settings, 'UPLOAD_DIR', 'uploads')
+            permanent_path = os.path.join(upload_dir, 'converted', converted_filename)
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(permanent_path), exist_ok=True)
+            
+            # Move file
+            shutil.move(converted_path, permanent_path)
+            
+            # Create URL for the converted file
+            converted_url = f"/uploads/converted/{converted_filename}"
+            
+            return {
+                "success": True,
+                "converted": True,
+                "file_url": converted_url,
+                "converted_path": permanent_path,
+                "message": "Document converted successfully"
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Document conversion failed"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error converting document: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to convert document"
+        )

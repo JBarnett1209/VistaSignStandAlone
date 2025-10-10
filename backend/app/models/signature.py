@@ -40,6 +40,7 @@ class Signature(Base):
     signature_data = Column(Text, nullable=True)  # Base64 encoded signature
     signature_image = Column(Text, nullable=True)  # Base64 encoded signature image
     signature_position = Column(JSON, nullable=True)  # Position on document
+    field_id = Column(String(255), nullable=True)  # ID of the field being signed
     
     # Digital signature properties
     certificate_data = Column(Text, nullable=True)  # Digital certificate

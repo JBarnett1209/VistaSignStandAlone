@@ -106,7 +106,8 @@ class DocumentConverter:
                 return await DocumentConverter._convert_csv_to_pdf(input_path, output_path, title)
             else:
                 logger.warning(f"Conversion not supported for MIME type: {mime_type}")
-                return False
+                # Create a placeholder PDF for unsupported types
+                return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, mime_type)
                 
         except Exception as e:
             logger.error(f"Document conversion failed: {str(e)}")
@@ -116,7 +117,13 @@ class DocumentConverter:
             logger.error(f"Title: {title}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return False
+            
+            # Create a fallback PDF with error information
+            try:
+                return await DocumentConverter._create_error_pdf(output_path, title, str(e))
+            except Exception as fallback_error:
+                logger.error(f"Failed to create error PDF: {fallback_error}")
+                return False
     
     @staticmethod
     async def _convert_docx_to_pdf(input_path: str, output_path: str, title: str) -> bool:
@@ -400,4 +407,102 @@ class DocumentConverter:
             
         except Exception as e:
             logger.error(f"CSV to PDF conversion failed: {str(e)}")
+            return False
+    
+    @staticmethod
+    async def _create_placeholder_pdf(input_path: str, output_path: str, title: str, mime_type: str) -> bool:
+        """Create a placeholder PDF for unsupported file types"""
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            
+            doc = SimpleDocTemplate(output_path, pagesize=letter)
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=30,
+                alignment=1  # Center alignment
+            )
+            story.append(Paragraph(f"Document: {title}", title_style))
+            story.append(Spacer(1, 20))
+            
+            # File information
+            info_style = ParagraphStyle(
+                'InfoStyle',
+                parent=styles['Normal'],
+                fontSize=12,
+                spaceAfter=12
+            )
+            
+            story.append(Paragraph(f"<b>File Type:</b> {mime_type}", info_style))
+            story.append(Paragraph(f"<b>Original File:</b> {os.path.basename(input_path)}", info_style))
+            story.append(Paragraph(f"<b>Status:</b> File type not supported for direct viewing", info_style))
+            story.append(Spacer(1, 20))
+            
+            # Instructions
+            story.append(Paragraph("This document type cannot be displayed directly in the viewer.", info_style))
+            story.append(Paragraph("Please download the original file to view its contents.", info_style))
+            
+            doc.build(story)
+            logger.info(f"Created placeholder PDF for unsupported type: {mime_type}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to create placeholder PDF: {str(e)}")
+            return False
+    
+    @staticmethod
+    async def _create_error_pdf(output_path: str, title: str, error_message: str) -> bool:
+        """Create an error PDF when conversion fails"""
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            
+            doc = SimpleDocTemplate(output_path, pagesize=letter)
+            styles = getSampleStyleSheet()
+            story = []
+            
+            # Title
+            title_style = ParagraphStyle(
+                'ErrorTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=30,
+                alignment=1,  # Center alignment
+                textColor=colors.red
+            )
+            story.append(Paragraph(f"Document Conversion Error", title_style))
+            story.append(Spacer(1, 20))
+            
+            # Document info
+            info_style = ParagraphStyle(
+                'InfoStyle',
+                parent=styles['Normal'],
+                fontSize=12,
+                spaceAfter=12
+            )
+            
+            story.append(Paragraph(f"<b>Document:</b> {title}", info_style))
+            story.append(Paragraph(f"<b>Error:</b> {error_message}", info_style))
+            story.append(Spacer(1, 20))
+            
+            # Instructions
+            story.append(Paragraph("The document could not be converted for viewing.", info_style))
+            story.append(Paragraph("Please contact support or try uploading a different file format.", info_style))
+            
+            doc.build(story)
+            logger.info(f"Created error PDF for failed conversion: {title}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to create error PDF: {str(e)}")
             return False

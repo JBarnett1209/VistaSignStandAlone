@@ -23,6 +23,13 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { 
+  calculatePdfOffset, 
+  fieldToScreenCoords, 
+  findSignatureForField,
+  isFieldSigned,
+  PDF_CONFIG
+} from '../utils/pdfCoordinates';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -136,18 +143,26 @@ const UniversalDocumentViewer = ({
   const renderSignatureField = (field, pageNum) => {
     if (!showSignatureStatus || !field) return null;
 
-    const isSigned = signatures.some(sig => 
-      sig.document_id === document?.id && 
-      sig.signature_position && 
-      JSON.stringify(sig.signature_position) === JSON.stringify(field)
+    // Use centralized signature checking with improved field matching
+    const isSigned = isFieldSigned(field, signatures, document?.id);
+    const signature = findSignatureForField(field, signatures, document?.id);
+
+    // Calculate PDF offset for this viewer
+    const pdfOffset = calculatePdfOffset(
+      document.querySelector('.pdf-container') || document.body,
+      PDF_CONFIG.STANDARD_WIDTH,
+      zoom
     );
+
+    // Convert field coordinates to screen coordinates
+    const screenCoords = fieldToScreenCoords(field, pdfOffset, zoom);
 
     const fieldStyle = {
       position: 'absolute',
-      left: `${field.x || 0}px`,
-      top: `${field.y || 0}px`,
-      width: `${field.width || 150}px`,
-      height: `${field.height || 50}px`,
+      left: `${screenCoords.x}px`,
+      top: `${screenCoords.y}px`,
+      width: `${screenCoords.width}px`,
+      height: `${screenCoords.height}px`,
       border: isSigned ? '2px solid #4caf50' : '2px dashed #ff9800',
       backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : 'rgba(255, 152, 0, 0.1)',
       borderRadius: '4px',

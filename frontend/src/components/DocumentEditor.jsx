@@ -48,6 +48,15 @@ import SignatureCreator from './SignatureCreator';
 import UniversalDocumentViewer from './UniversalDocumentViewer';
 import WorkflowEditor from './WorkflowEditor';
 import { documentsAPI, signaturesAPI } from '../services/api';
+import { 
+  calculatePdfOffset, 
+  fieldToScreenCoords, 
+  screenToFieldCoords, 
+  generateFieldId, 
+  normalizeField,
+  validateFieldCoords,
+  PDF_CONFIG
+} from '../utils/pdfCoordinates';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
@@ -210,16 +219,11 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     setSnackbarOpen(false);
   };
 
-  // Calculate PDF offset relative to container
-  const calculatePdfOffset = () => {
+  // Calculate PDF offset using centralized system
+  const updatePdfOffset = () => {
     if (pdfContainerRef.current) {
-      const containerRect = pdfContainerRef.current.getBoundingClientRect();
-      // The PDF is centered in the container, so calculate the offset
-      const pdfWidth = 800; // Fixed width we're using
-      const containerWidth = containerRect.width;
-      const offsetX = (containerWidth - pdfWidth) / 2 + 7; // Add 7px adjustment for better positioning
-      
-      setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF starts at top
+      const offset = calculatePdfOffset(pdfContainerRef.current, PDF_CONFIG.STANDARD_WIDTH, scale);
+      setPdfOffset(offset);
     }
   };
 
@@ -239,15 +243,14 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     loadSignatureTemplates();
   }, [document]);
 
-  // Calculate PDF offset when component mounts and window resizes
+  // Calculate PDF offset when component mounts, window resizes, or scale changes
   useEffect(() => {
-    // Add a small delay to ensure the PDF is rendered before calculating offset
     const timer = setTimeout(() => {
-      calculatePdfOffset();
+      updatePdfOffset();
     }, 100);
     
     const handleResize = () => {
-      calculatePdfOffset();
+      updatePdfOffset();
     };
     
     window.addEventListener('resize', handleResize);
@@ -255,13 +258,13 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       clearTimeout(timer);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [scale]);
 
-  // Also recalculate offset when document changes
+  // Recalculate offset when document changes
   useEffect(() => {
     if (document) {
       const timer = setTimeout(() => {
-        calculatePdfOffset();
+        updatePdfOffset();
       }, 200);
       return () => clearTimeout(timer);
     }
@@ -306,8 +309,15 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     if (!dragField) return;
 
     const rect = containerRef.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const screenX = event.clientX - rect.left;
+    const screenY = event.clientY - rect.top;
+
+    // Convert screen coordinates to document coordinates
+    const docCoords = screenToFieldCoords(
+      { x: screenX, y: screenY, width: 0, height: 0 },
+      pdfOffset,
+      scale
+    );
 
     const defaultValueByType = (type) => {
       switch (type) {
@@ -327,14 +337,12 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const maxSigningOrder = Math.max(0, ...fields.map(f => f.signingOrder || 0));
     const nextSigningOrder = maxSigningOrder + 1;
 
-    // Store coordinates as-is (relative to PDF container)
-    // Both editor and public signing will add the same PDF offset when rendering
-    // This ensures consistent positioning across all document formats and interfaces
-    const newField = {
-      id: Date.now().toString(),
+    // Create field with normalized coordinates
+    const newField = normalizeField({
+      id: generateFieldId(),
       type: dragField,
-      x: x,  // Store raw coordinates - both components will add PDF offset when rendering
-      y: y,  // Store raw coordinates - both components will add PDF offset when rendering
+      x: docCoords.x,
+      y: docCoords.y,
       page: pageNumber,
       width: FIELD_TYPE_CONFIG[dragField].width,
       height: FIELD_TYPE_CONFIG[dragField].height,
@@ -347,7 +355,7 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       groupName: dragField === FIELD_TYPES.RADIO ? 'Group 1' : undefined,
       allowedFileTypes: dragField === FIELD_TYPES.ATTACHMENT ? '' : undefined,
       maxFileSizeMb: dragField === FIELD_TYPES.ATTACHMENT ? 10 : undefined
-    };
+    });
     
     setFields(prev => {
       const updatedFields = [...prev, newField];
@@ -406,9 +414,17 @@ export default function DocumentEditor({ document, onClose, onSave }) {
       setHasDragged(true);
     }
     
+    // Convert screen delta to document coordinates
+    const docDeltaX = deltaX / scale;
+    const docDeltaY = deltaY / scale;
+    
     setFields(prev => prev.map(field => 
       field.id === selectedField 
-        ? { ...field, x: Math.max(0, fieldStartPos.x + deltaX), y: Math.max(0, fieldStartPos.y + deltaY) }
+        ? { 
+            ...field, 
+            x: Math.max(0, fieldStartPos.x + docDeltaX), 
+            y: Math.max(0, fieldStartPos.y + docDeltaY) 
+          }
         : field
     ));
   };
@@ -716,7 +732,14 @@ export default function DocumentEditor({ document, onClose, onSave }) {
     const config = FIELD_TYPE_CONFIG[field.type];
     const isSelected = selectedField === field.id;
     
-    // Use calculated PDF offset to position fields correctly
+    // Validate field coordinates
+    if (!validateFieldCoords(field)) {
+      console.warn('Invalid field coordinates:', field);
+      return null;
+    }
+    
+    // Convert field coordinates to screen coordinates
+    const screenCoords = fieldToScreenCoords(field, pdfOffset, scale);
     
     return (
       <Box
@@ -732,10 +755,10 @@ export default function DocumentEditor({ document, onClose, onSave }) {
         }}
         sx={{
           position: 'absolute',
-          left: field.x + pdfOffset.x,
-          top: field.y + pdfOffset.y,
-          width: field.width,
-          height: field.height,
+          left: screenCoords.x,
+          top: screenCoords.y,
+          width: screenCoords.width,
+          height: screenCoords.height,
           border: `2px solid ${isSelected ? '#1976d2' : config.color}`,
           borderRadius: 1,
           backgroundColor: field.value && field.value !== '' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(255, 255, 255, 0.9)',

@@ -3,7 +3,7 @@
  * Converts various document types to PDF for viewing and editing
  */
 
-import { documentsAPI } from './api';
+import api from './api';
 
 class DocumentConversionService {
   constructor() {
@@ -54,26 +54,49 @@ class DocumentConversionService {
         return this.conversionCache.get(cacheKey);
       }
 
+      // Check if document needs conversion
+      if (!this.needsConversion(document.mime_type, document.filename)) {
+        // Document is already a PDF or doesn't need conversion
+        return document;
+      }
 
-      // For now, we'll create a placeholder PDF conversion
-      // In a real implementation, this would call a backend service
-      const convertedDocument = {
-        ...document,
-        id: documentId,
-        mime_type: 'application/pdf',
-        filename: document.filename.replace(/\.[^/.]+$/, '.pdf'),
-        file_url: document.file_url, // In real implementation, this would be the converted PDF URL
-        converted: true,
-        original_type: document.mime_type
-      };
+      // Call backend conversion service
+      const response = await api.post(`/api/v1/documents/${documentId}/convert`, {
+        mime_type: document.mime_type,
+        title: document.title || document.filename
+      });
 
-      // Cache the result
-      this.conversionCache.set(cacheKey, convertedDocument);
+      if (response.data && response.data.success) {
+        const convertedDocument = {
+          ...document,
+          id: documentId,
+          mime_type: 'application/pdf',
+          filename: document.filename.replace(/\.[^/.]+$/, '.pdf'),
+          file_url: response.data.converted_url || response.data.file_url,
+          converted: true,
+          original_type: document.mime_type,
+          conversion_status: 'success'
+        };
 
-      return convertedDocument;
+        // Cache the result
+        this.conversionCache.set(cacheKey, convertedDocument);
+        return convertedDocument;
+      } else {
+        throw new Error(response.data?.error || 'Conversion failed');
+      }
     } catch (error) {
       console.error('Document conversion failed:', error);
-      throw new Error(`Failed to convert document: ${error.message}`);
+      
+      // Return original document with error status
+      const errorDocument = {
+        ...document,
+        id: documentId,
+        converted: false,
+        conversion_status: 'error',
+        conversion_error: error.message
+      };
+      
+      return errorDocument;
     }
   }
 

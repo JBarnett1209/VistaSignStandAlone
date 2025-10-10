@@ -156,17 +156,25 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/api/v1/auth/login', { email, password });
       const { access_token, user: userData } = response.data;
+      
       if (typeof window !== 'undefined') {
         window.__vstAccessToken = access_token;
       }
+      
       if (process.env.NODE_ENV === 'development') {
         console.log('AuthContext: Login successful, setting user:', userData);
       }
+      
       setUser(userData);
-      // Add a small delay before allowing auth-failed events to prevent race conditions
+      
+      // Add a longer delay before allowing auth-failed events to prevent race conditions
+      // This ensures the login process is fully complete before the session check runs
       setTimeout(() => {
         setIsLoggingIn(false);
-      }, 2000);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Login process completed, auth-failed events now allowed');
+        }
+      }, 3000); // Increased from 2000 to 3000ms
     } catch (error) {
       setIsLoggingIn(false);
       throw error;
@@ -225,7 +233,7 @@ export const AuthProvider = ({ children }) => {
       if (!cancelled) {
         checkSession();
       }
-    }, 3000); // 3 second delay
+    }, 5000); // Increased to 5 second delay to avoid race conditions
     
     const intervalId = setInterval(checkSession, 30000); // 30s
 

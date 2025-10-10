@@ -27,6 +27,15 @@ import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
 import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
+import { 
+  calculatePdfOffset, 
+  fieldToScreenCoords, 
+  findSignatureForField,
+  isFieldSigned,
+  PDF_CONFIG
+} from '../utils/pdfCoordinates';
+import { handleError, ERROR_TYPES } from '../utils/errorHandler';
+import LoadingErrorState from '../components/LoadingErrorState';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -56,32 +65,26 @@ export default function PublicSigning() {
     loadSigningData();
   }, [workflowId, participantId]);
 
-  // Calculate PDF offset relative to container (same as Document Editor)
-  const calculatePdfOffset = () => {
+  // Calculate PDF offset using centralized system
+  const updatePdfOffset = () => {
     if (pdfContainerRef.current) {
-      const containerRect = pdfContainerRef.current.getBoundingClientRect();
-      // The PDF is centered in the container, so calculate the offset
-      const pdfWidth = 800; // Fixed width we're using
-      const containerWidth = containerRect.width;
-      const offsetX = (containerWidth - pdfWidth) / 2 + 7; // Add 7px adjustment for better positioning
-      
-      
-      setPdfOffset({ x: offsetX, y: 0 }); // Y offset is 0 since PDF is at top
+      const offset = calculatePdfOffset(pdfContainerRef.current, PDF_CONFIG.STANDARD_WIDTH, 1.0);
+      setPdfOffset(offset);
     }
   };
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
     // Calculate PDF offset after document loads
-    setTimeout(calculatePdfOffset, 100);
+    setTimeout(updatePdfOffset, 100);
   };
 
   // Calculate PDF offset on mount and window resize
   useEffect(() => {
-    calculatePdfOffset();
+    updatePdfOffset();
     
     const handleResize = () => {
-      setTimeout(calculatePdfOffset, 100);
+      setTimeout(updatePdfOffset, 100);
     };
     
     window.addEventListener('resize', handleResize);
@@ -126,13 +129,12 @@ export default function PublicSigning() {
       }
     } catch (err) {
       console.error('Error loading signing data:', err);
-      if (err.response?.status === 404) {
-        setError('Signing link not found or expired.');
-      } else if (err.response?.status === 400) {
-        setError('This document has already been signed or is no longer available.');
-      } else {
-        setError('Failed to load document. Please try again later.');
-      }
+      const handledError = handleError(err, { 
+        workflowId, 
+        participantId, 
+        action: 'loadSigningData' 
+      });
+      setError(handledError.userMessage);
     } finally {
       setLoading(false);
     }
@@ -297,18 +299,37 @@ export default function PublicSigning() {
 
   const submitAllSignatures = async () => {
     try {
+      setSigningField(true);
+      setError(null);
+      
       const participantSigningOrder = workflowData?.participant?.signing_order || 1;
       const requiredFields = workflowData?.document?.fields?.filter(f => f.signingOrder === participantSigningOrder) || [];
       
-      const signatureData = requiredFields.map(field => ({
-        fieldId: field.id,
-        signature: signedFields[field.id]?.signature || '',
-        timestamp: signedFields[field.id]?.timestamp || new Date().toISOString(),
-        type: signedFields[field.id]?.type || 'typed',
-        text: signedFields[field.id]?.text || signedFields[field.id]?.signature,
-        image: signedFields[field.id]?.image,
-        signatureType: signedFields[field.id]?.signatureType || 'Typed Signature'
-      }));
+      // Validate that all required fields are signed
+      const unsignedFields = requiredFields.filter(field => !signedFields[field.id]);
+      if (unsignedFields.length > 0) {
+        setError(`Please sign all required fields before submitting. ${unsignedFields.length} field(s) remaining.`);
+        setSigningField(false);
+        return;
+      }
+      
+      const signatureData = requiredFields.map(field => {
+        const fieldSignature = signedFields[field.id];
+        if (!fieldSignature) {
+          throw new Error(`No signature data found for field ${field.id}`);
+        }
+        
+        return {
+          fieldId: field.id,
+          signature: fieldSignature.signature || '',
+          timestamp: fieldSignature.timestamp || new Date().toISOString(),
+          type: fieldSignature.type || 'typed',
+          text: fieldSignature.text || fieldSignature.signature,
+          image: fieldSignature.image,
+          signatureType: fieldSignature.signatureType || 'Typed Signature',
+          position: field // Include full field position data for reliable matching
+        };
+      });
 
       const response = await api.post(`/api/v1/workflows/${workflowId}/sign/${participantId}`, {
         signature_data: {
@@ -319,6 +340,11 @@ export default function PublicSigning() {
           ...consentData
         }
       });
+
+      // Validate response
+      if (!response.data) {
+        throw new Error('No response data received from server');
+      }
 
 
       // Update workflow data with response from backend
@@ -373,17 +399,19 @@ export default function PublicSigning() {
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
 
+    // Convert field coordinates to screen coordinates
+    const screenCoords = fieldToScreenCoords(field, pdfOffset, 1.0);
+
     return (
       <Box
         key={field.id}
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          // Use PDF offset calculation (same as Document Editor)
-          left: field.x + pdfOffset.x,
-          top: field.y + pdfOffset.y,
-          width: `${field.width}px`,
-          height: `${field.height}px`,
+          left: `${screenCoords.x}px`,
+          top: `${screenCoords.y}px`,
+          width: `${screenCoords.width}px`,
+          height: `${screenCoords.height}px`,
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
           backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : isClickable ? 'rgba(123, 92, 255, 0.1)' : 'rgba(204, 204, 204, 0.1)',
           borderRadius: '4px',
@@ -611,6 +639,22 @@ export default function PublicSigning() {
   }
 
   const isCompleted = workflowData?.participant?.status === 'completed';
+
+  // Show loading or error state
+  if (loading || error) {
+    return (
+      <LoadingErrorState
+        loading={loading}
+        error={error}
+        onRetry={() => {
+          setError(null);
+          loadSigningData();
+        }}
+        loadingMessage="Loading document for signing..."
+        fullHeight={true}
+      />
+    );
+  }
 
   return (
     <Box sx={{ 
