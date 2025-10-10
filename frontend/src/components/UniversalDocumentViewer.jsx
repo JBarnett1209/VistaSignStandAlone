@@ -164,35 +164,12 @@ const UniversalDocumentViewer = ({
         }
       >
         {numPages && (
-          <>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage <= 1}
-              >
-                Previous
-              </Button>
-              <Typography variant="body2">
-                Page {currentPage} of {numPages}
-              </Typography>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setCurrentPage(Math.min(numPages, currentPage + 1))}
-                disabled={currentPage >= numPages}
-              >
-                Next
-              </Button>
-            </Box>
-            <Page
-              pageNumber={currentPage}
-              scale={zoom}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </>
+          <Page
+            pageNumber={currentPage}
+            scale={zoom}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+          />
         )}
       </Document>
     </Box>
