@@ -791,6 +791,43 @@ async def sign_workflow_document(
         participant.ip_address = request.client.host if request.client else None
         participant.user_agent = request.headers.get('user-agent')
         
+        # Create individual signature records for each field signed (for admin tracking)
+        created_signature_ids = []
+        if signature_data.get('fields') and isinstance(signature_data['fields'], list):
+            from app.models.signature import Signature, SignatureType, SignatureStatus
+            
+            for field_signature in signature_data['fields']:
+                if field_signature.get('fieldId') and field_signature.get('signature'):
+                    # Create signature record for admin tracking
+                    signature_record = Signature(
+                        document_id=workflow.document_id,
+                        signer_id=str(participant.id),  # Use participant ID as signer
+                        signature_type=SignatureType.ELECTRONIC,
+                        status=SignatureStatus.SIGNED,
+                        signature_data=field_signature.get('signature', ''),
+                        signature_image=field_signature.get('image'),
+                        signature_position={"field_id": field_signature.get('fieldId')},
+                        signing_reason=signing_context.get('signing_reason', 'Workflow signature'),
+                        signing_location=signing_context.get('signing_location', 'Online'),
+                        ip_address=request.client.host if request.client else None,
+                        user_agent=request.headers.get('user-agent'),
+                        signed_at=datetime.utcnow(),
+                        # Digital signature fields
+                        digital_signature=legal_signature_metadata.get("digital_signature") if legal_signature_metadata else None,
+                        document_hash=legal_signature_metadata.get("document_hash") if legal_signature_metadata else None,
+                        certificate_thumbprint=legal_signature_metadata.get("certificate_thumbprint") if legal_signature_metadata else None,
+                        signature_metadata=legal_signature_metadata,
+                        verification_status="verified" if legal_signature_metadata else "pending",
+                        signature_level="advanced" if legal_signature_metadata else "simple",
+                        is_legally_binding=legal_signature_metadata.get("is_legally_binding", True) if legal_signature_metadata else False,
+                        compliance_standard=legal_signature_metadata.get("compliance_standard", "ESIGN_UETA") if legal_signature_metadata else "ESIGN",
+                        certificate_chain=legal_signature_metadata.get("certificate_chain", []) if legal_signature_metadata else None,
+                        timestamp_data=legal_signature_metadata.get("timestamp_data", {}) if legal_signature_metadata else None,
+                        legal_metadata=legal_signature_metadata.get("legal_metadata", {}) if legal_signature_metadata else None
+                    )
+                    db.add(signature_record)
+                    created_signature_ids.append(str(signature_record.id))
+        
         await db.commit()
         await db.refresh(participant)
         
@@ -834,6 +871,12 @@ async def sign_workflow_document(
             "document": {
                 "id": str(document.id) if document else None,
                 "title": document.title if document else None
+            },
+            "signatures": {
+                "created_signature_ids": created_signature_ids,
+                "digital_signature": legal_signature_metadata.get("digital_signature") if legal_signature_metadata else None,
+                "document_hash": legal_signature_metadata.get("document_hash") if legal_signature_metadata else None,
+                "certificate_thumbprint": legal_signature_metadata.get("certificate_thumbprint") if legal_signature_metadata else None
             }
         }
         

@@ -264,9 +264,10 @@ export default function PublicSigning() {
           updatedSignedFields[field.id] = {
             ...updatedSignedFields[field.id],
             // Add digital signature metadata if available in response
-            digitalSignature: response.data.digital_signature,
-            documentHash: response.data.document_hash,
-            certificateThumbprint: response.data.certificate_thumbprint
+            digitalSignature: response.data.signatures?.digital_signature,
+            documentHash: response.data.signatures?.document_hash,
+            certificateThumbprint: response.data.signatures?.certificate_thumbprint,
+            signatureIds: response.data.signatures?.created_signature_ids
           };
         }
       });
