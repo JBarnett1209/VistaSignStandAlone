@@ -19,7 +19,6 @@ import {
   Edit as EditIcon,
   TextFields as TypeIcon,
   Gesture as DrawIcon,
-  CheckCircle as AdoptIcon
 } from '@mui/icons-material';
 
 const SignatureCapture = ({ 
@@ -32,7 +31,6 @@ const SignatureCapture = ({
   const [activeTab, setActiveTab] = useState(0);
   const [typedSignature, setTypedSignature] = useState('');
   const [drawnSignature, setDrawnSignature] = useState('');
-  const [adoptedSignature, setAdoptedSignature] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
   const [error, setError] = useState('');
   
@@ -140,20 +138,6 @@ const SignatureCapture = ({
         signatureType = 'Drawn Signature';
         break;
         
-      case 2: // Adopt
-        if (!adoptedSignature.trim()) {
-          setError('Please enter your name to adopt');
-          return;
-        }
-        signatureData = {
-          type: 'adopted',
-          text: adoptedSignature.trim(),
-          font: 'cursive',
-          size: 18,
-          adopted: true
-        };
-        signatureType = 'Adopted Signature';
-        break;
         
       default:
         setError('Please select a signature method');
@@ -173,7 +157,6 @@ const SignatureCapture = ({
     switch (activeTab) {
       case 0: return typedSignature;
       case 1: return drawnSignature;
-      case 2: return adoptedSignature;
       default: return '';
     }
   };
@@ -225,11 +208,6 @@ const SignatureCapture = ({
           <Tab 
             icon={<DrawIcon />} 
             label="Draw" 
-            iconPosition="start"
-          />
-          <Tab 
-            icon={<AdoptIcon />} 
-            label="Adopt" 
             iconPosition="start"
           />
         </Tabs>
@@ -340,51 +318,6 @@ const SignatureCapture = ({
           </Box>
         )}
 
-        {/* Adopt Signature */}
-        {activeTab === 2 && (
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Enter your name to adopt this signature (legally binding):
-            </Typography>
-            <TextField
-              fullWidth
-              value={adoptedSignature}
-              onChange={(e) => setAdoptedSignature(e.target.value)}
-              placeholder="Enter your full name"
-              variant="outlined"
-              sx={{ 
-                '& .MuiInputBase-input': { 
-                  fontFamily: 'cursive',
-                  fontSize: '20px',
-                  textAlign: 'center'
-                }
-              }}
-            />
-            {adoptedSignature && (
-              <Box sx={{ 
-                mt: 2, 
-                p: 2, 
-                border: '2px solid #4CAF50', 
-                borderRadius: 1,
-                backgroundColor: '#e8f5e8',
-                textAlign: 'center'
-              }}>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    fontFamily: 'cursive',
-                    color: '#2E7D32'
-                  }}
-                >
-                  {adoptedSignature}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Adopted Signature (Legally Binding)
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        )}
       </DialogContent>
 
       <DialogActions sx={{ p: 3 }}>
