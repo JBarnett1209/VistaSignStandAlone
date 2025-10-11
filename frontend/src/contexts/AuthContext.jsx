@@ -210,15 +210,11 @@ export const AuthProvider = ({ children }) => {
       
       if (typeof window !== 'undefined') {
         window.__vstAccessToken = access_token;
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Access token set:', access_token ? 'Present' : 'Missing');
-        }
+        console.log('AuthContext: Access token set:', access_token ? 'Present' : 'Missing');
       }
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('AuthContext: Login successful, setting user:', userData);
-        console.log('AuthContext: Current user state before setUser:', user);
-      }
+      console.log('AuthContext: Login successful, setting user:', userData);
+      console.log('AuthContext: Current user state before setUser:', user);
       
       setUser(userData);
       
@@ -226,14 +222,10 @@ export const AuthProvider = ({ children }) => {
       // The session check will handle any subsequent auth issues
       setIsLoggingIn(false);
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('AuthContext: Login process completed, user should be set');
-      }
+      console.log('AuthContext: Login process completed, user should be set');
     } catch (error) {
       setIsLoggingIn(false);
-      if (process.env.NODE_ENV === 'development') {
-        console.log('AuthContext: Login failed:', error);
-      }
+      console.log('AuthContext: Login failed:', error);
       throw error;
     }
   };
@@ -267,24 +259,18 @@ export const AuthProvider = ({ children }) => {
     let cancelled = false;
     const checkSession = async () => {
       try {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Checking session validity...');
-          console.log('AuthContext: Current access token:', window.__vstAccessToken ? 'Present' : 'Missing');
-        }
+        console.log('AuthContext: Checking session validity...');
+        console.log('AuthContext: Current access token:', window.__vstAccessToken ? 'Present' : 'Missing');
         const response = await api.get('/api/v1/auth/me');
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Session check successful:', response.data);
-        }
+        console.log('AuthContext: Session check successful:', response.data);
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Session check failed:', e);
-          console.log('AuthContext: Error details:', {
-            status: e.response?.status,
-            statusText: e.response?.statusText,
-            data: e.response?.data,
-            message: e.message
-          });
-        }
+        console.log('AuthContext: Session check failed:', e);
+        console.log('AuthContext: Error details:', {
+          status: e.response?.status,
+          statusText: e.response?.statusText,
+          data: e.response?.data,
+          message: e.message
+        });
         // On any auth failure (e.g., 401 due to deactivation), immediately logout
         if (!cancelled) {
           await logout();
