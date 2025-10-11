@@ -107,17 +107,21 @@ class AuthManager {
     try {
       console.log('AuthManager: Attempting to restore session...');
       
-      // Get CSRF token first
-      await this.getCsrfToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add CSRF token if available from cookie
+      const csrfToken = this.getCsrfTokenFromCookie();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
       
       // Try to refresh the access token
       const response = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': this.getCsrfTokenFromCookie()
-        }
+        headers
       });
 
       if (!response.ok) {
@@ -140,17 +144,28 @@ class AuthManager {
   }
 
   /**
-   * Get CSRF token
+   * Get CSRF token from server (only when needed)
    */
   async getCsrfToken() {
     try {
       const response = await fetch('/api/v1/auth/csrf', {
-        credentials: 'include'
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
       });
+      
+      if (!response.ok) {
+        console.warn('AuthManager: CSRF endpoint returned non-OK status:', response.status);
+        return null;
+      }
+      
       const data = await response.json();
       return data.csrf;
     } catch (error) {
-      console.error('AuthManager: Failed to get CSRF token:', error);
+      console.warn('AuthManager: Failed to get CSRF token:', error.message);
       return null;
     }
   }
@@ -195,16 +210,31 @@ class AuthManager {
     try {
       console.log('AuthManager: Starting login...');
       
-      // Get CSRF token first
-      await this.getCsrfToken();
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Check if we have a CSRF token in cookie
+      const cookieCsrfToken = this.getCsrfTokenFromCookie();
+      if (cookieCsrfToken) {
+        headers['X-CSRF-Token'] = cookieCsrfToken;
+        console.log('AuthManager: Using CSRF token from cookie');
+      } else {
+        // Try to get CSRF token from server only if we don't have one
+        console.log('AuthManager: No CSRF token in cookie, fetching from server...');
+        const serverCsrfToken = await this.getCsrfToken();
+        if (serverCsrfToken) {
+          headers['X-CSRF-Token'] = serverCsrfToken;
+          console.log('AuthManager: Using CSRF token from server');
+        } else {
+          console.log('AuthManager: No CSRF token available, proceeding without it');
+        }
+      }
       
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': this.getCsrfTokenFromCookie()
-        },
+        headers,
         body: JSON.stringify({ email, password })
       });
 
@@ -273,14 +303,21 @@ class AuthManager {
         if (!response.ok) {
           console.log('AuthManager: Session invalid, attempting refresh...');
           
-          // Try to refresh the token
+      // Try to refresh the token
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Only add CSRF token if we have one in cookie
+      const csrfToken = this.getCsrfTokenFromCookie();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+          
           const refreshResponse = await fetch('/api/v1/auth/refresh', {
             method: 'POST',
             credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': this.getCsrfTokenFromCookie()
-            }
+            headers
           });
 
           if (!refreshResponse.ok) {

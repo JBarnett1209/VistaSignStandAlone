@@ -6,11 +6,16 @@
 import axios from 'axios';
 import authManager from './authManager';
 
-// Create axios instance
+// Create axios instance with proper protocol handling
 const api = axios.create({
-  baseURL: '',
+  baseURL: process.env.REACT_APP_API_URL || '', // Use env var if available, otherwise relative URLs
   timeout: 30000,
   withCredentials: true,
+  // Ensure we use the same protocol as the current page
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  }
 });
 
 // Request interceptor to add auth token
@@ -126,7 +131,16 @@ export const signaturesAPI = {
     create: (data) => api.post('/api/v1/signatures/templates', data),
     update: (id, data) => api.put(`/api/v1/signatures/templates/${id}`, data),
     delete: (id) => api.delete(`/api/v1/signatures/templates/${id}`)
-  }
+  },
+  admin: {
+    listAll: (params = {}) => api.get('/api/v1/signatures/admin', { params }),
+    get: (id) => api.get(`/api/v1/signatures/admin/${id}`),
+    update: (id, data) => api.put(`/api/v1/signatures/admin/${id}`, data),
+    delete: (id) => api.delete(`/api/v1/signatures/admin/${id}`),
+    restore: (id) => api.post(`/api/v1/signatures/admin/${id}/restore`)
+  },
+  // Backward compatibility
+  adminListAll: (params = {}) => api.get('/api/v1/signatures/admin', { params })
 };
 
 export const workflowsAPI = {
