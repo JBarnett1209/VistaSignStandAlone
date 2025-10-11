@@ -13,6 +13,9 @@ def _apply_development_cookie_settings(cookie_kwargs: dict) -> dict:
     if settings.ENVIRONMENT == "development":
         cookie_kwargs["samesite"] = "lax"
         cookie_kwargs["secure"] = False
+        # Don't set domain in development to allow localhost
+        if "domain" in cookie_kwargs:
+            del cookie_kwargs["domain"]
     return cookie_kwargs
 
 
@@ -42,6 +45,11 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
         cookie_kwargs["samesite"] = "lax"
     else:
         cookie_kwargs["secure"] = False
+        cookie_kwargs["samesite"] = "lax"
+    
+    # Ensure cookies work across subdomains and are persistent
+    if settings.ENVIRONMENT != "development":
+        # In production, use more permissive settings for better session persistence
         cookie_kwargs["samesite"] = "lax"
     
     # Apply development-friendly settings if needed
@@ -82,6 +90,11 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
         cookie_kwargs["samesite"] = "lax"
     else:
         cookie_kwargs["secure"] = False
+        cookie_kwargs["samesite"] = "lax"
+    
+    # Ensure cookies work across subdomains and are persistent
+    if settings.ENVIRONMENT != "development":
+        # In production, use more permissive settings for better session persistence
         cookie_kwargs["samesite"] = "lax"
     
     # Apply development-friendly settings if needed

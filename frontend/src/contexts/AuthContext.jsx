@@ -61,7 +61,12 @@ export const AuthProvider = ({ children }) => {
           return false;
         }
       })();
+      
+      // If no refresh token, set loading to false and user to null
       if (!hasRefresh) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: No refresh token found, setting user to null');
+        }
         setUser(null);
         setLoading(false);
         return;
@@ -100,10 +105,20 @@ export const AuthProvider = ({ children }) => {
         // If it's a network error or server error, retry with exponential backoff
         if ((e.code === 'NETWORK_ERROR' || e.response?.status >= 500) && retryCount < maxRetries) {
           const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`AuthContext: Retrying refresh in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`);
+          }
           setTimeout(() => {
             attemptRefresh(retryCount + 1);
           }, delay);
           return;
+        }
+        
+        // If it's a 401 (unauthorized), the refresh token is invalid - don't retry
+        if (e.response?.status === 401) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('AuthContext: Refresh token invalid (401), not retrying');
+          }
         }
         
         setLoading(false);
@@ -111,7 +126,13 @@ export const AuthProvider = ({ children }) => {
     };
     
     // Add a small delay to ensure cookies are fully loaded, then attempt refresh
-    const timeoutId = setTimeout(() => attemptRefresh(), 200);
+    // Use a longer delay to ensure the page is fully loaded and cookies are available
+    const timeoutId = setTimeout(() => {
+      // Double-check that we're not already logged in (prevents race conditions)
+      if (!user && !isLoggingIn) {
+        attemptRefresh();
+      }
+    }, 500);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
@@ -132,13 +153,34 @@ export const AuthProvider = ({ children }) => {
       window.addEventListener('auth-failed', handleAuthFailed);
     }
     
+    // Add window focus listener to restore session when user returns to tab
+    const handleWindowFocus = () => {
+      // Only attempt refresh if we don't have a user and we're not currently logging in
+      if (!user && !isLoggingIn && !loading) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Window focused, checking for session restoration');
+        }
+        // Small delay to ensure the page is fully focused
+        setTimeout(() => {
+          if (!user && !isLoggingIn) {
+            attemptRefresh();
+          }
+        }, 100);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleWindowFocus);
+    }
+
     return () => {
       clearTimeout(timeoutId);
       if (typeof window !== 'undefined') {
         window.removeEventListener('auth-failed', handleAuthFailed);
+        window.removeEventListener('focus', handleWindowFocus);
       }
     };
-  }, []);
+  }, [user, isLoggingIn, loading]); // Add dependencies to prevent stale closures
 
   const login = async (email, password) => {
     if (process.env.NODE_ENV === 'development') {
