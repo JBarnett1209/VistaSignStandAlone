@@ -256,6 +256,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
+    console.log('AuthContext: Setting up session check useEffect, user:', user?.email, 'isLoggingIn:', isLoggingIn);
     let cancelled = false;
     const checkSession = async () => {
       try {
@@ -281,18 +282,16 @@ export const AuthProvider = ({ children }) => {
     // Add a longer delay before the first check to avoid race conditions with login
     // This gives the login process time to fully complete
     const initialCheckTimeout = setTimeout(() => {
-      if (!cancelled && !isLoggingIn) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Starting initial session check...');
-        }
+      if (!cancelled) {
+        console.log('AuthContext: Starting initial session check...');
         checkSession();
-      } else if (process.env.NODE_ENV === 'development') {
-        console.log('AuthContext: Skipping initial session check - login in progress or cancelled');
+      } else {
+        console.log('AuthContext: Skipping initial session check - cancelled');
       }
     }, 5000); // Increased to 5 seconds to avoid race conditions
     
     const intervalId = setInterval(() => {
-      if (!cancelled && !isLoggingIn) {
+      if (!cancelled) {
         checkSession();
       }
     }, 30000); // 30s
