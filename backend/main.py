@@ -104,6 +104,8 @@ async def csrf_protect(request: Request, call_next):
     # Auth endpoints, file upload, and public signing endpoints
     if path in [
         "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/logout",
         "/api/v1/auth/csrf",
         "/api/v1/auth/refresh",
         "/api/v1/documents/upload",
