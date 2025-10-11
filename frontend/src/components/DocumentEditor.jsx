@@ -43,9 +43,8 @@ import {
   Send as SendIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
-import { pdfjs } from 'react-pdf';
+import { Document, Page, pdfjs } from 'react-pdf';
 import SignatureCreator from './SignatureCreator';
-import UniversalDocumentViewer from './UniversalDocumentViewer';
 import WorkflowEditor from './WorkflowEditor';
 import { documentsAPI, signaturesAPI } from '../services/api';
 import { 
@@ -1194,27 +1193,38 @@ export default function DocumentEditor({ document, onClose, onSave }) {
           }}
           >
             
-            <UniversalDocumentViewer
-              document={document}
-              zoom={scale}
-              onZoomChange={setScale}
-              onLoadSuccess={(payload) => {
-                onDocumentLoadSuccess(payload);
-                // Recalculate PDF offset after document loads
-                setTimeout(() => {
-                  updatePdfOffset();
-                }, 300);
-              }}
-              onLoadError={(error) => {
-                console.error('Document load error:', error);
-                console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
-                setError(`Failed to load document: ${error.message || 'Unknown error'}`);
-              }}
-              pageNumber={pageNumber}
-              fixedWidth={800}
-              showSignatureStatus={false}
-              showPageNavigation={false}
-            />
+            <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+              <Document
+                file={document?.file_url || document?.file_path || document?.url}
+                onLoadSuccess={(payload) => {
+                  onDocumentLoadSuccess(payload);
+                  // Recalculate PDF offset after document loads
+                  setTimeout(() => {
+                    updatePdfOffset();
+                  }, 300);
+                }}
+                onLoadError={(error) => {
+                  console.error('Document load error:', error);
+                  console.error('Attempted to load file:', document?.file_url || document?.file_path || document?.url);
+                  setError(`Failed to load document: ${error.message || 'Unknown error'}`);
+                }}
+                loading={
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
+                    <CircularProgress />
+                    <Typography>Loading PDF document...</Typography>
+                  </Box>
+                }
+              >
+                {numPages && (
+                  <Page
+                    pageNumber={pageNumber}
+                    width={800}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                )}
+              </Document>
+            </Box>
               
               {/* Render whiteout boxes for current page */}
               {whiteoutBoxes

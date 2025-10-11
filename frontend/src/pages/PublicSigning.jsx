@@ -26,7 +26,7 @@ import {
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
-import UniversalDocumentViewer from '../components/UniversalDocumentViewer';
+// Note: PublicSigning has its own field rendering system, doesn't use DocumentViewer
 import { 
   calculatePdfOffset, 
   fieldToScreenCoords, 
@@ -141,7 +141,7 @@ export default function PublicSigning() {
   };
 
   const getAllSignatures = () => {
-    // Convert signedFields state to the format expected by UniversalDocumentViewer
+    // Convert signedFields state to the format expected by signature system
     return Object.entries(signedFields).map(([fieldId, signatureData]) => ({
       id: fieldId,
       document_id: workflowData?.document?.id,
@@ -821,20 +821,27 @@ export default function PublicSigning() {
                 minHeight: 0, // Allow flex shrinking
                 position: 'relative'
               }}>
-                <UniversalDocumentViewer
-                  document={workflowData.document}
-                  signatures={getAllSignatures()}
-                  showSignatureStatus={true}
-                  showPageNavigation={true}
-                  onLoadSuccess={onDocumentLoadSuccess}
-                  onLoadError={(error) => {
-                    console.error('Document load error:', error);
-                    console.error('Attempted to load file:', workflowData.document?.file_url || workflowData.document?.file_path || workflowData.document?.url);
-                    setError(`Failed to load document: ${error.message || 'Unknown error'}`);
-                  }}
-                  pageNumber={pageNumber}
-                  onFieldClick={handleFieldClick}
-                />
+                {/* PublicSigning has its own field rendering system */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  gap: 2,
+                  width: '100%',
+                  flex: 1
+                }}>
+                  <Typography variant="h6" color="text.primary">
+                    Document Viewer
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" textAlign="center">
+                    {workflowData.document?.title || 'Document'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
+                    This document has its own field rendering system for signing.
+                    <br />
+                    Fields are rendered using the custom renderSignatureField function.
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           ) : (
