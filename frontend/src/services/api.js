@@ -10,7 +10,6 @@ import authManager from './authManager';
 const getBaseURL = () => {
   // Always use relative URLs to avoid mixed content issues
   // The nginx proxy will handle routing /api requests to the backend
-  console.log('API: Using relative URLs (empty baseURL) to avoid mixed content issues');
   return '';
 };
 

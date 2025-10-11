@@ -192,9 +192,7 @@ class AuthManager {
     if (typeof document === 'undefined') return null;
     const cookies = document.cookie.split('; ');
     const csrfCookie = cookies.find(c => c.startsWith('vst_csrf='));
-    const token = csrfCookie ? csrfCookie.split('=')[1] : null;
-    console.log('AuthManager: CSRF token from cookie:', token ? 'present' : 'missing');
-    return token;
+    return csrfCookie ? csrfCookie.split('=')[1] : null;
   }
 
   /**
