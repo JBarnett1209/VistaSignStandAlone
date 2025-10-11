@@ -21,6 +21,19 @@ api.interceptors.request.use(
     const token = typeof window !== 'undefined' ? window.__vstAccessToken : null;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('API Request:', {
+          url: config.url,
+          method: config.method,
+          hasToken: !!token,
+          tokenLength: token ? token.length : 0
+        });
+      }
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log('API Request (no token):', {
+        url: config.url,
+        method: config.method
+      });
     }
     
     // Attach CSRF token from cookie if present for unsafe methods
@@ -43,8 +56,26 @@ api.interceptors.request.use(
 
 // Response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Response:', {
+        url: response.config?.url,
+        status: response.status,
+        statusText: response.statusText
+      });
+    }
+    return response;
+  },
   async (error) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('API Error:', {
+        url: error.config?.url,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+    }
     const originalRequest = error.config;
 
     // If request failed with 401, and it's not the refresh endpoint itself, try coordinated refresh
