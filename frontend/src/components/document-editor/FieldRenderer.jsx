@@ -29,8 +29,8 @@ const FieldRenderer = ({
   showControls = true
 }) => {
   const screenCoords = useMemo(() => {
-    return fieldToScreenCoords(field, scale, pdfOffset);
-  }, [field, scale, pdfOffset]);
+    return fieldToScreenCoords(field, pdfOffset, scale);
+  }, [field, pdfOffset, scale]);
 
   const isSigned = useMemo(() => {
     return isFieldSigned(field, signatures, documentId);

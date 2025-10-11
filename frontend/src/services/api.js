@@ -138,14 +138,14 @@ export const signaturesAPI = {
     delete: (id) => api.delete(`/api/v1/signatures/templates/${id}`)
   },
   admin: {
-    listAll: (params = {}) => api.get('/api/v1/signatures/admin', { params }),
+    listAll: (params = {}) => api.get('/api/v1/signatures/admin/all', { params }),
     get: (id) => api.get(`/api/v1/signatures/admin/${id}`),
     update: (id, data) => api.put(`/api/v1/signatures/admin/${id}`, data),
     delete: (id) => api.delete(`/api/v1/signatures/admin/${id}`),
     restore: (id) => api.post(`/api/v1/signatures/admin/${id}/restore`)
   },
   // Backward compatibility
-  adminListAll: (params = {}) => api.get('/api/v1/signatures/admin', { params })
+  adminListAll: (params = {}) => api.get('/api/v1/signatures/admin/all', { params })
 };
 
 export const workflowsAPI = {
