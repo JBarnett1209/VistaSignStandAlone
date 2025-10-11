@@ -144,4 +144,24 @@ export const workflowsAPI = {
   }
 };
 
+export const invitesAPI = {
+  list: () => api.get('/api/v1/invites'),
+  get: (id) => api.get(`/api/v1/invites/${id}`),
+  create: (data) => api.post('/api/v1/invites', data),
+  update: (id, data) => api.put(`/api/v1/invites/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/invites/${id}`),
+  resend: (id) => api.post(`/api/v1/invites/${id}/resend`),
+  validate: (code) => api.get(`/api/v1/invites/validate?code=${code}`)
+};
+
+export const usersAPI = {
+  list: () => api.get('/api/v1/users'),
+  get: (id) => api.get(`/api/v1/users/${id}`),
+  create: (data) => api.post('/api/v1/users', data),
+  update: (id, data) => api.put(`/api/v1/users/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/users/${id}`),
+  deactivate: (id) => api.post(`/api/v1/users/${id}/deactivate`),
+  activate: (id) => api.post(`/api/v1/users/${id}/activate`)
+};
+
 export default api;
