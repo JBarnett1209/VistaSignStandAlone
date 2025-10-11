@@ -150,10 +150,20 @@ export const AuthProvider = ({ children }) => {
         }
         return;
       }
-      setUser(null);
-      if (typeof window !== 'undefined') {
-        window.__vstAccessToken = null;
-      }
+      
+      // Add a small delay to prevent immediate logout after successful login
+      // This prevents race conditions where the session check fails immediately after login
+      setTimeout(() => {
+        if (!isLoggingIn) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('AuthContext: Processing auth-failed event');
+          }
+          setUser(null);
+          if (typeof window !== 'undefined') {
+            window.__vstAccessToken = null;
+          }
+        }
+      }, 1000); // 1 second delay to allow login to complete
     };
 
     if (typeof window !== 'undefined') {
@@ -272,14 +282,24 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Add a delay before the first check to avoid race conditions with login
+    // Add a longer delay before the first check to avoid race conditions with login
+    // This gives the login process time to fully complete
     const initialCheckTimeout = setTimeout(() => {
-      if (!cancelled) {
+      if (!cancelled && !isLoggingIn) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Starting initial session check...');
+        }
+        checkSession();
+      } else if (process.env.NODE_ENV === 'development') {
+        console.log('AuthContext: Skipping initial session check - login in progress or cancelled');
+      }
+    }, 5000); // Increased to 5 seconds to avoid race conditions
+    
+    const intervalId = setInterval(() => {
+      if (!cancelled && !isLoggingIn) {
         checkSession();
       }
-    }, 2000); // Reduced to 2 second delay - enough to avoid race conditions
-    
-    const intervalId = setInterval(checkSession, 30000); // 30s
+    }, 30000); // 30s
 
     return () => {
       cancelled = true;
