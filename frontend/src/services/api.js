@@ -90,4 +90,58 @@ api.interceptors.response.use(
   }
 );
 
+// API service objects for backward compatibility
+export const documentsAPI = {
+  list: () => api.get('/api/v1/documents'),
+  get: (id) => api.get(`/api/v1/documents/${id}`),
+  create: (data) => api.post('/api/v1/documents', data),
+  update: (id, data) => api.put(`/api/v1/documents/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/documents/${id}`),
+  upload: (file, title, description) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    if (description) formData.append('description', description);
+    return api.post('/api/v1/documents/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  convertToPdf: (id) => api.post(`/api/v1/documents/${id}/convert-to-pdf`),
+  fields: {
+    list: (documentId) => api.get(`/api/v1/documents/${documentId}/fields`),
+    create: (documentId, data) => api.post(`/api/v1/documents/${documentId}/fields`, data),
+    update: (documentId, fieldId, data) => api.put(`/api/v1/documents/${documentId}/fields/${fieldId}`, data),
+    delete: (documentId, fieldId) => api.delete(`/api/v1/documents/${documentId}/fields/${fieldId}`)
+  }
+};
+
+export const signaturesAPI = {
+  list: () => api.get('/api/v1/signatures'),
+  get: (id) => api.get(`/api/v1/signatures/${id}`),
+  create: (data) => api.post('/api/v1/signatures', data),
+  update: (id, data) => api.put(`/api/v1/signatures/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/signatures/${id}`),
+  templates: {
+    list: () => api.get('/api/v1/signatures/templates'),
+    create: (data) => api.post('/api/v1/signatures/templates', data),
+    update: (id, data) => api.put(`/api/v1/signatures/templates/${id}`, data),
+    delete: (id) => api.delete(`/api/v1/signatures/templates/${id}`)
+  }
+};
+
+export const workflowsAPI = {
+  list: () => api.get('/api/v1/workflows'),
+  get: (id) => api.get(`/api/v1/workflows/${id}`),
+  create: (data) => api.post('/api/v1/workflows', data),
+  update: (id, data) => api.put(`/api/v1/workflows/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/workflows/${id}`),
+  send: (id) => api.post(`/api/v1/workflows/${id}/send`),
+  participants: {
+    list: (workflowId) => api.get(`/api/v1/workflows/${workflowId}/participants`),
+    add: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
+    update: (workflowId, participantId, data) => api.put(`/api/v1/workflows/${workflowId}/participants/${participantId}`, data),
+    delete: (workflowId, participantId) => api.delete(`/api/v1/workflows/${workflowId}/participants/${participantId}`)
+  }
+};
+
 export default api;
