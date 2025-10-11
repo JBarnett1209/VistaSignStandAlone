@@ -161,6 +161,27 @@ async def mint_csrf():
     response.body = f'{{"csrf": "{token}"}}'.encode()
     return response
 
+# Debug endpoint to check cookie settings
+@app.get("/api/v1/debug/cookies", tags=["Debug"])
+async def debug_cookies(request: Request):
+    """Debug endpoint to check cookie settings and request headers"""
+    return {
+        "cookies": dict(request.cookies),
+        "headers": {
+            "x-forwarded-proto": request.headers.get("x-forwarded-proto"),
+            "x-forwarded-for": request.headers.get("x-forwarded-for"),
+            "x-forwarded-host": request.headers.get("x-forwarded-host"),
+            "x-amzn-trace-id": request.headers.get("x-amzn-trace-id"),
+            "x-forwarded-port": request.headers.get("x-forwarded-port"),
+            "host": request.headers.get("host"),
+            "user-agent": request.headers.get("user-agent")
+        },
+        "url_scheme": request.url.scheme,
+        "environment": settings.ENVIRONMENT,
+        "cookie_domain": settings.COOKIE_DOMAIN,
+        "cookie_secure": settings.COOKIE_SECURE
+    }
+
 # Test email endpoint for debugging
 @app.post("/test-email", tags=["Debug"])
 async def test_email():

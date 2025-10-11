@@ -1,44 +1,237 @@
-# .cursorrules
 rules:
-  - id: security-owasp-top10
-    description: >
-      Enforce OWASP Top 10 secure coding practices across the backend (FastAPI)
-      and frontend (React) to minimize security risks such as injection,
-      broken authentication, and data exposure.
-    applies_to:
-      - backend/**/*.py
-      - frontend/**/*.js
-      - frontend/**/*.tsx
+
+  # =========================
+  # GLOBAL / CROSS-CUTTING
+  # =========================
+  - id: owasp-global-secrets
+    description: "No secrets in source, enforce env usage"
+    applies_to: ["**/*"]
+    match:
+      - pattern: /(?i)(api[_-]?key|secret|token|password|private[_-]?key)\s*[:=]\s*["'][^"']+["']/
+      - pattern: /-----BEGIN (RSA|EC|PRIVATE) KEY-----/
     guidance:
-      - Input validation and sanitization required for all user-supplied data.
-      - Always use parameterized queries or ORM-safe methods (no string SQL).
-      - Never trust client input; validate types and ranges on server.
-      - Escape all output rendered into HTML or templates.
-      - Enforce authentication for all protected endpoints.
-      - Use JWTs or session cookies with HttpOnly, Secure, SameSite=strict.
-      - Store secrets in environment variables, not code.
-      - Use HTTPS-only cookies and enforce TLS in all API calls.
-      - Avoid exposing stack traces or internal errors to users.
-      - Implement proper CORS restrictions (no wildcard domains in production).
-      - Apply rate limiting and CSRF protection where applicable.
-      - Verify dependencies regularly with `npm audit` / `pip audit`.
-      - Use role-based access control (RBAC) for sensitive actions.
-      - Log authentication and authorization events securely (no PII).
-      - Ensure error messages do not leak sensitive data.
-      - Enforce strong password hashing (bcrypt/argon2).
-      - Avoid localStorage for auth tokens (use cookies or memory store).
-      - Sanitize all file uploads and validate MIME types.
-      - Validate redirect URLs to prevent open redirects.
-      - Implement content security policy (CSP) in frontend headers.
-    on_violation:
-      - warn
-      - explain why it’s insecure
-      - suggest the OWASP category and fix
-categories:
-  - A01:2021 Broken Access Control
-  - A02:2021 Cryptographic Failures
-  - A03:2021 Injection
-  - A04:2021 Insecure Design
-  - A05:2021 Security Misconfiguration
-  - A07:2021 Identification and Authentication Failures
-  - A08:2021 Software and Data Integrity Failures
+      - "Store secrets in env/secret manager (AWS Secrets Manager/SSM)."
+      - "Load via config layer; never commit secrets."
+      - "Rotate compromised keys immediately."
+      - "OWASP A02: Cryptographic Failures."
+    on_violation: [warn, suggest_fix]
+
+  - id: owasp-global-deps
+    description: "Keep dependencies patched"
+    applies_to: ["**/*"]
+    guidance:
+      - "Run `pip-audit` and `npm audit` in CI. Fail builds on high severity."
+      - "Pin versions (poetry/requirements.txt, package-lock.json)."
+      - "OWASP A06: Vulnerable and Outdated Components."
+    on_violation: [warn]
+
+  - id: owasp-global-logs
+    description: "Log safely; no PII/credentials"
+    applies_to: ["**/*"]
+    match:
+      - pattern: /console\.log\((.*password|token|secret).*?\)/i
+      - pattern: /logger\.(info|debug)\((.*password|token|secret).*?\)/i
+    guidance:
+      - "Never log secrets, session ids, access tokens, or full PII."
+      - "Use structured logs, redact fields by key."
+      - "OWASP A09: Security Logging & Monitoring Failures."
+    on_violation: [warn, suggest_fix]
+
+  # =========================
+  # FASTAPI (BACKEND)
+  # =========================
+  - id: fastapi-owasp-validation
+    description: "All request bodies must use Pydantic models with validation"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    match:
+      - pattern: /@app\.(post|put|patch)\(.*\)\n(def\s+\w+\(request:\s*Request[,\)])/m
+    guidance:
+      - "Do not accept raw Request for bodies; use Pydantic models."
+      - "Validate types/ranges with Pydantic validators & Field constraints."
+      - "OWASP A04: Insecure Design, A03: Injection."
+    on_violation: [warn, suggest_fix]
+    fix:
+      - "Define a Pydantic schema for the request and use it as a parameter."
+
+  - id: fastapi-owasp-sql-injection
+    description: "No string-concatenated SQL; use ORM or parameterized queries"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    match:
+      - pattern: /execute\(\s*f?["'].*\{.*\}.*["']\s*\)/m
+      - pattern: /f["']\s*SELECT .*{.*}.*["']/m
+      - pattern: /\+.*(SELECT|UPDATE|DELETE|INSERT).*\+/i
+    guidance:
+      - "Use SQLAlchemy ORM or parameter placeholders (`:id`, `%s`)."
+      - "Never interpolate user input into SQL."
+      - "OWASP A03: Injection."
+    on_violation: [warn, suggest_fix]
+
+  - id: fastapi-owasp-authn-cookies
+    description: "Use HttpOnly, Secure, SameSite=strict cookies for sessions/JWT"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    match:
+      - pattern: /set_cookie\(.+httpOnly\s*=\s*False/i
+      - pattern: /set_cookie\(.+secure\s*=\s*False/i
+    guidance:
+      - "Set cookies with HttpOnly=True, Secure=True, SameSite='strict'."
+      - "Prefer cookie storage over localStorage for auth tokens."
+      - "OWASP A07: Identification & Authentication Failures."
+    on_violation: [warn, suggest_fix]
+
+  - id: fastapi-owasp-cors
+    description: "No wildcard CORS in production"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    match:
+      - pattern: /allow_origins\s*=\s*\[\s*["']\*["']\s*\]/
+      - pattern: /CORSMiddleware\(.+allow_origins=.*\*.*\)/m
+    guidance:
+      - "Restrict CORS to known domains (e.g., unitvista.com, vistasign.unitvista.com)."
+      - "OWASP A05: Security Misconfiguration."
+    on_violation: [warn, suggest_fix]
+
+  - id: fastapi-owasp-rate-limit
+    description: "Rate limit auth-sensitive endpoints (login, password reset)"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    guidance:
+      - "Add rate limiting/middleware (e.g., slowapi) to /auth/login, /auth/reset."
+      - "OWASP A07/A08: Auth & Integrity Failures."
+    on_violation: [warn]
+
+  - id: fastapi-owasp-csrf
+    description: "Enforce CSRF for cookie-based auth on state-changing routes"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    guidance:
+      - "If using cookies, protect POST/PUT/PATCH/DELETE with CSRF tokens."
+      - "OWASP A05: Security Misconfiguration."
+    on_violation: [warn]
+
+  - id: fastapi-owasp-headers
+    description: "Set secure headers (CSP, HSTS, X-Frame-Options, etc.)"
+    applies_to: ["backend/**/*.py", "app/**/*.py"]
+    guidance:
+      - "Add Starlette middleware or a proxy (ALB/NGINX) for:"
+      - "  - Content-Security-Policy: script-src 'self'; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com"
+      - "  - Strict-Transport-Security: max-age=15552000; includeSubDomains"
+      - "  - X-Frame-Options: DENY (or SAMEORIGIN for embedded viewers)"
+      - "  - X-Content-Type-Options: nosniff"
+      - "OWASP A05: Security Misconfiguration."
+    on_violation: [warn]
+
+  # =========================
+  # REACT (FRONTEND)
+  # =========================
+  - id: react-owasp-xss
+    description: "Avoid dangerouslySetInnerHTML and unescaped injection"
+    applies_to: ["frontend/**/*.{js,jsx,ts,tsx}"]
+    match:
+      - pattern: /dangerouslySetInnerHTML\s*:/m
+      - pattern: /innerHTML\s*=/m
+    guidance:
+      - "Avoid raw HTML rendering; sanitize if unavoidable (DOMPurify)."
+      - "Escape all user content before render."
+      - "OWASP A03: Injection."
+    on_violation: [warn, suggest_fix]
+
+  - id: react-owasp-tokens
+    description: "Do not store auth tokens in localStorage/sessionStorage"
+    applies_to: ["frontend/**/*.{js,jsx,ts,tsx}"]
+    match:
+      - pattern: /localStorage\.(getItem|setItem)\(['"](?i)(token|jwt|auth)/m
+      - pattern: /sessionStorage\.(getItem|setItem)\(['"](?i)(token|jwt|auth)/m
+    guidance:
+      - "Use HttpOnly Secure cookies or in-memory (with refresh token in HttpOnly cookie)."
+      - "OWASP A07: Auth Failures."
+    on_violation: [warn, suggest_fix]
+
+  - id: react-owasp-csrf
+    description: "Include CSRF token with state-changing requests when cookie auth is used"
+    applies_to: ["frontend/**/*.{js,jsx,ts,tsx}"]
+    guidance:
+      - "Attach CSRF header (e.g., X-CSRF-Token) from a meta tag or API bootstrap."
+      - "OWASP A05: Security Misconfiguration."
+    on_violation: [warn]
+
+  - id: react-owasp-cors-frontend
+    description: "Frontend should call only approved API origins"
+    applies_to: ["frontend/**/*.{js,jsx,ts,tsx}"]
+    guidance:
+      - "Use env var for API base URL; do not hardcode dev/test URLs in prod builds."
+      - "OWASP A05: Security Misconfiguration."
+    on_violation: [warn]
+
+  - id: react-owasp-sri
+    description: "Avoid third-party scripts without SRI or via CSP-approved hosts"
+    applies_to: ["frontend/**/*.{js,jsx,ts,tsx,html}"]
+    guidance:
+      - "Prefer bundling or trusted CDNs; use CSP to restrict sources."
+      - "OWASP A08: Software and Data Integrity Failures."
+    on_violation: [warn]
+
+snippets:
+
+  # FASTAPI secure app skeleton
+  - id: fastapi-secure-app
+    language: python
+    content: |
+      from fastapi import FastAPI
+      from starlette.middleware.cors import CORSMiddleware
+      from starlette.middleware.sessions import SessionMiddleware
+
+      app = FastAPI()
+
+      # CORS: restrict in production
+      app.add_middleware(
+          CORSMiddleware,
+          allow_origins=["https://unitvista.com", "https://vistasign.unitvista.com"],
+          allow_credentials=True,
+          allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+          allow_headers=["*"],
+      )
+
+      # Secure cookies/session (if used)
+      app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "change-me"))
+
+      @app.get("/health")
+      async def health():
+          return {"status": "ok"}
+
+  # Pydantic request model example
+  - id: fastapi-request-model
+    language: python
+    content: |
+      from pydantic import BaseModel, Field, constr
+
+      class CreateProperty(BaseModel):
+          name: constr(strip_whitespace=True, min_length=1, max_length=120)
+          address: constr(strip_whitespace=True, min_length=3)
+          purchase_price: float = Field(ge=0)
+          year_built: int | None = Field(default=None, ge=1700, le=2100)
+
+  # Parameterized SQL example
+  - id: sqlalchemy-safe-query
+    language: python
+    content: |
+      from sqlalchemy import text
+      def get_property(db, prop_id: int):
+          return db.execute(text("SELECT * FROM properties WHERE id = :id"), {"id": prop_id}).fetchone()
+
+  # Expressing HTTPS redirect only when behind ALB (X-Forwarded-Proto)
+  - id: fastapi-https-aware-redirect
+    language: python
+    content: |
+      from fastapi import Request
+      from fastapi.responses import RedirectResponse
+
+      def https_redirect_if_needed(request: Request):
+          if request.headers.get("x-forwarded-proto") != "https":
+              return RedirectResponse(url=f"https://{request.headers['host']}{request.url.path}", status_code=301)
+
+  # React: safe HTML rendering with DOMPurify
+  - id: react-safe-html
+    language: typescript
+    content: |
+      import DOMPurify from "dompurify";
+      export function SafeHtml({ html }: { html: string }) {
+        const clean = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+        return <div dangerouslySetInnerHTML={{ __html: clean }} />;
+      }
