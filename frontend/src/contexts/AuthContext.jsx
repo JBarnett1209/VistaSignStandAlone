@@ -125,20 +125,21 @@ export const AuthProvider = ({ children }) => {
       }
     };
     
-    // Attempt refresh immediately, then with a small delay as fallback
-    // This ensures we try to restore the session as soon as possible
-    attemptRefresh();
-    
-    // Also set a fallback timeout in case the immediate attempt fails
+    // Attempt refresh with a small delay to avoid race conditions with login
+    // This ensures we try to restore the session but not interfere with active login
     const timeoutId = setTimeout(() => {
-      // Double-check that we're not already logged in (prevents race conditions)
-      if (!user && !isLoggingIn && loading) {
+      // Only attempt refresh if we're not currently logging in
+      if (!isLoggingIn) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Fallback refresh attempt');
+          console.log('AuthContext: Attempting session restoration...');
         }
         attemptRefresh();
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Skipping session restoration - login in progress');
+        }
       }
-    }, 1000);
+    }, 100);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
@@ -203,6 +204,7 @@ export const AuthProvider = ({ children }) => {
       
       if (process.env.NODE_ENV === 'development') {
         console.log('AuthContext: Login successful, setting user:', userData);
+        console.log('AuthContext: Current user state before setUser:', user);
       }
       
       setUser(userData);
@@ -212,10 +214,13 @@ export const AuthProvider = ({ children }) => {
       setIsLoggingIn(false);
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('AuthContext: Login process completed');
+        console.log('AuthContext: Login process completed, user should be set');
       }
     } catch (error) {
       setIsLoggingIn(false);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AuthContext: Login failed:', error);
+      }
       throw error;
     }
   };
