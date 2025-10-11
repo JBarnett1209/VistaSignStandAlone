@@ -210,6 +210,9 @@ export const AuthProvider = ({ children }) => {
       
       if (typeof window !== 'undefined') {
         window.__vstAccessToken = access_token;
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Access token set:', access_token ? 'Present' : 'Missing');
+        }
       }
       
       if (process.env.NODE_ENV === 'development') {
@@ -266,14 +269,21 @@ export const AuthProvider = ({ children }) => {
       try {
         if (process.env.NODE_ENV === 'development') {
           console.log('AuthContext: Checking session validity...');
+          console.log('AuthContext: Current access token:', window.__vstAccessToken ? 'Present' : 'Missing');
         }
-        await api.get('/api/v1/auth/me');
+        const response = await api.get('/api/v1/auth/me');
         if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Session check successful');
+          console.log('AuthContext: Session check successful:', response.data);
         }
       } catch (e) {
         if (process.env.NODE_ENV === 'development') {
           console.log('AuthContext: Session check failed:', e);
+          console.log('AuthContext: Error details:', {
+            status: e.response?.status,
+            statusText: e.response?.statusText,
+            data: e.response?.data,
+            message: e.message
+          });
         }
         // On any auth failure (e.g., 401 due to deactivation), immediately logout
         if (!cancelled) {

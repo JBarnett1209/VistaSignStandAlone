@@ -188,9 +188,17 @@ async def get_current_user(
 ) -> dict:
     """Dependency to get current authenticated user from token"""
     token = credentials.credentials
-    payload = auth_handler.decode_token(token)
+    logger.info(f"get_current_user: Verifying token (length: {len(token) if token else 0})")
+    
+    try:
+        payload = auth_handler.decode_token(token)
+        logger.info(f"get_current_user: Token decoded successfully, type: {payload.get('type')}")
+    except Exception as e:
+        logger.error(f"get_current_user: Token decode failed: {e}")
+        raise
     
     if payload.get("type") != "access":
+        logger.warning(f"get_current_user: Invalid token type: {payload.get('type')}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token type"
