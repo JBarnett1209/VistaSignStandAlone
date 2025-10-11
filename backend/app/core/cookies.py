@@ -89,6 +89,21 @@ def set_refresh_cookie(response: Response, refresh_token: str, request: Request 
             is_https = True
             logger.info("Detected HTTPS via X-Forwarded-Proto header (ALB setup)")
         
+        # For ALB setups, assume HTTPS if we're behind a load balancer
+        # Check for common ALB headers that indicate we're behind a load balancer
+        has_alb_headers = any([
+            request.headers.get("x-forwarded-for"),
+            request.headers.get("x-forwarded-host"),
+            request.headers.get("x-amzn-trace-id"),  # AWS ALB specific
+            request.headers.get("x-forwarded-port")
+        ])
+        
+        if has_alb_headers and not is_https:
+            # We're behind a load balancer but no X-Forwarded-Proto header
+            # Assume HTTPS for ALB setups (common configuration)
+            is_https = True
+            logger.info("Detected ALB setup without X-Forwarded-Proto - assuming HTTPS")
+        
         # Set secure flag based on actual HTTPS detection
         if is_https:
             cookie_kwargs["secure"] = True
@@ -156,6 +171,19 @@ def set_csrf_cookie(response: Response, csrf_token: str = None, request: Request
         if request.url.scheme == "https":
             is_https = True
         elif request.headers.get("x-forwarded-proto") == "https":
+            is_https = True
+        
+        # For ALB setups, assume HTTPS if we're behind a load balancer
+        has_alb_headers = any([
+            request.headers.get("x-forwarded-for"),
+            request.headers.get("x-forwarded-host"),
+            request.headers.get("x-amzn-trace-id"),  # AWS ALB specific
+            request.headers.get("x-forwarded-port")
+        ])
+        
+        if has_alb_headers and not is_https:
+            # We're behind a load balancer but no X-Forwarded-Proto header
+            # Assume HTTPS for ALB setups (common configuration)
             is_https = True
         
         # Set secure flag based on actual HTTPS detection
