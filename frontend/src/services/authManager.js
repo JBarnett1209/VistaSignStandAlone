@@ -30,13 +30,18 @@ class AuthManager {
     console.log('AuthManager: Initializing...');
     
     // Check for existing session
-    await this.restoreSession();
+    const sessionRestored = await this.restoreSession();
     
     // Start session monitoring
     this.startSessionMonitoring();
     
     this.isInitialized = true;
     console.log('AuthManager: Initialized');
+    
+    // Notify listeners of initial state
+    this.notifyListeners();
+    
+    return sessionRestored;
   }
 
   /**
@@ -101,6 +106,7 @@ class AuthManager {
   async restoreSession() {
     if (!this.hasRefreshToken()) {
       console.log('AuthManager: No refresh token found');
+      this.clearAuth();
       return false;
     }
 
@@ -118,14 +124,19 @@ class AuthManager {
       }
       
       // Try to refresh the access token
+      console.log('AuthManager: Sending refresh request...');
       const response = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
         credentials: 'include',
-        headers
+        headers,
+        body: JSON.stringify({}) // Send empty body since we're using cookies
       });
 
+      console.log('AuthManager: Refresh response status:', response.status);
+      
       if (!response.ok) {
-        console.log('AuthManager: Session restoration failed');
+        console.log('AuthManager: Session restoration failed - refresh token invalid');
+        this.clearAuth();
         return false;
       }
 
@@ -139,6 +150,7 @@ class AuthManager {
       return true;
     } catch (error) {
       console.log('AuthManager: Session restoration error:', error);
+      this.clearAuth();
       return false;
     }
   }
@@ -317,7 +329,8 @@ class AuthManager {
           const refreshResponse = await fetch('/api/v1/auth/refresh', {
             method: 'POST',
             credentials: 'include',
-            headers
+            headers,
+            body: JSON.stringify({}) // Send empty body since we're using cookies
           });
 
           if (!refreshResponse.ok) {

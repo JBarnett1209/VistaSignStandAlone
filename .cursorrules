@@ -1,0 +1,44 @@
+# .cursorrules
+rules:
+  - id: security-owasp-top10
+    description: >
+      Enforce OWASP Top 10 secure coding practices across the backend (FastAPI)
+      and frontend (React) to minimize security risks such as injection,
+      broken authentication, and data exposure.
+    applies_to:
+      - backend/**/*.py
+      - frontend/**/*.js
+      - frontend/**/*.tsx
+    guidance:
+      - Input validation and sanitization required for all user-supplied data.
+      - Always use parameterized queries or ORM-safe methods (no string SQL).
+      - Never trust client input; validate types and ranges on server.
+      - Escape all output rendered into HTML or templates.
+      - Enforce authentication for all protected endpoints.
+      - Use JWTs or session cookies with HttpOnly, Secure, SameSite=strict.
+      - Store secrets in environment variables, not code.
+      - Use HTTPS-only cookies and enforce TLS in all API calls.
+      - Avoid exposing stack traces or internal errors to users.
+      - Implement proper CORS restrictions (no wildcard domains in production).
+      - Apply rate limiting and CSRF protection where applicable.
+      - Verify dependencies regularly with `npm audit` / `pip audit`.
+      - Use role-based access control (RBAC) for sensitive actions.
+      - Log authentication and authorization events securely (no PII).
+      - Ensure error messages do not leak sensitive data.
+      - Enforce strong password hashing (bcrypt/argon2).
+      - Avoid localStorage for auth tokens (use cookies or memory store).
+      - Sanitize all file uploads and validate MIME types.
+      - Validate redirect URLs to prevent open redirects.
+      - Implement content security policy (CSP) in frontend headers.
+    on_violation:
+      - warn
+      - explain why it’s insecure
+      - suggest the OWASP category and fix
+categories:
+  - A01:2021 Broken Access Control
+  - A02:2021 Cryptographic Failures
+  - A03:2021 Injection
+  - A04:2021 Insecure Design
+  - A05:2021 Security Misconfiguration
+  - A07:2021 Identification and Authentication Failures
+  - A08:2021 Software and Data Integrity Failures

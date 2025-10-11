@@ -140,17 +140,22 @@ async def login(
 @router.post("/refresh", response_model=TokenRefreshResponse)
 async def refresh_token(
     refresh_data: TokenRefreshRequest,
-    db: AsyncSession = Depends(get_db),
-    request: Request = None,
-    response: Response = None
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
 ):
     """Token refresh endpoint"""
     try:
+        logger.info("Token refresh request received")
+        
         # Prefer cookie for refresh token
         incoming_refresh = refresh_data.refresh_token if refresh_data and getattr(refresh_data, "refresh_token", None) else None
         if request and not incoming_refresh:
             incoming_refresh = request.cookies.get(REFRESH_COOKIE_NAME)
+            logger.info(f"Refresh token from cookie: {'present' if incoming_refresh else 'missing'}")
+        
         if not incoming_refresh:
+            logger.warning("No refresh token found in request or cookie")
             # Clear cookies and return 401 without raising to ensure deletion is set
             if response is not None:
                 delete_auth_cookies(response)
@@ -189,6 +194,8 @@ async def refresh_token(
         if response:
             set_refresh_cookie(response, new_refresh_token, request)
             set_csrf_cookie(response, request=request)
+        
+        logger.info(f"Token refresh successful for user {user.email}")
         
         return TokenRefreshResponse(
             access_token=access_token,
