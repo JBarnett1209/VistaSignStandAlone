@@ -1,3 +1,8 @@
 ---
 alwaysApply: true
+title: OWASP Security Awareness
+description: >
+  Always apply OWASP Top 10 2021 principles to all code suggestions,
+  refactors, and architecture decisions.
+  Prefer secure defaults (input validation, output encoding, least privilege).
 ---

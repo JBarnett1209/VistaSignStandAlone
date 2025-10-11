@@ -94,25 +94,19 @@ class AuthManager {
 
   /**
    * Check if we have a valid refresh token
+   * Note: HttpOnly cookies cannot be read by JavaScript, so we always return true
+   * and let the backend determine if the refresh token is valid
    */
   hasRefreshToken() {
-    if (typeof document === 'undefined') return false;
-    const hasToken = document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
-    console.log('AuthManager: Checking for refresh token:', hasToken);
-    console.log('AuthManager: All cookies:', document.cookie);
-    return hasToken;
+    // HttpOnly cookies cannot be read by JavaScript
+    // We always return true and let the backend handle validation
+    return true;
   }
 
   /**
    * Restore session from refresh token
    */
   async restoreSession() {
-    if (!this.hasRefreshToken()) {
-      console.log('AuthManager: No refresh token found');
-      this.clearAuth();
-      return false;
-    }
-
     try {
       console.log('AuthManager: Attempting to restore session...');
       
@@ -138,7 +132,7 @@ class AuthManager {
       console.log('AuthManager: Refresh response status:', response.status);
       
       if (!response.ok) {
-        console.log('AuthManager: Session restoration failed - refresh token invalid');
+        console.log('AuthManager: Session restoration failed - refresh token invalid or missing');
         this.clearAuth();
         return false;
       }
@@ -320,16 +314,16 @@ class AuthManager {
         if (!response.ok) {
           console.log('AuthManager: Session invalid, attempting refresh...');
           
-      // Try to refresh the token
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      
-      // Only add CSRF token if we have one in cookie
-      const csrfToken = this.getCsrfTokenFromCookie();
-      if (csrfToken) {
-        headers['X-CSRF-Token'] = csrfToken;
-      }
+          // Try to refresh the token
+          const headers = {
+            'Content-Type': 'application/json'
+          };
+          
+          // Only add CSRF token if we have one in cookie
+          const csrfToken = this.getCsrfTokenFromCookie();
+          if (csrfToken) {
+            headers['X-CSRF-Token'] = csrfToken;
+          }
           
           const refreshResponse = await fetch('/api/v1/auth/refresh', {
             method: 'POST',
