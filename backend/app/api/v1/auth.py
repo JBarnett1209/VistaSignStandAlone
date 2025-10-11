@@ -37,6 +37,7 @@ CSRF_COOKIE_NAME = "vst_csrf"
 async def login(
     login_data: LoginRequest,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """User login endpoint"""
@@ -107,7 +108,7 @@ async def login(
         )
         # Set standardized cookies
         logger.info(f"Login successful for user {user.email}, setting cookies...")
-        set_refresh_cookie(response, refresh_token)
+        set_refresh_cookie(response, refresh_token, request)
         set_csrf_cookie(response)
         logger.info("Cookies set successfully")
         
@@ -290,6 +291,7 @@ async def validate_invite(
 async def register(
     payload: UserRegistration,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new user with an invite code"""
@@ -345,7 +347,7 @@ async def register(
     refresh_token = auth_handler.create_refresh_token({"sub": str(user.id), "email": user.email})
     
     # Set cookies
-    set_refresh_cookie(response, refresh_token)
+    set_refresh_cookie(response, refresh_token, request)
     set_csrf_cookie(response)
     
     return TokenResponse(

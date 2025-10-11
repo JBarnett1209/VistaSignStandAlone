@@ -20,18 +20,27 @@ def _apply_development_cookie_settings(cookie_kwargs: dict) -> dict:
 
 def _apply_flexible_cookie_settings(cookie_kwargs: dict) -> dict:
     """Apply flexible cookie settings for various deployment scenarios"""
-    # If we're not in production, be more permissive with cookie settings
-    if settings.ENVIRONMENT != "production":
-        # Remove domain restriction to allow IP addresses and localhost
+    # Only apply flexible settings for development environment
+    if settings.ENVIRONMENT == "development":
+        # Remove domain restriction to allow localhost and IP addresses
         if "domain" in cookie_kwargs:
             del cookie_kwargs["domain"]
-        # Allow cookies over HTTP for development/testing
+        # Allow cookies over HTTP for local development only
         cookie_kwargs["secure"] = False
         cookie_kwargs["samesite"] = "lax"
+    elif settings.ENVIRONMENT == "staging":
+        # Staging environment - more permissive but still secure
+        # Remove domain restriction for testing
+        if "domain" in cookie_kwargs:
+            del cookie_kwargs["domain"]
+        # Keep secure=True for staging (should use HTTPS)
+        cookie_kwargs["secure"] = True
+        cookie_kwargs["samesite"] = "lax"
+    # Production environment keeps all security settings intact
     return cookie_kwargs
 
 
-def set_refresh_cookie(response: Response, refresh_token: str) -> None:
+def set_refresh_cookie(response: Response, refresh_token: str, request: Request = None) -> None:
     """Set refresh token cookie with standardized attributes"""
     import logging
     logger = logging.getLogger(__name__)
@@ -69,6 +78,18 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     
     # Apply flexible settings for non-production environments
     cookie_kwargs = _apply_flexible_cookie_settings(cookie_kwargs)
+    
+    # Smart cookie security based on request context
+    if request:
+        # If request is over HTTP and not localhost, warn about security
+        if request.url.scheme == "http" and request.client.host not in ["127.0.0.1", "localhost"]:
+            logger.warning(f"Setting cookies over HTTP from {request.client.host} - consider using HTTPS")
+        
+        # Auto-detect if we should use secure cookies based on request scheme
+        if request.url.scheme == "https":
+            cookie_kwargs["secure"] = True
+        elif settings.ENVIRONMENT == "development":
+            cookie_kwargs["secure"] = False
     
     # Debug logging
     logger.info(f"Setting refresh cookie with attributes: {cookie_kwargs}")
