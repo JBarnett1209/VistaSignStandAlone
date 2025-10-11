@@ -18,6 +18,18 @@ def _apply_development_cookie_settings(cookie_kwargs: dict) -> dict:
             del cookie_kwargs["domain"]
     return cookie_kwargs
 
+def _apply_flexible_cookie_settings(cookie_kwargs: dict) -> dict:
+    """Apply flexible cookie settings for various deployment scenarios"""
+    # If we're not in production, be more permissive with cookie settings
+    if settings.ENVIRONMENT != "production":
+        # Remove domain restriction to allow IP addresses and localhost
+        if "domain" in cookie_kwargs:
+            del cookie_kwargs["domain"]
+        # Allow cookies over HTTP for development/testing
+        cookie_kwargs["secure"] = False
+        cookie_kwargs["samesite"] = "lax"
+    return cookie_kwargs
+
 
 def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     """Set refresh token cookie with standardized attributes"""
@@ -54,6 +66,9 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     
     # Apply development-friendly settings if needed
     cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
+    
+    # Apply flexible settings for non-production environments
+    cookie_kwargs = _apply_flexible_cookie_settings(cookie_kwargs)
     
     # Debug logging
     logger.info(f"Setting refresh cookie with attributes: {cookie_kwargs}")
@@ -99,6 +114,9 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     
     # Apply development-friendly settings if needed
     cookie_kwargs = _apply_development_cookie_settings(cookie_kwargs)
+    
+    # Apply flexible settings for non-production environments
+    cookie_kwargs = _apply_flexible_cookie_settings(cookie_kwargs)
     
     # Debug logging
     logger.info(f"Setting CSRF cookie with attributes: {cookie_kwargs}")
