@@ -59,7 +59,18 @@ const UniversalDocumentViewer = ({
   // Calculate PDF offset using centralized system
   const updatePdfOffset = () => {
     if (pdfContainerRef.current) {
-      const offset = calculatePdfOffset(pdfContainerRef.current, PDF_CONFIG.STANDARD_WIDTH, zoom);
+      // Try to get the actual PDF width from the rendered page
+      const pdfPage = pdfContainerRef.current.querySelector('.react-pdf__Page');
+      let actualPdfWidth = PDF_CONFIG.STANDARD_WIDTH;
+      
+      if (pdfPage) {
+        const pageRect = pdfPage.getBoundingClientRect();
+        actualPdfWidth = pageRect.width;
+      } else if (fixedWidth) {
+        actualPdfWidth = fixedWidth;
+      }
+      
+      const offset = calculatePdfOffset(pdfContainerRef.current, actualPdfWidth, zoom);
       setPdfOffset(offset);
     }
   };
@@ -652,7 +663,7 @@ const UniversalDocumentViewer = ({
               // Recalculate PDF offset after document loads
               setTimeout(() => {
                 updatePdfOffset();
-              }, 100);
+              }, 300);
               onLoadSuccess?.(payload);
             }}
             onLoadError={(error) => {
