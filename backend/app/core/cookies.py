@@ -81,14 +81,24 @@ def set_refresh_cookie(response: Response, refresh_token: str, request: Request 
     
     # Smart cookie security based on request context
     if request:
-        # If request is over HTTP and not localhost, warn about security
-        if request.url.scheme == "http" and request.client.host not in ["127.0.0.1", "localhost"]:
-            logger.warning(f"Setting cookies over HTTP from {request.client.host} - consider using HTTPS")
-        
-        # Auto-detect if we should use secure cookies based on request scheme
+        # Check for HTTPS via X-Forwarded-Proto header (ALB/load balancer setup)
+        is_https = False
         if request.url.scheme == "https":
+            is_https = True
+        elif request.headers.get("x-forwarded-proto") == "https":
+            is_https = True
+            logger.info("Detected HTTPS via X-Forwarded-Proto header (ALB setup)")
+        
+        # Set secure flag based on actual HTTPS detection
+        if is_https:
             cookie_kwargs["secure"] = True
+            logger.info("Setting secure cookies for HTTPS request")
         elif settings.ENVIRONMENT == "development":
+            cookie_kwargs["secure"] = False
+            logger.info("Setting non-secure cookies for development environment")
+        else:
+            # For non-development environments without HTTPS, warn but allow
+            logger.warning(f"Non-HTTPS request in {settings.ENVIRONMENT} environment - cookies may not work properly")
             cookie_kwargs["secure"] = False
     
     # Debug logging
@@ -97,7 +107,7 @@ def set_refresh_cookie(response: Response, refresh_token: str, request: Request 
     response.set_cookie(**cookie_kwargs)
 
 
-def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
+def set_csrf_cookie(response: Response, csrf_token: str = None, request: Request = None) -> str:
     """Set CSRF token cookie with standardized attributes"""
     import logging
     logger = logging.getLogger(__name__)
@@ -138,6 +148,23 @@ def set_csrf_cookie(response: Response, csrf_token: str = None) -> str:
     
     # Apply flexible settings for non-production environments
     cookie_kwargs = _apply_flexible_cookie_settings(cookie_kwargs)
+    
+    # Smart cookie security based on request context (same logic as refresh cookie)
+    if request:
+        # Check for HTTPS via X-Forwarded-Proto header (ALB/load balancer setup)
+        is_https = False
+        if request.url.scheme == "https":
+            is_https = True
+        elif request.headers.get("x-forwarded-proto") == "https":
+            is_https = True
+        
+        # Set secure flag based on actual HTTPS detection
+        if is_https:
+            cookie_kwargs["secure"] = True
+        elif settings.ENVIRONMENT == "development":
+            cookie_kwargs["secure"] = False
+        else:
+            cookie_kwargs["secure"] = False
     
     # Debug logging
     logger.info(f"Setting CSRF cookie with attributes: {cookie_kwargs}")

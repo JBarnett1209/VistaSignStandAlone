@@ -109,7 +109,7 @@ async def login(
         # Set standardized cookies
         logger.info(f"Login successful for user {user.email}, setting cookies...")
         set_refresh_cookie(response, refresh_token, request)
-        set_csrf_cookie(response)
+        set_csrf_cookie(response, request=request)
         logger.info("Cookies set successfully")
         
         return LoginResponse(
@@ -187,8 +187,8 @@ async def refresh_token(
         )
         # Rotate cookies with standardized attributes
         if response:
-            set_refresh_cookie(response, new_refresh_token)
-            set_csrf_cookie(response)
+            set_refresh_cookie(response, new_refresh_token, request)
+            set_csrf_cookie(response, request=request)
         
         return TokenRefreshResponse(
             access_token=access_token,
@@ -348,7 +348,7 @@ async def register(
     
     # Set cookies
     set_refresh_cookie(response, refresh_token, request)
-    set_csrf_cookie(response)
+    set_csrf_cookie(response, request=request)
     
     return TokenResponse(
         access_token=access_token,
