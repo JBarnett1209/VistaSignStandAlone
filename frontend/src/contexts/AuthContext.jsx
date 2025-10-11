@@ -125,14 +125,20 @@ export const AuthProvider = ({ children }) => {
       }
     };
     
-    // Add a small delay to ensure cookies are fully loaded, then attempt refresh
-    // Use a longer delay to ensure the page is fully loaded and cookies are available
+    // Attempt refresh immediately, then with a small delay as fallback
+    // This ensures we try to restore the session as soon as possible
+    attemptRefresh();
+    
+    // Also set a fallback timeout in case the immediate attempt fails
     const timeoutId = setTimeout(() => {
       // Double-check that we're not already logged in (prevents race conditions)
-      if (!user && !isLoggingIn) {
+      if (!user && !isLoggingIn && loading) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('AuthContext: Fallback refresh attempt');
+        }
         attemptRefresh();
       }
-    }, 500);
+    }, 1000);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
