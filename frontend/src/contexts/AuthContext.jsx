@@ -15,6 +15,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // State machine to prevent race conditions
+  const [authState, setAuthState] = useState('idle'); // 'idle', 'logging_in', 'restoring_session', 'authenticated'
 
   useEffect(() => {
     // Attempt to refresh on load (cookie-based refresh)
@@ -125,45 +128,37 @@ export const AuthProvider = ({ children }) => {
       }
     };
     
-    // Attempt refresh with a small delay to avoid race conditions with login
-    // This ensures we try to restore the session but not interfere with active login
+    // Attempt refresh with state machine protection
     const timeoutId = setTimeout(() => {
-      // Only attempt refresh if we're not currently logging in
-      if (!isLoggingIn) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Attempting session restoration...');
-        }
-        attemptRefresh();
+      // Only attempt refresh if we're in idle state (no auth operations in progress)
+      if (authState === 'idle') {
+        console.log('AuthContext: Attempting session restoration...');
+        setAuthState('restoring_session');
+        attemptRefresh().finally(() => {
+          setAuthState('idle');
+        });
       } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Skipping session restoration - login in progress');
-        }
+        console.log('AuthContext: Skipping session restoration - auth operation in progress:', authState);
       }
     }, 100);
 
     // Listen for auth failure events from API interceptor
     const handleAuthFailed = () => {
-      // Don't logout if we're in the middle of logging in
-      if (isLoggingIn) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('AuthContext: Ignoring auth-failed event during login');
-        }
+      // Don't logout if we're in the middle of auth operations
+      if (authState === 'logging_in' || authState === 'restoring_session') {
+        console.log('AuthContext: Ignoring auth-failed event during auth operation:', authState);
         return;
       }
       
-      // Add a small delay to prevent immediate logout after successful login
-      // This prevents race conditions where the session check fails immediately after login
-      setTimeout(() => {
-        if (!isLoggingIn) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('AuthContext: Processing auth-failed event');
-          }
-          setUser(null);
-          if (typeof window !== 'undefined') {
-            window.__vstAccessToken = null;
-          }
+      // Only process auth failures if we're in authenticated state
+      if (authState === 'authenticated') {
+        console.log('AuthContext: Processing auth-failed event');
+        setAuthState('idle');
+        setUser(null);
+        if (typeof window !== 'undefined') {
+          window.__vstAccessToken = null;
         }
-      }, 1000); // 1 second delay to allow login to complete
+      }
     };
 
     if (typeof window !== 'undefined') {
@@ -197,13 +192,19 @@ export const AuthProvider = ({ children }) => {
         window.removeEventListener('focus', handleWindowFocus);
       }
     };
-  }, [user, isLoggingIn, loading]); // Add dependencies to prevent stale closures
+  }, [user, authState, loading]); // Add dependencies to prevent stale closures
 
   const login = async (email, password) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('AuthContext: Starting login process...');
+    // Prevent multiple simultaneous login attempts
+    if (authState === 'logging_in' || authState === 'restoring_session') {
+      console.log('AuthContext: Login blocked - auth operation in progress');
+      throw new Error('Authentication operation already in progress');
     }
+    
+    console.log('AuthContext: Starting login process...');
+    setAuthState('logging_in');
     setIsLoggingIn(true);
+    
     try {
       const response = await api.post('/api/v1/auth/login', { email, password });
       const { access_token, user: userData } = response.data;
@@ -214,16 +215,13 @@ export const AuthProvider = ({ children }) => {
       }
       
       console.log('AuthContext: Login successful, setting user:', userData);
-      console.log('AuthContext: Current user state before setUser:', user);
-      
       setUser(userData);
-      
-      // Immediately set isLoggingIn to false after successful login
-      // The session check will handle any subsequent auth issues
+      setAuthState('authenticated');
       setIsLoggingIn(false);
       
       console.log('AuthContext: Login process completed, user should be set');
     } catch (error) {
+      setAuthState('idle');
       setIsLoggingIn(false);
       console.log('AuthContext: Login failed:', error);
       throw error;
@@ -242,9 +240,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('AuthContext: Logout called');
-    }
+    console.log('AuthContext: Logout called');
+    setAuthState('idle');
     try { await api.post('/api/v1/auth/logout'); } catch (_) {}
     if (typeof window !== 'undefined') {
       window.__vstAccessToken = null;
@@ -254,11 +251,17 @@ export const AuthProvider = ({ children }) => {
 
   // Heartbeat: periodically verify session and force logout if deactivated/invalid
   useEffect(() => {
-    if (!user) return;
+    if (!user || authState !== 'authenticated') return;
 
-    console.log('AuthContext: Setting up session check useEffect, user:', user?.email, 'isLoggingIn:', isLoggingIn);
+    console.log('AuthContext: Setting up session check useEffect, user:', user?.email, 'authState:', authState);
     let cancelled = false;
     const checkSession = async () => {
+      // Only check if we're still authenticated and not in the middle of auth operations
+      if (authState !== 'authenticated') {
+        console.log('AuthContext: Skipping session check - not in authenticated state:', authState);
+        return;
+      }
+      
       try {
         console.log('AuthContext: Checking session validity...');
         console.log('AuthContext: Current access token:', window.__vstAccessToken ? 'Present' : 'Missing');
@@ -273,7 +276,7 @@ export const AuthProvider = ({ children }) => {
           message: e.message
         });
         // On any auth failure (e.g., 401 due to deactivation), immediately logout
-        if (!cancelled) {
+        if (!cancelled && authState === 'authenticated') {
           await logout();
         }
       }
@@ -282,16 +285,16 @@ export const AuthProvider = ({ children }) => {
     // Add a longer delay before the first check to avoid race conditions with login
     // This gives the login process time to fully complete
     const initialCheckTimeout = setTimeout(() => {
-      if (!cancelled) {
+      if (!cancelled && authState === 'authenticated') {
         console.log('AuthContext: Starting initial session check...');
         checkSession();
       } else {
-        console.log('AuthContext: Skipping initial session check - cancelled');
+        console.log('AuthContext: Skipping initial session check - cancelled or not authenticated');
       }
     }, 5000); // Increased to 5 seconds to avoid race conditions
     
     const intervalId = setInterval(() => {
-      if (!cancelled) {
+      if (!cancelled && authState === 'authenticated') {
         checkSession();
       }
     }, 30000); // 30s
@@ -301,7 +304,7 @@ export const AuthProvider = ({ children }) => {
       clearTimeout(initialCheckTimeout);
       clearInterval(intervalId);
     };
-  }, [user, isLoggingIn]);
+  }, [user, authState]);
 
   const value = {
     user,
