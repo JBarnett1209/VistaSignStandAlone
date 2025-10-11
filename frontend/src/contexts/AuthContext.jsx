@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
   const [authState, setAuthState] = useState({
     user: null,
     isAuthenticated: false,
-    isLoading: true
+    isLoading: true // Start with loading true to prevent flash
   });
 
   // Initialize auth manager and set up listener

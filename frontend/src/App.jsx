@@ -3,9 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, Box } from '@mui/material';
 import './styles/layout.css';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
+import AuthLoading from './components/AuthLoading';
 
 // Pages
 import Login from './pages/Login';
@@ -123,43 +124,57 @@ const theme = createTheme({
   },
 });
 
+// AppRoutes component that handles authentication loading state
+function AppRoutes() {
+  const { isLoading } = useAuth();
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return <AuthLoading />;
+  }
+
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/sign/:workflowId/:participantId" element={<PublicSigning />} />
+        <Route path="/signing-complete" element={<SigningComplete />} />
+        <Route path="/signing-declined" element={<SigningDeclined />} />
+        
+        {/* Protected routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="documents" element={<Documents />} />
+          <Route path="signatures" element={<Signatures />} />
+          <Route path="workflows" element={<Workflows />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="settings/invites" element={<Invites />} />
+          <Route path="settings/users" element={<Users />} />
+          <Route path="admin/signatures" element={<AdminSignatures />} />
+          <Route path="admin/certificates" element={<CertificateValidation />} />
+          <Route path="pricing" element={<Pricing />} />
+        </Route>
+      </Routes>
+    </Box>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
         <Router>
-          <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/sign/:workflowId/:participantId" element={<PublicSigning />} />
-              <Route path="/signing-complete" element={<SigningComplete />} />
-              <Route path="/signing-declined" element={<SigningDeclined />} />
-              
-              {/* Protected routes */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="documents" element={<Documents />} />
-                <Route path="signatures" element={<Signatures />} />
-                <Route path="workflows" element={<Workflows />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="settings/invites" element={<Invites />} />
-                <Route path="settings/users" element={<Users />} />
-                <Route path="admin/signatures" element={<AdminSignatures />} />
-                <Route path="admin/certificates" element={<CertificateValidation />} />
-                <Route path="pricing" element={<Pricing />} />
-              </Route>
-            </Routes>
-          </Box>
+          <AppRoutes />
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -29,6 +29,10 @@ class AuthManager {
     
     console.log('AuthManager: Initializing...');
     
+    // Set loading state
+    this.loading = true;
+    this.notifyListeners();
+    
     // Check for existing session
     const sessionRestored = await this.restoreSession();
     
@@ -36,9 +40,10 @@ class AuthManager {
     this.startSessionMonitoring();
     
     this.isInitialized = true;
+    this.loading = false;
     console.log('AuthManager: Initialized');
     
-    // Notify listeners of initial state
+    // Notify listeners of final state
     this.notifyListeners();
     
     return sessionRestored;
@@ -61,7 +66,7 @@ class AuthManager {
         callback({
           user: this.user,
           isAuthenticated: !!this.user,
-          isLoading: false
+          isLoading: this.loading
         });
       } catch (error) {
         console.error('AuthManager: Listener error:', error);
@@ -86,6 +91,7 @@ class AuthManager {
     this.user = null;
     this.accessToken = null;
     this.refreshToken = null;
+    this.loading = false;
     if (typeof window !== 'undefined') {
       window.__vstAccessToken = null;
     }
@@ -221,6 +227,10 @@ class AuthManager {
     try {
       console.log('AuthManager: Starting login...');
       
+      // Set loading state
+      this.loading = true;
+      this.notifyListeners();
+      
       const headers = {
         'Content-Type': 'application/json'
       };
@@ -257,6 +267,7 @@ class AuthManager {
       const data = await response.json();
       this.setAccessToken(data.access_token);
       this.user = data.user;
+      this.loading = false;
       
       console.log('AuthManager: Login successful');
       this.notifyListeners();
@@ -264,6 +275,7 @@ class AuthManager {
       return this.user;
     } catch (error) {
       console.error('AuthManager: Login failed:', error);
+      this.loading = false;
       this.clearAuth();
       throw error;
     }
@@ -367,7 +379,7 @@ class AuthManager {
     return {
       user: this.user,
       isAuthenticated: !!this.user,
-      isLoading: false
+      isLoading: this.loading
     };
   }
 }
