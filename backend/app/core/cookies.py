@@ -3,7 +3,7 @@ Centralized cookie management for VistaSign
 Ensures all cookies use identical attributes to prevent duplicates
 """
 
-from fastapi import Response
+from fastapi import Response, Request
 from app.core.config import settings
 import secrets
 
