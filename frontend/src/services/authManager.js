@@ -97,7 +97,10 @@ class AuthManager {
    */
   hasRefreshToken() {
     if (typeof document === 'undefined') return false;
-    return document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
+    const hasToken = document.cookie.split('; ').some(c => c.startsWith('vst_refresh='));
+    console.log('AuthManager: Checking for refresh token:', hasToken);
+    console.log('AuthManager: All cookies:', document.cookie);
+    return hasToken;
   }
 
   /**
@@ -189,7 +192,9 @@ class AuthManager {
     if (typeof document === 'undefined') return null;
     const cookies = document.cookie.split('; ');
     const csrfCookie = cookies.find(c => c.startsWith('vst_csrf='));
-    return csrfCookie ? csrfCookie.split('=')[1] : null;
+    const token = csrfCookie ? csrfCookie.split('=')[1] : null;
+    console.log('AuthManager: CSRF token from cookie:', token ? 'present' : 'missing');
+    return token;
   }
 
   /**
