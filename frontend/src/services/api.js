@@ -7,11 +7,17 @@ import axios from 'axios';
 import authManager from './authManager';
 
 // Create axios instance with proper protocol handling
+const getBaseURL = () => {
+  // Always use relative URLs to avoid mixed content issues
+  // The nginx proxy will handle routing /api requests to the backend
+  console.log('API: Using relative URLs (empty baseURL) to avoid mixed content issues');
+  return '';
+};
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || '', // Use env var if available, otherwise relative URLs
+  baseURL: getBaseURL(),
   timeout: 30000,
   withCredentials: true,
-  // Ensure we use the same protocol as the current page
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json'
