@@ -91,7 +91,7 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
   // Calculate PDF offset using centralized system
   const updatePdfOffset = () => {
     if (pdfContainerRef.current) {
-      // Try to get the actual PDF width from the rendered page
+      // Use the same approach as DocumentEditor - get actual PDF width from rendered page
       const pdfPage = pdfContainerRef.current.querySelector('.react-pdf__Page');
       let actualPdfWidth = PDF_CONFIG.STANDARD_WIDTH;
       
@@ -99,8 +99,8 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
         const pageRect = pdfPage.getBoundingClientRect();
         actualPdfWidth = pageRect.width;
       } else {
-        // Use fixed width if available
-        actualPdfWidth = 800;
+        // Use standard width scaled by current scale
+        actualPdfWidth = PDF_CONFIG.STANDARD_WIDTH * scale;
       }
       
       const offset = calculatePdfOffset(pdfContainerRef.current, actualPdfWidth, scale);
@@ -129,7 +129,7 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
       clearTimeout(timer);
       window.removeEventListener('resize', handleResize);
     };
-  }, [scale]);
+  }, [scale, numPages]);
 
   // Recalculate offset when document changes
   useEffect(() => {
@@ -597,7 +597,7 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
                     // Recalculate PDF offset after document loads
                     setTimeout(() => {
                       updatePdfOffset();
-                    }, 300);
+                    }, 500);
                     onDocumentLoadSuccess(payload);
                   }}
                   onLoadError={(error) => {
@@ -616,7 +616,7 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
                     <Box sx={{ position: 'relative' }}>
                       <Page
                         pageNumber={pageNumber}
-                        width={800}
+                        scale={scale}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
                       />
