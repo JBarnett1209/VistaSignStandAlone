@@ -119,6 +119,10 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
         self.logger = get_logger("database_logging_middleware")
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Skip database logging for auth endpoints to avoid interference
+        if request.url.path.startswith("/api/v1/auth/"):
+            return await call_next(request)
+        
         # Create a database session for this request
         from app.core.database import AsyncSessionLocal
         from app.core.logging_service import DatabaseLogHandler
