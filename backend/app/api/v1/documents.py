@@ -57,7 +57,7 @@ async def get_document_file(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["id"]
+                    Document.owner_id == current_user["user_id"]
                 )
             )
         )
