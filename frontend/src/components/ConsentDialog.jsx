@@ -21,8 +21,7 @@ import {
   LocationOn as LocationIcon,
   Fingerprint as FingerprintIcon,
   Description as DocumentIcon,
-  CheckCircle as CheckIcon,
-  Warning as WarningIcon
+  CheckCircle as CheckIcon
 } from '@mui/icons-material';
 
 const ConsentDialog = ({ 

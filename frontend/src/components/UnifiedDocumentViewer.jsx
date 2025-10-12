@@ -5,7 +5,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { Box, IconButton, Tooltip, Typography, CircularProgress, Button, Divider } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography, CircularProgress, Divider } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
@@ -44,7 +44,7 @@ const UnifiedDocumentViewer = ({
   className = '',
   sx = {}
 }) => {
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
   const internalContainerRef = useRef(null);
@@ -76,9 +76,9 @@ const UnifiedDocumentViewer = ({
   // Handle document load success
   const handleDocumentLoadSuccess = useCallback((payload) => {
     // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
-    const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
-      ? payload.numPages
-      : (payload?.numPages ?? null);
+    // const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
+    //   ? payload.numPages
+    //   : (payload?.numPages ?? null);
     
     setLoading(false);
     setError(null);

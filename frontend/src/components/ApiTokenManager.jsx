@@ -42,7 +42,7 @@ import {
   Schedule as ScheduleIcon,
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
-import { api } from '../services/api';
+import api from '../services/api';
 
 const SCOPE_DESCRIPTIONS = {
   read: 'Read access to your data and logs',

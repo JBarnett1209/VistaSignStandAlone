@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.security.auth import get_current_user
+from app.core.auth_api_token import get_current_user_from_api_token, require_api_token_scope
 from app.core.logging_service import get_logs, get_log_stats
 from app.models.log import ApplicationLog
 from app.core.logging_service import get_logger

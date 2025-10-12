@@ -3,7 +3,6 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   AppBar, 
   Toolbar, 
-  Typography, 
   Box, 
   Drawer, 
   List, 

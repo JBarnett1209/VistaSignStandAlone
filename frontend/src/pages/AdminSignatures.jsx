@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -31,7 +31,6 @@ import {
 import {
   Visibility as ViewIcon,
   Restore as RestoreIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
   Person as PersonIcon,
@@ -72,7 +71,7 @@ export default function AdminSignatures() {
   const [userLookupLoading, setUserLookupLoading] = useState(false);
   const [userLookupError, setUserLookupError] = useState(null);
 
-  const loadSignatures = async () => {
+  const loadSignatures = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -112,11 +111,11 @@ export default function AdminSignatures() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, filters]);
 
   useEffect(() => {
     loadSignatures();
-  }, [page, filters]);
+  }, [loadSignatures]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
