@@ -33,6 +33,7 @@ const UnifiedDocumentViewer = ({
   onScaleChange,
   onPdfLoad,
   onPageChange,
+  onPdfOffsetChange,
   pageNumber = 1,
   numPages = null,
   showControls = true,
@@ -66,8 +67,11 @@ const UnifiedDocumentViewer = ({
       
       const offset = calculatePdfOffset(pdfContainerRef.current, actualPdfWidth, scale);
       setPdfOffset(offset);
+      
+      // Notify parent component of offset change
+      onPdfOffsetChange?.(offset);
     }
-  }, [pdfContainerRef, scale]);
+  }, [pdfContainerRef, scale, onPdfOffsetChange]);
 
   // Handle document load success
   const handleDocumentLoadSuccess = useCallback((payload) => {

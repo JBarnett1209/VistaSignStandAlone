@@ -12,6 +12,7 @@ const PdfViewer = ({
   onScaleChange, 
   onPdfLoad, 
   onPageChange,
+  onPdfOffsetChange,
   children 
 }) => {
   const [numPages, setNumPages] = useState(null);
@@ -38,6 +39,7 @@ const PdfViewer = ({
       onScaleChange={onScaleChange}
       onPdfLoad={handlePdfLoad}
       onPageChange={handlePageChange}
+      onPdfOffsetChange={onPdfOffsetChange}
       pageNumber={pageNumber}
       numPages={numPages}
       showControls={true}

@@ -159,6 +159,11 @@ const DocumentEditor = ({
     setScale(newScale);
   }, [setScale]);
 
+  // Handle PDF offset change
+  const handlePdfOffsetChange = useCallback((offset) => {
+    setPdfOffset(offset);
+  }, [setPdfOffset]);
+
   // Handle field type selection
   const handleFieldTypeSelect = useCallback((fieldType) => {
     setSelectedFieldType(fieldType);
@@ -308,6 +313,7 @@ const DocumentEditor = ({
               onScaleChange={handleScaleChange}
               onPdfLoad={handlePdfLoad}
               onPageChange={handlePageChange}
+              onPdfOffsetChange={handlePdfOffsetChange}
             >
               {/* Field Overlays */}
               {currentPageFields.map((field) => (
