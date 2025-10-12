@@ -17,6 +17,7 @@ import logging
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security.auth import get_current_user
+from app.core.logging_service import get_logger
 from app.core.document_converter import DocumentConverter
 from app.models.document import Document, DocumentVersion, DocumentStatus, DocumentType
 from app.models.user import User
@@ -27,6 +28,7 @@ from app.schemas.document import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+comprehensive_logger = get_logger(__name__)
 
 def generate_file_access_token(document_id: str, user_id: str) -> str:
     """Generate a signed token for accessing a document file"""
@@ -306,6 +308,16 @@ async def upload_document(
 ):
     """Upload a new document"""
     try:
+        comprehensive_logger.info(f"Upload request received - User: {current_user.get('user_id')}", extra_data={
+            'user_id': current_user.get('user_id'),
+            'user_email': current_user.get('email'),
+            'file_filename': file.filename if file else None,
+            'file_content_type': file.content_type if file else None,
+            'file_size': file.size if file else None,
+            'title': title,
+            'description': description
+        })
+        
         logger.info(f"Upload request received - User: {current_user.get('user_id')}")
         logger.info(f"File: {file.filename if file else 'None'}, Content-Type: {file.content_type if file else 'None'}")
         logger.info(f"Title: '{title}', Description: '{description}'")

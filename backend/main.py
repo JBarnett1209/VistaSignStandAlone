@@ -16,12 +16,13 @@ from typing import AsyncGenerator
 from app.core.database import init_db, get_db
 from app.core.config import settings
 from app.api.v1 import auth, documents, signatures, workflows, users, public_signing, billing
-from app.api.v1 import invites, certificate_validation
+from app.api.v1 import invites, certificate_validation, logs
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.acme_watcher import acme_watcher_task
+from app.core.request_logging_middleware import RequestLoggingMiddleware, DatabaseLoggingMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # Configure logging
@@ -82,6 +83,10 @@ class ProxyHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 # Trust ALB/X-Forwarded-* so app treats scheme/host correctly
 app.add_middleware(ProxyHeadersMiddleware)
+# Request logging middleware (add early to capture all requests)
+app.add_middleware(RequestLoggingMiddleware)
+# Database logging middleware (add last to ensure logs are committed)
+app.add_middleware(DatabaseLoggingMiddleware)
 
 # CORS middleware
 app.add_middleware(
@@ -152,6 +157,7 @@ app.include_router(public_signing.router, prefix="/api/v1/public", tags=["Public
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 app.include_router(invites.router, prefix="/api/v1/invites", tags=["Invites"])
 app.include_router(certificate_validation.router, prefix="/api/v1/certificates", tags=["Certificate Validation"])
+app.include_router(logs.router, prefix="/api/v1/logs", tags=["Logs"])
 
 # CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
 @app.get("/api/v1/auth/csrf", tags=["Authentication"])
