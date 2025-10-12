@@ -55,10 +55,17 @@ async def get_current_user_from_api_token(
         # Return user info in same format as JWT auth
         return {
             "user_id": str(user.id),
+            "id": str(user.id),  # For backward compatibility
             "email": user.email,
             "role": user.role.value,
+            "is_verified": user.is_verified,
+            "is_active": user.is_active,  # Boolean field for frontend
+            "status": user.status.value,  # Status enum for backend logic
             "first_name": user.first_name,
             "last_name": user.last_name,
+            "company": user.company,
+            "job_title": user.job_title,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
             "api_token": api_token
         }
         
