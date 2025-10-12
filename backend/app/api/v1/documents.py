@@ -46,12 +46,11 @@ async def test_documents_endpoint():
 
 @router.post("/upload-debug")
 async def upload_debug(
-    request: Request,
-    current_user: dict = Depends(get_current_user)
+    request: Request
 ):
     """Debug endpoint to see what's being received"""
     try:
-        logger.info(f"Debug upload request received - User: {current_user.get('user_id')}")
+        logger.info(f"Debug upload request received")
         logger.info(f"Content-Type: {request.headers.get('content-type')}")
         logger.info(f"Content-Length: {request.headers.get('content-length')}")
         
