@@ -47,7 +47,7 @@ class ApplicationLog(Base):
         Index('idx_logs_timestamp_level', 'timestamp', 'level'),
         Index('idx_logs_user_endpoint', 'user_id', 'endpoint'),
         Index('idx_logs_request_id', 'request_id'),
-        Index('idx_logs_timestamp_desc', 'timestamp', postgresql_using='btree', postgresql_desc=True),
+        Index('idx_logs_timestamp_desc', 'timestamp'),
     )
     
     def __repr__(self):

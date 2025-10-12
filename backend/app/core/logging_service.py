@@ -11,7 +11,6 @@ from datetime import datetime
 from contextvars import ContextVar
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
-from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.log import ApplicationLog
