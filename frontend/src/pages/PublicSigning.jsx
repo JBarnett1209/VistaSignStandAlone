@@ -26,14 +26,7 @@ import {
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
-// Note: PublicSigning has its own field rendering system, doesn't use DocumentViewer
-import { 
-  calculatePdfOffset, 
-  fieldToScreenCoords, 
-  findSignatureForField,
-  isFieldSigned,
-  PDF_CONFIG
-} from '../utils/pdfCoordinates';
+import UnifiedDocumentViewer from '../components/UnifiedDocumentViewer';
 import { handleError, ERROR_TYPES } from '../utils/errorHandler';
 import LoadingErrorState from '../components/LoadingErrorState';
 
@@ -54,7 +47,6 @@ export default function PublicSigning() {
   const [consentData, setConsentData] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
   const [signingComplete, setSigningComplete] = useState(false);
   const [autoProgressing, setAutoProgressing] = useState(false);
   const [autoProgressEnabled, setAutoProgressEnabled] = useState(true);
@@ -65,31 +57,9 @@ export default function PublicSigning() {
     loadSigningData();
   }, [workflowId, participantId]);
 
-  // Calculate PDF offset using centralized system
-  const updatePdfOffset = () => {
-    if (pdfContainerRef.current) {
-      const offset = calculatePdfOffset(pdfContainerRef.current, PDF_CONFIG.STANDARD_WIDTH, 1.0);
-      setPdfOffset(offset);
-    }
-  };
-
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
-    // Calculate PDF offset after document loads
-    setTimeout(updatePdfOffset, 100);
   };
-
-  // Calculate PDF offset on mount and window resize
-  useEffect(() => {
-    updatePdfOffset();
-    
-    const handleResize = () => {
-      setTimeout(updatePdfOffset, 100);
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const loadSigningData = async () => {
     try {
@@ -414,8 +384,8 @@ export default function PublicSigning() {
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
     const isClickable = !isCompleted && isAssignedToMe && !isSigned;
 
-    // Convert field coordinates to screen coordinates
-    const screenCoords = fieldToScreenCoords(field, pdfOffset, 1.0);
+    // Note: screenCoords will be calculated by UnifiedDocumentViewer
+    // We just need to return the field styling and content
 
     return (
       <Box
@@ -423,10 +393,7 @@ export default function PublicSigning() {
         onClick={() => handleFieldClick(field)}
         sx={{
           position: 'absolute',
-          left: `${screenCoords.x}px`,
-          top: `${screenCoords.y}px`,
-          width: `${screenCoords.width}px`,
-          height: `${screenCoords.height}px`,
+          // Position and size will be set by UnifiedDocumentViewer
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
           backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : isClickable ? 'rgba(123, 92, 255, 0.1)' : 'rgba(204, 204, 204, 0.1)',
           borderRadius: '4px',
@@ -809,40 +776,32 @@ export default function PublicSigning() {
               overflow: 'auto',
               backgroundColor: '#f0f0f0'
             }}>
-              <Box 
-                ref={pdfContainerRef}
+              <UnifiedDocumentViewer
+                documentUrl={workflowData.document.file_url}
+                fields={workflowData.document?.fields || []}
+                signatures={getAllSignatures()}
+                documentId={workflowData.document?.id}
+                scale={1.0}
+                onScaleChange={() => {}} // No zoom controls in public signing
+                onPdfLoad={onDocumentLoadSuccess}
+                onPageChange={setPageNumber}
+                pageNumber={pageNumber}
+                numPages={numPages}
+                showControls={false}
+                showFields={true}
+                fieldRenderer={renderSignatureField}
+                containerRef={pdfContainerRef}
                 sx={{ 
-                flex: 1, 
-                overflow: 'auto', 
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: '#f5f5f5',
-                minHeight: 0, // Allow flex shrinking
-                position: 'relative'
-              }}>
-                {/* PublicSigning has its own field rendering system */}
-                <Box sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center', 
-                  gap: 2,
-                  width: '100%',
-                  flex: 1
-                }}>
-                  <Typography variant="h6" color="text.primary">
-                    Document Viewer
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" textAlign="center">
-                    {workflowData.document?.title || 'Document'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 2 }}>
-                    This document has its own field rendering system for signing.
-                    <br />
-                    Fields are rendered using the custom renderSignatureField function.
-                  </Typography>
-                </Box>
-              </Box>
+                  flex: 1, 
+                  overflow: 'auto', 
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  backgroundColor: '#f5f5f5',
+                  minHeight: 0,
+                  position: 'relative'
+                }}
+              />
             </Box>
           ) : (
             <Box sx={{ 

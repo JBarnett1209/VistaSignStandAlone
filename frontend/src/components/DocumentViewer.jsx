@@ -16,23 +16,10 @@ import {
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  ZoomIn as ZoomInIcon,
-  ZoomOut as ZoomOutIcon,
-  FitScreen as FitScreenIcon,
   CheckCircle as SignedIcon,
   RadioButtonUnchecked as UnsignedIcon,
 } from '@mui/icons-material';
-import { Document, Page, pdfjs } from 'react-pdf';
-import { 
-  calculatePdfOffset, 
-  fieldToScreenCoords, 
-  findSignatureForField,
-  isFieldSigned,
-  PDF_CONFIG
-} from '../utils/pdfCoordinates';
-
-// Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+import UnifiedDocumentViewer from './UnifiedDocumentViewer';
 
 const FIELD_TYPE_CONFIG = {
   signature: {
@@ -83,30 +70,6 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
   const [scale, setScale] = useState(1.0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  // PDF position tracking
-  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
-  const pdfContainerRef = useRef(null);
-
-  // Calculate PDF offset using centralized system
-  const updatePdfOffset = () => {
-    if (pdfContainerRef.current) {
-      // Use the same approach as DocumentEditor - get actual PDF width from rendered page
-      const pdfPage = pdfContainerRef.current.querySelector('.react-pdf__Page');
-      let actualPdfWidth = PDF_CONFIG.STANDARD_WIDTH;
-      
-      if (pdfPage) {
-        const pageRect = pdfPage.getBoundingClientRect();
-        actualPdfWidth = pageRect.width;
-      } else {
-        // Use standard width scaled by current scale
-        actualPdfWidth = PDF_CONFIG.STANDARD_WIDTH * scale;
-      }
-      
-      const offset = calculatePdfOffset(pdfContainerRef.current, actualPdfWidth, scale);
-      setPdfOffset(offset);
-    }
-  };
 
   // Load document fields on mount
   useEffect(() => {
@@ -114,346 +77,24 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
     setPageNumber(1);
   }, [document]);
 
-  // Calculate PDF offset when component mounts, window resizes, or scale changes
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      updatePdfOffset();
-    }, 100);
-    
-    const handleResize = () => {
-      updatePdfOffset();
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, [scale, numPages]);
-
-  // Recalculate offset when document changes
-  useEffect(() => {
-    if (document) {
-      const timer = setTimeout(() => {
-        updatePdfOffset();
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [document]);
-
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
 
-  const handleZoomIn = () => {
-    setScale(prev => Math.min(prev + 0.2, 3.0));
+  const handleScaleChange = (newScale) => {
+    setScale(newScale);
   };
 
-  const handleZoomOut = () => {
-    setScale(prev => Math.max(prev - 0.2, 0.5));
+  const handlePageChange = (newPageNumber) => {
+    setPageNumber(newPageNumber);
   };
 
-  const handleFitToScreen = () => {
-    setScale(1.0);
-  };
-
-  const renderSignatureField = (field, pageNum) => {
-    if (!field) return null;
-
-    // Use centralized signature checking with improved field matching
-    const isSigned = isFieldSigned(field, signatures, document?.id);
-    const signature = findSignatureForField(field, signatures, document?.id);
-    
-    // Check if this field has a signature template (from document editing)
-    const hasTemplate = field.type === 'signature' && field.value && field.value !== '';
-
-    // Convert field coordinates to screen coordinates using proper PDF offset
-    const screenCoords = fieldToScreenCoords(field, pdfOffset, scale);
-
-    // Determine field styling based on status
-    let borderColor, backgroundColor;
-    if (isSigned) {
-      borderColor = '#4caf50';
-      backgroundColor = 'rgba(76, 175, 80, 0.1)';
-    } else if (hasTemplate) {
-      borderColor = '#ff9800';
-      backgroundColor = 'rgba(255, 152, 0, 0.1)';
-    } else {
-      borderColor = '#ff9800';
-      backgroundColor = 'rgba(255, 152, 0, 0.1)';
-    }
-
-    const fieldStyle = {
-      position: 'absolute',
-      left: `${screenCoords.x}px`,
-      top: `${screenCoords.y}px`,
-      width: `${screenCoords.width}px`,
-      height: `${screenCoords.height}px`,
-      border: isSigned ? `2px solid ${borderColor}` : `2px dashed ${borderColor}`,
-      backgroundColor: backgroundColor,
-      borderRadius: '4px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      cursor: 'default',
-      zIndex: 10,
-      transition: 'all 0.2s ease-in-out'
-    };
-
-    return (
-      <Box
-        key={`${field.id || field.x}-${field.y}`}
-        style={fieldStyle}
-      >
-        {isSigned ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            p: 0.5
-          }}>
-            {/* Signed Status Badge */}
-            <Box sx={{
-              position: 'absolute',
-              top: -8,
-              right: -8,
-              backgroundColor: '#4CAF50',
-              color: 'white',
-              borderRadius: '50%',
-              width: 16,
-              height: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '10px',
-              fontWeight: 'bold'
-            }}>
-              ✓
-            </Box>
-
-            {/* Signature Content */}
-            {(() => {
-              if (signature?.signature_image) {
-                // Show signature image if available
-                return (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    maxWidth: '100%',
-                    maxHeight: field.height > 40 ? '30px' : '20px'
-                  }}>
-                    <img 
-                      src={`data:image/png;base64,${signature.signature_image}`}
-                      alt="Signature" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                      }}
-                    />
-                  </Box>
-                );
-              } else if (signature?.digital_signature) {
-                // Show digital signature text
-                return (
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      color: '#1B5E20', 
-                      fontSize: field.height > 40 ? '11px' : '9px',
-                      fontFamily: "'Dancing Script', cursive",
-                      display: 'block',
-                      fontWeight: 'bold',
-                      lineHeight: 1.2,
-                      maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
-                  >
-                    {signature.digital_signature}
-                  </Typography>
-                );
-              } else if (signature?.signature_data) {
-                // Show signature data as text
-                return (
-                  <Typography 
-                    variant="caption" 
-                    sx={{ 
-                      color: '#1B5E20', 
-                      fontSize: field.height > 40 ? '11px' : '9px',
-                      fontFamily: "'Dancing Script', cursive",
-                      display: 'block',
-                      fontWeight: 'bold',
-                      lineHeight: 1.2,
-                      maxWidth: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
-                  >
-                    {signature.signature_data}
-                  </Typography>
-                );
-              } else {
-                // Fallback to checkmark
-                return (
-                  <Typography variant="caption" sx={{ 
-                    color: '#1B5E20', 
-                    fontSize: '9px',
-                    fontWeight: 'bold'
-                  }}>
-                    ✓ Signed
-                  </Typography>
-                );
-              }
-            })()}
-
-            {/* Timestamp and Signer Info */}
-            {(() => {
-              return (
-                <Box sx={{ mt: 0.5 }}>
-                  {signature?.signed_at && (
-                    <Typography variant="caption" sx={{ 
-                      color: '#2E7D32', 
-                      fontSize: '8px',
-                      textAlign: 'center',
-                      lineHeight: 1,
-                      display: 'block'
-                    }}>
-                      {new Date(signature.signed_at).toLocaleDateString()}
-                    </Typography>
-                  )}
-                  {signature?.participant_email && (
-                    <Typography variant="caption" sx={{ 
-                      color: '#2E7D32', 
-                      fontSize: '8px',
-                      textAlign: 'center',
-                      lineHeight: 1,
-                      display: 'block',
-                      fontWeight: 'bold'
-                    }}>
-                      by {signature.participant_email}
-                    </Typography>
-                  )}
-                </Box>
-              );
-            })()}
-          </Box>
-        ) : hasTemplate ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            p: 0.5
-          }}>
-            {/* Template Status Badge */}
-            <Box sx={{
-              position: 'absolute',
-              top: -8,
-              right: -8,
-              backgroundColor: '#ff9800',
-              color: 'white',
-              borderRadius: '50%',
-              width: 16,
-              height: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '10px',
-              fontWeight: 'bold'
-            }}>
-              T
-            </Box>
-
-            {/* Template Content */}
-            <Typography variant="caption" sx={{ 
-              color: '#E65100', 
-              fontSize: field.height > 40 ? '11px' : '9px',
-              fontFamily: "'Dancing Script', cursive",
-              display: 'block',
-              fontWeight: 'bold',
-              lineHeight: 1.2,
-              maxWidth: '100%',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}>
-              Template Set
-            </Typography>
-
-            {/* Template Info */}
-            <Typography variant="caption" sx={{ 
-              color: '#E65100', 
-              fontSize: '8px',
-              textAlign: 'center',
-              lineHeight: 1,
-              display: 'block',
-              fontWeight: 'bold'
-            }}>
-              Ready to Sign
-            </Typography>
-          </Box>
-        ) : (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            width: '100%',
-            height: '100%',
-            p: 0.5
-          }}>
-            {/* Field Type Icon */}
-            <Box sx={{ 
-              color: '#666',
-              fontSize: field.height > 40 ? '16px' : '12px',
-              mb: 0.5
-            }}>
-              ✏️
-            </Box>
-
-            {/* Field Label */}
-            <Typography variant="caption" sx={{ 
-              color: '#666', 
-              fontSize: '8px',
-              textAlign: 'center',
-              lineHeight: 1,
-              fontWeight: 'bold'
-            }}>
-              {field.label || field.name || 'Signature'}
-            </Typography>
-
-            {/* Required indicator */}
-            {field.required && (
-              <Typography variant="caption" sx={{ 
-                color: '#f44336', 
-                fontSize: '8px',
-                fontWeight: 'bold',
-                position: 'absolute',
-                top: -6,
-                right: -6
-              }}>
-                *
-              </Typography>
-            )}
-          </Box>
-        )}
-      </Box>
-    );
-  };
 
   if (!document) {
     return null;
   }
 
   const allFields = document?.fields || [];
-  const currentPageFields = allFields.filter(field => (field.page || 1) === pageNumber);
 
   return (
     <Dialog
@@ -569,64 +210,33 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
             </Box>
 
             {/* PDF Viewer */}
-            <Box 
-              ref={pdfContainerRef}
-              sx={{ 
-                flex: 1, 
-                overflow: 'auto', 
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: '#f5f5f5',
-                minHeight: 0,
-                position: 'relative'
-              }}
-            >
-              <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-                <Document
-                  file={document?.file_url || document?.file_path || document?.url}
-                  onLoadSuccess={(payload) => {
-                    // react-pdf v5 passes a PDFDocumentProxy (with numPages), v6 passes { numPages }
-                    const pages = (payload && typeof payload === 'object' && 'numPages' in payload)
-                      ? payload.numPages
-                      : (payload?.numPages ?? null);
-                    if (pages) {
-                      setNumPages(pages);
-                    }
-                    setLoading(false);
-                    // Recalculate PDF offset after document loads
-                    setTimeout(() => {
-                      updatePdfOffset();
-                    }, 500);
-                    onDocumentLoadSuccess(payload);
-                  }}
-                  onLoadError={(error) => {
-                    console.error('PDF load error:', error);
-                    setError(`Failed to load PDF: ${error.message}`);
-                    setLoading(false);
-                  }}
-                  loading={
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, p: 4 }}>
-                      <CircularProgress />
-                      <Typography>Loading PDF document...</Typography>
-                    </Box>
-                  }
-                >
-                  {numPages && (
-                    <Box sx={{ position: 'relative' }}>
-                      <Page
-                        pageNumber={pageNumber}
-                        scale={scale}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                      />
-                      
-                      {/* Signature Fields Overlay */}
-                      {currentPageFields.map(field => renderSignatureField(field, pageNumber))}
-                    </Box>
-                  )}
-                </Document>
-              </Box>
+            <Box sx={{ 
+              flex: 1, 
+              overflow: 'auto', 
+              backgroundColor: '#f5f5f5',
+              minHeight: 0,
+              position: 'relative'
+            }}>
+              <UnifiedDocumentViewer
+                documentUrl={document?.file_url || document?.file_path || document?.url}
+                fields={allFields}
+                signatures={signatures}
+                documentId={document?.id}
+                scale={scale}
+                onScaleChange={handleScaleChange}
+                onPdfLoad={onDocumentLoadSuccess}
+                onPageChange={handlePageChange}
+                pageNumber={pageNumber}
+                numPages={numPages}
+                showControls={false}
+                showFields={true}
+                sx={{ 
+                  p: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 0
+                }}
+              />
             </Box>
           </Box>
         </Box>
