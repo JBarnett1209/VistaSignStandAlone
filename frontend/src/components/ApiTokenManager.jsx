@@ -76,7 +76,7 @@ export default function ApiTokenManager() {
   const loadTokens = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api-tokens/');
+      const response = await api.get('/api/v1/api-tokens/');
       setTokens(response.data);
     } catch (error) {
       console.error('Error loading API tokens:', error);
@@ -93,7 +93,7 @@ export default function ApiTokenManager() {
   const createToken = async () => {
     try {
       setLoading(true);
-      const response = await api.post('/api-tokens/', {
+      const response = await api.post('/api/v1/api-tokens/', {
         name: tokenName,
         scopes: selectedScopes,
         expires_days: expiresDays
@@ -134,7 +134,7 @@ export default function ApiTokenManager() {
 
     try {
       setLoading(true);
-      await api.delete(`/api-tokens/${tokenId}`);
+      await api.delete(`/api/v1/api-tokens/${tokenId}`);
       setSnackbar({
         open: true,
         message: 'API token revoked successfully',
