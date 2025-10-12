@@ -1,40 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Typography, 
   Box, 
-  Card, 
-  CardContent, 
   Button, 
   Alert, 
   CircularProgress,
   Paper,
   Divider,
   Chip,
-  IconButton,
-  Tooltip,
   Switch,
   FormControlLabel
 } from '@mui/material';
 import { 
   Description as Document, 
   CheckCircle, 
-  Schedule as Clock, 
-  Person as User,
-  Edit as EditIcon
+  Schedule as Clock
 } from '@mui/icons-material';
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
 import UnifiedDocumentViewer from '../components/UnifiedDocumentViewer';
-import { handleError, ERROR_TYPES } from '../utils/errorHandler';
+import { handleError } from '../utils/errorHandler';
 import LoadingErrorState from '../components/LoadingErrorState';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [signing, setSigning] = useState(false);
   const [error, setError] = useState(null);
   const [workflowData, setWorkflowData] = useState(null);
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
@@ -50,18 +43,9 @@ export default function PublicSigning() {
   const [signingComplete, setSigningComplete] = useState(false);
   const [autoProgressing, setAutoProgressing] = useState(false);
   const [autoProgressEnabled, setAutoProgressEnabled] = useState(true);
-  const documentRef = useRef(null);
   const pdfContainerRef = useRef(null);
 
-  useEffect(() => {
-    loadSigningData();
-  }, [workflowId, participantId]);
-
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-  };
-
-  const loadSigningData = async () => {
+  const loadSigningData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -108,6 +92,14 @@ export default function PublicSigning() {
     } finally {
       setLoading(false);
     }
+  }, [workflowId, participantId]);
+
+  useEffect(() => {
+    loadSigningData();
+  }, [loadSigningData]);
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
   };
 
   const getAllSignatures = () => {

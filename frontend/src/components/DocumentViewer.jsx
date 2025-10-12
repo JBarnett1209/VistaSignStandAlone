@@ -1,18 +1,13 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Paper,
   Typography,
-  Button,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Chip,
   Alert,
-  CircularProgress,
-  Divider,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -21,54 +16,11 @@ import {
 } from '@mui/icons-material';
 import UnifiedDocumentViewer from './UnifiedDocumentViewer';
 
-const FIELD_TYPE_CONFIG = {
-  signature: {
-    label: 'Signature',
-    color: '#1976d2',
-  },
-  date: {
-    label: 'Date',
-    color: '#388e3c',
-  },
-  initials: {
-    label: 'Initials',
-    color: '#f57c00',
-  },
-  text: {
-    label: 'Text',
-    color: '#7b1fa2',
-  },
-  checkbox: {
-    label: 'Checkbox',
-    color: '#455a64',
-  },
-  radio: {
-    label: 'Radio Group',
-    color: '#5d4037',
-  },
-  dropdown: {
-    label: 'Dropdown',
-    color: '#00897b',
-  },
-  name: {
-    label: 'Name',
-    color: '#3949ab',
-  },
-  email: {
-    label: 'Email',
-    color: '#1e88e5',
-  },
-  attachment: {
-    label: 'Attachment',
-    color: '#6d4c41',
-  },
-};
 
 export default function DocumentViewer({ document, onClose, signatures = [] }) {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Load document fields on mount
@@ -129,85 +81,30 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
         <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden', width: '100%' }}>
           {/* Document Viewer */}
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {/* Toolbar */}
-            <Box sx={{ 
-              p: 1, 
-              borderBottom: 1, 
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}>
-              <Button
-                size="small"
-                startIcon={<ZoomOutIcon />}
-                onClick={handleZoomOut}
-              >
-                Zoom Out
-              </Button>
-              <Typography variant="body2" sx={{ mx: 1 }}>
-                {Math.round(scale * 100)}%
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<ZoomInIcon />}
-                onClick={handleZoomIn}
-              >
-                Zoom In
-              </Button>
-              <Button
-                size="small"
-                startIcon={<FitScreenIcon />}
-                onClick={handleFitToScreen}
-              >
-                Fit
-              </Button>
-              
-              {/* Page Navigation */}
-              {numPages && numPages > 1 && (
-                <>
-                  <Divider orientation="vertical" flexItem />
-                  <Button
-                    size="small"
-                    onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                    disabled={pageNumber <= 1}
-                  >
-                    Previous
-                  </Button>
-                  <Typography variant="body2" sx={{ mx: 1 }}>
-                    Page {pageNumber} of {numPages}
-                  </Typography>
-                  <Button
-                    size="small"
-                    onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                    disabled={pageNumber >= numPages}
-                  >
-                    Next
-                  </Button>
-                </>
-              )}
-
-              {/* Signature Status Summary */}
-              {allFields.length > 0 && (
-                <>
-                  <Divider orientation="vertical" flexItem />
-                  <Chip 
-                    icon={<SignedIcon />}
-                    label={`${signatures.length} Signed`}
-                    color="success"
-                    size="small"
-                  />
-                  <Chip 
-                    icon={<UnsignedIcon />}
-                    label={`${allFields.length - signatures.length} Unsigned`}
-                    color="warning"
-                    size="small"
-                  />
-                </>
-              )}
-              
-              <Box sx={{ flex: 1 }} />
-            </Box>
+            {/* Signature Status Summary */}
+            {allFields.length > 0 && (
+              <Box sx={{ 
+                p: 1, 
+                borderBottom: 1, 
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Chip 
+                  icon={<SignedIcon />}
+                  label={`${signatures.length} Signed`}
+                  color="success"
+                  size="small"
+                />
+                <Chip 
+                  icon={<UnsignedIcon />}
+                  label={`${allFields.length - signatures.length} Unsigned`}
+                  color="warning"
+                  size="small"
+                />
+              </Box>
+            )}
 
             {/* PDF Viewer */}
             <Box sx={{ 
@@ -228,7 +125,7 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
                 onPageChange={handlePageChange}
                 pageNumber={pageNumber}
                 numPages={numPages}
-                showControls={false}
+                showControls={true}
                 showFields={true}
                 sx={{ 
                   p: 2,
