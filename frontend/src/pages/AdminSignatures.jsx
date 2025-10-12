@@ -34,11 +34,14 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { signaturesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AdminSignatures() {
+  const { user } = useAuth();
   const [signatures, setSignatures] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -73,21 +76,39 @@ export default function AdminSignatures() {
     setLoading(true);
     setError(null);
     try {
+      // Map frontend filter names to backend parameter names
       const params = {
         skip: (page - 1) * limit,
         limit,
-        ...filters
+        include_deleted: filters.include_deleted,
+        status_filter: filters.status || undefined, // Backend expects status_filter
+        signature_level: filters.signature_level || undefined,
+        user_id: filters.user_id || undefined,
+        document_id: filters.document_id || undefined
       };
+      
+      // Remove undefined values to avoid sending empty parameters
+      Object.keys(params).forEach(key => {
+        if (params[key] === undefined || params[key] === '') {
+          delete params[key];
+        }
+      });
+      
+      console.log('AdminSignatures: Loading signatures with params:', params);
       
       const response = await signaturesAPI.admin.listAll(params);
       const data = response.data;
+      
+      console.log('AdminSignatures: Received response:', data);
       
       setSignatures(data.signatures || []);
       setTotal(data.total || 0);
       setDeletedCount(data.deleted_count || 0);
     } catch (err) {
-      setError('Failed to load signatures');
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to load signatures';
+      setError(`Error: ${errorMessage}`);
       console.error('Error loading signatures:', err);
+      console.error('Error response:', err.response?.data);
     } finally {
       setLoading(false);
     }
@@ -187,6 +208,34 @@ export default function AdminSignatures() {
     );
   });
 
+  // Check if user has admin role
+  if (user?.role !== 'admin') {
+    return (
+      <Box className="content-section" sx={{ 
+        width: '100%', 
+        height: '100%',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflowX: 'hidden'
+      }}>
+        <Alert severity="error" sx={{ maxWidth: 600 }}>
+          <Typography variant="h6" gutterBottom>
+            Access Denied
+          </Typography>
+          <Typography>
+            You need administrator privileges to access this page.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Current role: {user?.role || 'Unknown'}
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box className="content-section" sx={{ 
       width: '100%', 
@@ -199,6 +248,48 @@ export default function AdminSignatures() {
       <Typography variant="h4" gutterBottom>
         Document Signatures Management
       </Typography>
+
+      {/* Debug Panel - Remove in production */}
+      <Paper sx={{ p: 2, mb: 2, backgroundColor: '#f5f5f5' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">
+            Debug Information
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadSignatures}
+            disabled={loading}
+            size="small"
+          >
+            Refresh Data
+          </Button>
+        </Box>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="body2">
+              <strong>Current User:</strong> {user?.email || 'Not logged in'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>User Role:</strong> {user?.role || 'Unknown'}
+            </Typography>
+            <Typography variant="body2">
+              <strong>User ID:</strong> {user?.id || 'Unknown'}
+            </Typography>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="body2">
+              <strong>API Endpoint:</strong> /api/v1/signatures/admin/all
+            </Typography>
+            <Typography variant="body2">
+              <strong>Current Filters:</strong> {JSON.stringify(filters)}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Page:</strong> {page} of {Math.ceil(total / limit) || 1}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Statistics Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
