@@ -661,14 +661,40 @@ async def delete_document(
                 detail="Document not found"
             )
         
+        # First, handle related workflows and signatures
+        from app.models.workflow import Workflow
+        from app.models.signature import Signature
+        
+        # Delete or update workflows that reference this document
+        workflows_result = await db.execute(
+            select(Workflow).where(Workflow.document_id == document_id)
+        )
+        workflows = workflows_result.scalars().all()
+        
+        for workflow in workflows:
+            logger.info(f"Deleting workflow {workflow.id} that references document {document_id}")
+            await db.delete(workflow)
+        
+        # Delete signatures that reference this document
+        signatures_result = await db.execute(
+            select(Signature).where(Signature.document_id == document_id)
+        )
+        signatures = signatures_result.scalars().all()
+        
+        for signature in signatures:
+            logger.info(f"Deleting signature {signature.id} that references document {document_id}")
+            await db.delete(signature)
+        
         # Delete file from filesystem
         if os.path.exists(document.file_path):
             os.remove(document.file_path)
+            logger.info(f"Deleted file: {document.file_path}")
         
-        # Delete from database
+        # Delete document from database
         await db.delete(document)
         await db.commit()
         
+        logger.info(f"Successfully deleted document {document_id}")
         return {"message": "Document deleted successfully"}
         
     except HTTPException:
