@@ -106,7 +106,7 @@ class ApiTokenService:
                 return None
             
             # Check if expired
-            if api_token.expires_at and datetime.utcnow() > api_token.expires_at:
+            if api_token.expires_at and datetime.utcnow().replace(tzinfo=None) > api_token.expires_at.replace(tzinfo=None):
                 logger.warning(f"Expired API token: {api_token.token_prefix}")
                 return None
             

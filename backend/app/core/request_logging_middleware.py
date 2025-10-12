@@ -126,8 +126,9 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
             # Note: In a real application, you'd want to handle this more carefully
             # to avoid committing logs for failed requests
             try:
-                db = next(get_db())
-                await db.commit()
+                from app.core.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
+                    await db.commit()
             except Exception as e:
                 self.logger.warning(f"Failed to commit logs: {e}")
             
@@ -136,8 +137,9 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             # Still try to commit logs even for failed requests
             try:
-                db = next(get_db())
-                await db.commit()
+                from app.core.database import AsyncSessionLocal
+                async with AsyncSessionLocal() as db:
+                    await db.commit()
             except Exception as commit_error:
                 self.logger.warning(f"Failed to commit logs after error: {commit_error}")
             
