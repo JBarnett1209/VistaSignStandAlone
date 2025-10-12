@@ -17,6 +17,30 @@ from app.core.logging_service import get_logger
 router = APIRouter()
 logger = get_logger(__name__)
 
+@router.get("/test")
+async def test_logging():
+    """Test endpoint to generate logs (no auth required)"""
+    logger.info("Test logging endpoint called", extra_data={
+        'test_type': 'logging_test',
+        'message': 'This is a test log entry'
+    })
+    
+    logger.warning("Test warning log", extra_data={
+        'test_type': 'warning_test',
+        'severity': 'warning'
+    })
+    
+    logger.error("Test error log", extra_data={
+        'test_type': 'error_test',
+        'severity': 'error'
+    })
+    
+    return {
+        "message": "Test logs generated successfully",
+        "logs_created": 3,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
 class LogResponse(BaseModel):
     """Log entry response model"""
     id: str
