@@ -80,7 +80,7 @@ async def get_application_logs(
     start_time: Optional[datetime] = Query(None),
     end_time: Optional[datetime] = Query(None),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_from_api_token)
 ):
     """Get application logs (admin only)"""
     try:
@@ -157,7 +157,7 @@ async def get_application_logs(
 async def get_log_statistics(
     hours: int = Query(24, ge=1, le=168),  # Max 1 week
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_from_api_token)
 ):
     """Get log statistics (admin only)"""
     try:
@@ -194,7 +194,7 @@ async def get_recent_errors(
     limit: int = Query(50, ge=1, le=200),
     hours: int = Query(24, ge=1, le=168),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_from_api_token)
 ):
     """Get recent error logs (admin only)"""
     try:
@@ -261,7 +261,7 @@ async def get_recent_errors(
 async def cleanup_old_logs(
     days: int = Query(30, ge=1, le=365),  # Max 1 year
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user_from_api_token)
 ):
     """Clean up old logs (admin only)"""
     try:
