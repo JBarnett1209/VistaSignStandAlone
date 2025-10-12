@@ -462,9 +462,29 @@ const UnifiedDocumentViewer = ({
         </Document>
 
         {/* Field Overlays */}
-        {showFields && currentPageFields.map(field => 
-          fieldRenderer ? fieldRenderer(field) : defaultFieldRenderer(field)
-        )}
+        {showFields && currentPageFields.map(field => {
+          if (fieldRenderer) {
+            // For custom field renderers, we need to apply coordinate transformation
+            const screenCoords = fieldToScreenCoords(field, pdfOffset, scale);
+            return (
+              <Box
+                key={field.id}
+                sx={{
+                  position: 'absolute',
+                  left: screenCoords.x,
+                  top: screenCoords.y,
+                  width: screenCoords.width,
+                  height: screenCoords.height,
+                  zIndex: 10
+                }}
+              >
+                {fieldRenderer(field)}
+              </Box>
+            );
+          } else {
+            return defaultFieldRenderer(field);
+          }
+        })}
 
         {/* Custom Overlay Content */}
         {children}

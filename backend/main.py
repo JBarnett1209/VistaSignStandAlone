@@ -139,6 +139,19 @@ async def csrf_protect(request: Request, call_next):
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
     return await call_next(request)
 
+# Global exception handler to ensure JSON responses
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler to ensure all errors return JSON"""
+    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error": str(exc) if settings.DEBUG else "An unexpected error occurred"
+        }
+    )
+
 # Health check endpoint
 @app.get("/health", tags=["Health"])
 async def health_check():

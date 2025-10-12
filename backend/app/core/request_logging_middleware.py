@@ -123,33 +123,38 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/v1/auth/"):
             return await call_next(request)
         
-        # Create a database session for this request
-        from app.core.database import AsyncSessionLocal
-        from app.core.logging_service import DatabaseLogHandler
-        import logging
-        
-        async with AsyncSessionLocal() as db_session:
-            # Add database handler to root logger for this request
-            db_handler = DatabaseLogHandler(db_session)
-            root_logger = logging.getLogger()
-            root_logger.addHandler(db_handler)
+        try:
+            # Create a database session for this request
+            from app.core.database import AsyncSessionLocal
+            from app.core.logging_service import DatabaseLogHandler
+            import logging
             
-            try:
-                response = await call_next(request)
+            async with AsyncSessionLocal() as db_session:
+                # Add database handler to root logger for this request
+                db_handler = DatabaseLogHandler(db_session)
+                root_logger = logging.getLogger()
+                root_logger.addHandler(db_handler)
                 
-                # Commit all logs generated during this request
-                await db_session.commit()
-                
-                return response
-                
-            except Exception as e:
-                # Still try to commit logs even for failed requests
                 try:
+                    response = await call_next(request)
+                    
+                    # Commit all logs generated during this request
                     await db_session.commit()
-                except Exception as commit_error:
-                    self.logger.warning(f"Failed to commit logs after error: {commit_error}")
-                
-                raise
-            finally:
-                # Clean up the handler
-                root_logger.removeHandler(db_handler)
+                    
+                    return response
+                    
+                except Exception as e:
+                    # Still try to commit logs even for failed requests
+                    try:
+                        await db_session.commit()
+                    except Exception as commit_error:
+                        self.logger.warning(f"Failed to commit logs after error: {commit_error}")
+                    
+                    raise
+                finally:
+                    # Clean up the handler
+                    root_logger.removeHandler(db_handler)
+        except Exception as middleware_error:
+            # If the middleware itself fails, log it and continue without database logging
+            self.logger.error(f"DatabaseLoggingMiddleware failed: {middleware_error}")
+            return await call_next(request)

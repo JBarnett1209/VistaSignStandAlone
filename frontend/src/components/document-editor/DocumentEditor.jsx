@@ -113,13 +113,13 @@ const DocumentEditor = ({
     try {
       setLoading(true);
       
-      // Debug logging for field coordinates being saved
-      console.log('DocumentEditor: Saving fields to database:', {
-        documentId: document.id,
-        fields: fields,
-        pdfOffset: pdfOffset,
-        scale: scale
-      });
+      // Debug logging for field coordinates being saved (commented out for production)
+      // console.log('DocumentEditor: Saving fields to database:', {
+      //   documentId: document.id,
+      //   fields: fields,
+      //   pdfOffset: pdfOffset,
+      //   scale: scale
+      // });
       
       // Save fields to backend using document update endpoint
       await documentsAPI.update(document.id, {
@@ -161,9 +161,10 @@ const DocumentEditor = ({
     setScale(newScale);
   }, [setScale]);
 
-  // Handle PDF offset change
+  // Handle PDF offset change - this ensures DocumentEditor uses the same offset as UnifiedDocumentViewer
   const handlePdfOffsetChange = useCallback((offset) => {
     setPdfOffset(offset);
+    // console.log('DocumentEditor: PDF offset updated from UnifiedDocumentViewer:', offset);
   }, [setPdfOffset]);
 
   // Handle field type selection

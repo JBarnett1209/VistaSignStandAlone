@@ -381,11 +381,11 @@ export default function PublicSigning() {
 
     return (
       <Box
-        key={field.id}
         onClick={() => handleFieldClick(field)}
         sx={{
-          position: 'absolute',
-          // Position and size will be set by UnifiedDocumentViewer
+          // Position and size are now handled by UnifiedDocumentViewer wrapper
+          width: '100%',
+          height: '100%',
           border: isSigned ? '2px solid #4CAF50' : isClickable ? '2px dashed #7B5CFF' : '2px solid #ccc',
           backgroundColor: isSigned ? 'rgba(76, 175, 80, 0.1)' : isClickable ? 'rgba(123, 92, 255, 0.1)' : 'rgba(204, 204, 204, 0.1)',
           borderRadius: '4px',
