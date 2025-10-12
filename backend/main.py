@@ -16,7 +16,7 @@ from typing import AsyncGenerator
 from app.core.database import init_db, get_db
 from app.core.config import settings
 from app.api.v1 import auth, documents, signatures, workflows, users, public_signing, billing
-from app.api.v1 import invites, certificate_validation, logs
+from app.api.v1 import invites, certificate_validation, logs, api_tokens
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
@@ -160,6 +160,7 @@ app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 app.include_router(invites.router, prefix="/api/v1/invites", tags=["Invites"])
 app.include_router(certificate_validation.router, prefix="/api/v1/certificates", tags=["Certificate Validation"])
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["Logs"])
+app.include_router(api_tokens.router, prefix="/api/v1/api-tokens", tags=["API Tokens"])
 
 # CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
 @app.get("/api/v1/auth/csrf", tags=["Authentication"])

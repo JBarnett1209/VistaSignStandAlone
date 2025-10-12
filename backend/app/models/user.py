@@ -70,6 +70,7 @@ class User(Base):
     workflow_participants = relationship("WorkflowParticipant", back_populates="user")
     subscription = relationship("Subscription", back_populates="user", uselist=False)
     organization = relationship("Organization", back_populates="members")
+    api_tokens = relationship("ApiToken", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', role='{self.role.value}')>"
