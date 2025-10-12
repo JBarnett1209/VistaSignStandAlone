@@ -26,6 +26,16 @@ export const calculatePdfOffset = (container, pdfWidth = PDF_CONFIG.STANDARD_WID
   const scaledPdfWidth = pdfWidth * scale;
   const offsetX = (containerRect.width - scaledPdfWidth) / 2;
   
+  // Debug logging for coordinate system
+  console.log('PDF Offset Calculation:', {
+    containerWidth: containerRect.width,
+    pdfWidth,
+    scaledPdfWidth,
+    offsetX,
+    scale,
+    finalOffset: { x: Math.max(0, offsetX), y: 0 }
+  });
+  
   return { 
     x: Math.max(0, offsetX), 
     y: 0 
@@ -40,12 +50,23 @@ export const calculatePdfOffset = (container, pdfWidth = PDF_CONFIG.STANDARD_WID
  * @returns {Object} - Screen coordinates {x, y}
  */
 export const fieldToScreenCoords = (field, pdfOffset, scale = 1.0) => {
-  return {
+  const screenCoords = {
     x: (field.x * scale) + pdfOffset.x,
     y: (field.y * scale) + pdfOffset.y,
     width: field.width * scale,
     height: field.height * scale
   };
+  
+  // Debug logging for coordinate transformation
+  console.log('Field to Screen Coords:', {
+    fieldId: field.id,
+    fieldCoords: { x: field.x, y: field.y, width: field.width, height: field.height },
+    pdfOffset,
+    scale,
+    screenCoords
+  });
+  
+  return screenCoords;
 };
 
 /**

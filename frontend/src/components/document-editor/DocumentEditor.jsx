@@ -113,6 +113,14 @@ const DocumentEditor = ({
     try {
       setLoading(true);
       
+      // Debug logging for field coordinates being saved
+      console.log('DocumentEditor: Saving fields to database:', {
+        documentId: document.id,
+        fields: fields,
+        pdfOffset: pdfOffset,
+        scale: scale
+      });
+      
       // Save fields to backend using document update endpoint
       await documentsAPI.update(document.id, {
         fields: fields
@@ -136,7 +144,7 @@ const DocumentEditor = ({
     } finally {
       setLoading(false);
     }
-  }, [document, fields, setLoading, setError, onSave]);
+  }, [document, fields, pdfOffset, scale, setLoading, setError, onSave]);
 
   // Handle PDF load
   const handlePdfLoad = useCallback(({ numPages }) => {
