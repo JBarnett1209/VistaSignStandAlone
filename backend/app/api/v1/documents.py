@@ -273,13 +273,22 @@ async def convert_document_to_pdf(
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    title: str = Form(..., description="Document title"),
+    title: Optional[str] = Form(None, description="Document title"),
     description: Optional[str] = Form(None, description="Document description"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Upload a new document"""
     try:
+        logger.info(f"Upload request received - User: {current_user.get('user_id')}")
+        logger.info(f"File: {file.filename if file else 'None'}, Content-Type: {file.content_type if file else 'None'}")
+        logger.info(f"Title: '{title}', Description: '{description}'")
+        
+        # Validate title - use filename if title is not provided
+        if not title or title.strip() == "":
+            title = file.filename if file and file.filename else "Untitled Document"
+            logger.info(f"Title was empty, using filename: '{title}'")
+        
         # Validate file type
         if file.content_type not in settings.ALLOWED_FILE_TYPES:
             raise HTTPException(
