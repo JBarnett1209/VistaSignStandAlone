@@ -30,17 +30,12 @@ export const AuthProvider = ({ children }) => {
 
     const initializeAuth = async () => {
       try {
-        console.log('AuthContext: Starting initialization...');
-        
         // Initialize auth manager and wait for session restoration
         const sessionRestored = await authManager.initialize();
-        
-        console.log('AuthContext: Initialization complete, session restored:', sessionRestored);
         
         if (isMounted) {
           // Get the current auth state after initialization
           const currentState = authManager.getAuthState();
-          console.log('AuthContext: Setting initial auth state:', currentState);
           setAuthState(currentState);
         }
       } catch (error) {
@@ -58,7 +53,6 @@ export const AuthProvider = ({ children }) => {
     // Set up auth state listener
     const removeListener = authManager.addListener((newState) => {
       if (isMounted) {
-        console.log('AuthContext: Auth state changed:', newState);
         setAuthState(newState);
       }
     });

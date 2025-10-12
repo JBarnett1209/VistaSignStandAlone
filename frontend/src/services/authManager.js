@@ -27,8 +27,6 @@ class AuthManager {
   async initialize() {
     if (this.isInitialized) return;
     
-    console.log('AuthManager: Initializing...');
-    
     // Set loading state
     this.loading = true;
     this.notifyListeners();
@@ -41,7 +39,6 @@ class AuthManager {
     
     this.isInitialized = true;
     this.loading = false;
-    console.log('AuthManager: Initialized');
     
     // Notify listeners of final state
     this.notifyListeners();
@@ -114,8 +111,6 @@ class AuthManager {
    */
   async restoreSession() {
     try {
-      console.log('AuthManager: Attempting to restore session...');
-      
       const headers = {
         'Content-Type': 'application/json'
       };
@@ -127,18 +122,14 @@ class AuthManager {
       }
       
       // Try to refresh the access token
-      console.log('AuthManager: Sending refresh request...');
       const response = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
         credentials: 'include',
         headers,
         body: JSON.stringify({}) // Send empty body since we're using cookies
       });
-
-      console.log('AuthManager: Refresh response status:', response.status);
       
       if (!response.ok) {
-        console.log('AuthManager: Session restoration failed - refresh token invalid or missing');
         this.clearAuth();
         return false;
       }
@@ -149,10 +140,8 @@ class AuthManager {
       // Get user profile
       await this.fetchUserProfile();
       
-      console.log('AuthManager: Session restored successfully');
       return true;
     } catch (error) {
-      console.log('AuthManager: Session restoration error:', error);
       this.clearAuth();
       return false;
     }
@@ -223,8 +212,6 @@ class AuthManager {
    */
   async login(email, password) {
     try {
-      console.log('AuthManager: Starting login...');
-      
       // Set loading state
       this.loading = true;
       this.notifyListeners();
@@ -237,16 +224,11 @@ class AuthManager {
       const cookieCsrfToken = this.getCsrfTokenFromCookie();
       if (cookieCsrfToken) {
         headers['X-CSRF-Token'] = cookieCsrfToken;
-        console.log('AuthManager: Using CSRF token from cookie');
       } else {
         // Try to get CSRF token from server only if we don't have one
-        console.log('AuthManager: No CSRF token in cookie, fetching from server...');
         const serverCsrfToken = await this.getCsrfToken();
         if (serverCsrfToken) {
           headers['X-CSRF-Token'] = serverCsrfToken;
-          console.log('AuthManager: Using CSRF token from server');
-        } else {
-          console.log('AuthManager: No CSRF token available, proceeding without it');
         }
       }
       
@@ -267,7 +249,6 @@ class AuthManager {
       this.user = data.user;
       this.loading = false;
       
-      console.log('AuthManager: Login successful');
       this.notifyListeners();
       
       return this.user;
@@ -284,8 +265,6 @@ class AuthManager {
    */
   async logout() {
     try {
-      console.log('AuthManager: Logging out...');
-      
       // Call logout endpoint
       await fetch('/api/v1/auth/logout', {
         method: 'POST',
@@ -308,8 +287,6 @@ class AuthManager {
   startSessionMonitoring() {
     if (this.sessionCheckInterval) return;
     
-    console.log('AuthManager: Starting session monitoring...');
-    
     this.sessionCheckInterval = setInterval(async () => {
       if (!this.user || !this.accessToken) return;
       
@@ -322,8 +299,6 @@ class AuthManager {
         });
 
         if (!response.ok) {
-          console.log('AuthManager: Session invalid, attempting refresh...');
-          
           // Try to refresh the token
           const headers = {
             'Content-Type': 'application/json'
@@ -343,14 +318,12 @@ class AuthManager {
           });
 
           if (!refreshResponse.ok) {
-            console.log('AuthManager: Token refresh failed, logging out...');
             await this.logout();
             return;
           }
 
           const refreshData = await refreshResponse.json();
           this.setAccessToken(refreshData.access_token);
-          console.log('AuthManager: Token refreshed successfully');
         }
       } catch (error) {
         console.error('AuthManager: Session check error:', error);
@@ -366,7 +339,6 @@ class AuthManager {
     if (this.sessionCheckInterval) {
       clearInterval(this.sessionCheckInterval);
       this.sessionCheckInterval = null;
-      console.log('AuthManager: Session monitoring stopped');
     }
   }
 
