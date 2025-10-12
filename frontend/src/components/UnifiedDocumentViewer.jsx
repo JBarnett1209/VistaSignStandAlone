@@ -5,11 +5,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { Box, IconButton, Tooltip, Typography, CircularProgress } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography, CircularProgress, Button, Divider } from '@mui/material';
 import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
-  FitScreen as FitScreenIcon
+  FitScreen as FitScreenIcon,
+  NavigateBefore as PreviousIcon,
+  NavigateNext as NextIcon
 } from '@mui/icons-material';
 import { 
   calculatePdfOffset, 
@@ -373,7 +375,8 @@ const UnifiedDocumentViewer = ({
     >
       {/* PDF Controls */}
       {showControls && (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Zoom Controls */}
           <Tooltip title="Zoom In">
             <IconButton onClick={handleZoomIn} size="small">
               <ZoomInIcon />
@@ -395,6 +398,36 @@ const UnifiedDocumentViewer = ({
           <Box sx={{ ml: 2, fontSize: '0.875rem', color: 'text.secondary' }}>
             {Math.round(scale * 100)}%
           </Box>
+
+          {/* Page Navigation Controls */}
+          {numPages && numPages > 1 && (
+            <>
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+              <Tooltip title="Previous Page">
+                <IconButton 
+                  onClick={() => onPageChange?.(Math.max(1, pageNumber - 1))} 
+                  disabled={pageNumber <= 1}
+                  size="small"
+                >
+                  <PreviousIcon />
+                </IconButton>
+              </Tooltip>
+              
+              <Typography variant="body2" sx={{ mx: 1, minWidth: '80px', textAlign: 'center' }}>
+                Page {pageNumber} of {numPages}
+              </Typography>
+              
+              <Tooltip title="Next Page">
+                <IconButton 
+                  onClick={() => onPageChange?.(Math.min(numPages, pageNumber + 1))} 
+                  disabled={pageNumber >= numPages}
+                  size="small"
+                >
+                  <NextIcon />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
         </Box>
       )}
 
