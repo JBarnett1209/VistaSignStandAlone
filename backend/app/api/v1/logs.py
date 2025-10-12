@@ -42,6 +42,50 @@ async def test_logging():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+@router.get("/test-db")
+async def test_database_logging(db: AsyncSession = Depends(get_db)):
+    """Test endpoint to directly test database logging (no auth required)"""
+    try:
+        # Create a test log entry directly in the database
+        test_log = ApplicationLog(
+            level="INFO",
+            logger_name="test_logger",
+            message="Direct database logging test",
+            module="test",
+            function="test_database_logging",
+            line_number=1,
+            extra_data={"test": "direct_db_test"}
+        )
+        
+        db.add(test_log)
+        await db.commit()
+        
+        # Query the log back to verify it was saved
+        from sqlalchemy import select
+        result = await db.execute(
+            select(ApplicationLog).where(ApplicationLog.message == "Direct database logging test")
+        )
+        saved_log = result.scalar_one_or_none()
+        
+        if saved_log:
+            return {
+                "message": "Database logging test successful",
+                "log_id": str(saved_log.id),
+                "timestamp": saved_log.timestamp.isoformat()
+            }
+        else:
+            return {
+                "message": "Database logging test failed - log not found after save",
+                "error": "Log was not saved or not found"
+            }
+            
+    except Exception as e:
+        logger.error(f"Database logging test failed: {str(e)}")
+        return {
+            "message": "Database logging test failed",
+            "error": str(e)
+        }
+
 class LogResponse(BaseModel):
     """Log entry response model"""
     id: str

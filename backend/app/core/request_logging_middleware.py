@@ -119,28 +119,33 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
         self.logger = get_logger("database_logging_middleware")
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        try:
-            response = await call_next(request)
+        # Create a database session for this request
+        from app.core.database import AsyncSessionLocal
+        from app.core.logging_service import DatabaseLogHandler
+        import logging
+        
+        async with AsyncSessionLocal() as db_session:
+            # Add database handler to root logger for this request
+            db_handler = DatabaseLogHandler(db_session)
+            root_logger = logging.getLogger()
+            root_logger.addHandler(db_handler)
             
-            # Commit any pending log entries
-            # Note: In a real application, you'd want to handle this more carefully
-            # to avoid committing logs for failed requests
             try:
-                from app.core.database import AsyncSessionLocal
-                async with AsyncSessionLocal() as db:
-                    await db.commit()
+                response = await call_next(request)
+                
+                # Commit all logs generated during this request
+                await db_session.commit()
+                
+                return response
+                
             except Exception as e:
-                self.logger.warning(f"Failed to commit logs: {e}")
-            
-            return response
-            
-        except Exception as e:
-            # Still try to commit logs even for failed requests
-            try:
-                from app.core.database import AsyncSessionLocal
-                async with AsyncSessionLocal() as db:
-                    await db.commit()
-            except Exception as commit_error:
-                self.logger.warning(f"Failed to commit logs after error: {commit_error}")
-            
-            raise
+                # Still try to commit logs even for failed requests
+                try:
+                    await db_session.commit()
+                except Exception as commit_error:
+                    self.logger.warning(f"Failed to commit logs after error: {commit_error}")
+                
+                raise
+            finally:
+                # Clean up the handler
+                root_logger.removeHandler(db_handler)
