@@ -17,14 +17,14 @@ class ApplicationLog(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     level = Column(String(20), nullable=False, index=True)  # DEBUG, INFO, WARNING, ERROR, CRITICAL
-    logger_name = Column(String(100), nullable=False, index=True)  # e.g., "app.api.v1.documents"
+    logger_name = Column(String(200), nullable=False, index=True)  # e.g., "app.api.v1.documents"
     message = Column(Text, nullable=False)
-    module = Column(String(100), nullable=True)  # e.g., "documents.py"
-    function = Column(String(100), nullable=True)  # e.g., "upload_document"
+    module = Column(String(200), nullable=True)  # e.g., "documents.py"
+    function = Column(String(200), nullable=True)  # e.g., "upload_document"
     line_number = Column(Integer, nullable=True)
     
     # Request context
-    request_id = Column(String(50), nullable=True, index=True)  # Unique request identifier
+    request_id = Column(String(100), nullable=True, index=True)  # Unique request identifier
     user_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     session_id = Column(String(100), nullable=True, index=True)
     ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6

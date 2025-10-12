@@ -57,23 +57,29 @@ class DatabaseLogHandler(logging.Handler):
                 exception_message = str(record.exc_info[1]) if record.exc_info[1] else None
                 stack_trace = traceback.format_exception(*record.exc_info)
             
-            # Create log entry
+            # Truncate fields to prevent database errors
+            def truncate_field(value, max_length):
+                if value and len(str(value)) > max_length:
+                    return str(value)[:max_length-3] + "..."
+                return value
+            
+            # Create log entry with truncated fields
             log_entry = ApplicationLog(
                 level=record.levelname,
-                logger_name=record.name,
+                logger_name=truncate_field(record.name, 200),
                 message=record.getMessage(),
-                module=record.module,
-                function=record.funcName,
+                module=truncate_field(record.module, 200),
+                function=truncate_field(record.funcName, 200),
                 line_number=record.lineno,
-                request_id=request_id,
+                request_id=truncate_field(request_id, 100),
                 user_id=user_id,
-                session_id=session_id,
-                endpoint=endpoint,
-                method=method,
+                session_id=truncate_field(session_id, 100),
+                endpoint=truncate_field(endpoint, 200),
+                method=truncate_field(method, 10),
                 status_code=status_code,
                 response_time_ms=response_time_ms,
                 extra_data=extra_data,
-                exception_type=exception_type,
+                exception_type=truncate_field(exception_type, 100),
                 exception_message=exception_message,
                 stack_trace=stack_trace
             )
