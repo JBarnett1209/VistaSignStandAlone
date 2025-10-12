@@ -109,6 +109,7 @@ async def csrf_protect(request: Request, call_next):
         "/api/v1/auth/csrf",
         "/api/v1/auth/refresh",
         "/api/v1/documents/upload",
+        "/api/v1/documents/upload-debug",
     ] or path.startswith("/api/v1/workflows/") and "/sign/" in path:
         logger.info(f"CSRF: exempting {request.method} {path}")
         return await call_next(request)

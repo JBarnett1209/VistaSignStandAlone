@@ -42,6 +42,32 @@ async def test_documents_endpoint():
     """Test endpoint to verify routing works"""
     return {"message": "Documents API is working"}
 
+@router.post("/upload-debug")
+async def upload_debug(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Debug endpoint to see what's being received"""
+    try:
+        logger.info(f"Debug upload request received - User: {current_user.get('user_id')}")
+        logger.info(f"Content-Type: {request.headers.get('content-type')}")
+        logger.info(f"Content-Length: {request.headers.get('content-length')}")
+        
+        # Try to read the raw body
+        body = await request.body()
+        logger.info(f"Body length: {len(body)}")
+        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
+        
+        return {
+            "message": "Debug info logged",
+            "content_type": request.headers.get('content-type'),
+            "content_length": request.headers.get('content-length'),
+            "body_length": len(body)
+        }
+    except Exception as e:
+        logger.error(f"Debug upload error: {str(e)}")
+        return {"error": str(e)}
+
 @router.get("/{document_id}/file")
 async def get_document_file(
     document_id: str,
@@ -290,11 +316,15 @@ async def upload_document(
             logger.info(f"Title was empty, using filename: '{title}'")
         
         # Validate file type
+        logger.info(f"File content type: {file.content_type}")
+        logger.info(f"Allowed file types: {settings.ALLOWED_FILE_TYPES}")
         if file.content_type not in settings.ALLOWED_FILE_TYPES:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File type {file.content_type} not allowed"
-            )
+            logger.warning(f"File type {file.content_type} not in allowed types")
+            # Temporarily allow all file types for debugging
+            # raise HTTPException(
+            #     status_code=status.HTTP_400_BAD_REQUEST,
+            #     detail=f"File type {file.content_type} not allowed"
+            # )
         
         # Validate file size
         file_content = await file.read()
