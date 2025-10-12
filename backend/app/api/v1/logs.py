@@ -46,15 +46,19 @@ async def test_logging():
 async def test_database_logging(db: AsyncSession = Depends(get_db)):
     """Test endpoint to directly test database logging (no auth required)"""
     try:
+        import uuid
+        test_id = str(uuid.uuid4())[:8]
+        test_message = f"Direct database logging test {test_id}"
+        
         # Create a test log entry directly in the database
         test_log = ApplicationLog(
             level="INFO",
             logger_name="test_logger",
-            message="Direct database logging test",
+            message=test_message,
             module="test",
             function="test_database_logging",
             line_number=1,
-            extra_data={"test": "direct_db_test"}
+            extra_data={"test": "direct_db_test", "test_id": test_id}
         )
         
         db.add(test_log)
@@ -63,7 +67,7 @@ async def test_database_logging(db: AsyncSession = Depends(get_db)):
         # Query the log back to verify it was saved
         from sqlalchemy import select
         result = await db.execute(
-            select(ApplicationLog).where(ApplicationLog.message == "Direct database logging test")
+            select(ApplicationLog).where(ApplicationLog.message == test_message)
         )
         saved_log = result.scalar_one_or_none()
         
@@ -71,6 +75,7 @@ async def test_database_logging(db: AsyncSession = Depends(get_db)):
             return {
                 "message": "Database logging test successful",
                 "log_id": str(saved_log.id),
+                "test_id": test_id,
                 "timestamp": saved_log.timestamp.isoformat()
             }
         else:
