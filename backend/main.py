@@ -116,6 +116,7 @@ async def csrf_protect(request: Request, call_next):
         "/api/v1/documents/upload",
         "/api/v1/documents/upload-debug",
         "/api/v1/logs/test",
+        "/test-upload",
     ] or path.startswith("/api/v1/workflows/") and "/sign/" in path:
         logger.info(f"CSRF: exempting {request.method} {path}")
         return await call_next(request)
@@ -189,6 +190,30 @@ async def debug_cookies(request: Request):
         "cookie_domain": settings.COOKIE_DOMAIN,
         "cookie_secure": settings.COOKIE_SECURE
     }
+
+# Test upload endpoint for debugging (no auth required)
+@app.post("/test-upload", tags=["Debug"])
+async def test_upload(request: Request):
+    """Test endpoint to debug upload issues (no auth required)"""
+    try:
+        logger.info(f"Test upload request received")
+        logger.info(f"Content-Type: {request.headers.get('content-type')}")
+        logger.info(f"Content-Length: {request.headers.get('content-length')}")
+        
+        # Try to read the raw body
+        body = await request.body()
+        logger.info(f"Body length: {len(body)}")
+        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
+        
+        return {
+            "message": "Test upload debug info logged",
+            "content_type": request.headers.get('content-type'),
+            "content_length": request.headers.get('content-length'),
+            "body_length": len(body)
+        }
+    except Exception as e:
+        logger.error(f"Test upload error: {str(e)}")
+        return {"error": str(e)}
 
 # Test email endpoint for debugging
 @app.post("/test-email", tags=["Debug"])
