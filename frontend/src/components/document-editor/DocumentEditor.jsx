@@ -96,8 +96,8 @@ const DocumentEditor = ({
     
     try {
       setLoading(true);
-      const response = await documentsAPI.fields.list(document.id);
-      useDocumentStore.setState({ fields: response.data || [] });
+      // Fields are loaded as part of the document data
+      useDocumentStore.setState({ fields: document.fields || [] });
     } catch (err) {
       setError('Failed to load document fields');
       console.error('Error loading fields:', err);
@@ -113,16 +113,10 @@ const DocumentEditor = ({
     try {
       setLoading(true);
       
-      // Save fields to backend
-      for (const field of fields) {
-        if (field.id && !field.id.startsWith('temp_')) {
-          // Update existing field
-          await documentsAPI.fields.update(document.id, field.id, field);
-        } else {
-          // Create new field
-          await documentsAPI.fields.create(document.id, field);
-        }
-      }
+      // Save fields to backend using document update endpoint
+      await documentsAPI.update(document.id, {
+        fields: fields
+      });
       
       setSnackbar({
         open: true,
