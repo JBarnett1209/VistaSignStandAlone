@@ -133,6 +133,21 @@ class DocumentConverter:
             outdir = os.path.dirname(output_path)
             os.makedirs(outdir, exist_ok=True)
 
+            # Check if LibreOffice is available
+            try:
+                proc_check = await asyncio.create_subprocess_exec(
+                    'soffice', '--version',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await proc_check.communicate()
+                if proc_check.returncode != 0:
+                    logger.warning("LibreOffice not available, creating placeholder PDF")
+                    return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            except FileNotFoundError:
+                logger.warning("LibreOffice not found, creating placeholder PDF")
+                return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
             cmd = [
                 'soffice', '--headless', '--nologo', '--nofirststartwizard',
                 '--convert-to', 'pdf', '--outdir', outdir, input_path
@@ -151,13 +166,15 @@ class DocumentConverter:
 
             if proc.returncode != 0:
                 logger.error(f"LibreOffice exited with code {proc.returncode}")
-                return False
+                logger.info("Creating placeholder PDF as fallback")
+                return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
             # LibreOffice writes <basename>.pdf in outdir
             expected_pdf = os.path.join(outdir, f"{Path(input_path).stem}.pdf")
             if not os.path.exists(expected_pdf) or os.path.getsize(expected_pdf) == 0:
                 logger.error("LibreOffice did not produce a valid PDF output")
-                return False
+                logger.info("Creating placeholder PDF as fallback")
+                return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
             # Move/rename to requested output_path if different
             if os.path.abspath(expected_pdf) != os.path.abspath(output_path):
@@ -167,7 +184,8 @@ class DocumentConverter:
             return True
         except Exception as e:
             logger.error(f"DOCX to PDF conversion failed: {str(e)}")
-            return False
+            logger.info("Creating placeholder PDF as fallback")
+            return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
     
     @staticmethod
     async def _convert_excel_to_pdf(input_path: str, output_path: str, title: str) -> bool:

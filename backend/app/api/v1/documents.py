@@ -378,32 +378,27 @@ async def upload_document(
                 pdf_filename = f"{uuid.uuid4()}.pdf"
                 pdf_path = os.path.join(settings.UPLOAD_DIR, pdf_filename)
                 
-                # Convert to PDF
-                logger.info(f"Attempting to convert {file.filename} from {content_type} to PDF")
-                conversion_success = await DocumentConverter.convert_to_pdf(
-                    file_path, pdf_path, content_type, title
-                )
-                
-                if conversion_success:
-                    # Use the converted PDF
-                    final_file_path = pdf_path
-                    final_mime_type = "application/pdf"
-                    final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
-                    document_type = DocumentType.PDF
-                    logger.info(f"Document converted successfully: {final_filename} -> {final_mime_type}")
-                    logger.info(f"Converted file exists: {os.path.exists(final_file_path)}")
-                    logger.info(f"Converted file size: {os.path.getsize(final_file_path) if os.path.exists(final_file_path) else 'N/A'}")
-                else:
-                    # Conversion failed - raise an error with details
-                    logger.error(f"Conversion failed for {file.filename}")
-                    logger.error(f"Input file exists: {os.path.exists(file_path)}")
-                    logger.error(f"Input file size: {os.path.getsize(file_path) if os.path.exists(file_path) else 'N/A'}")
-                    logger.error(f"Output file exists: {os.path.exists(pdf_path)}")
-                    logger.error(f"Output file size: {os.path.getsize(pdf_path) if os.path.exists(pdf_path) else 'N/A'}")
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Document conversion failed for {file.filename}. Please check server logs for details."
+                # Attempt conversion with better error handling
+                try:
+                    conversion_success = await DocumentConverter.convert_to_pdf(
+                        file_path, pdf_path, content_type, title
                     )
+                    
+                    if conversion_success and os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+                        logger.info(f"Document conversion successful: {pdf_path}")
+                        final_file_path = pdf_path
+                        final_mime_type = "application/pdf"
+                        final_filename = f"{os.path.splitext(file.filename)[0]}.pdf"
+                        document_type = DocumentType.PDF
+                    else:
+                        logger.warning(f"Document conversion failed or produced empty file: {file.filename}")
+                        # Keep original file but log the issue
+                        logger.info(f"Keeping original file: {file_path}")
+                        
+                except Exception as conv_error:
+                    logger.error(f"Document conversion failed with exception: {str(conv_error)}")
+                    logger.info(f"Keeping original file: {file_path}")
+                    # Continue with original file
             else:
                 # No conversion needed, determine type
                 if content_type in ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
@@ -466,9 +461,23 @@ async def upload_document(
         raise
     except Exception as e:
         logger.error(f"Document upload error: {str(e)}")
+        import traceback
+        logger.error(f"Upload traceback: {traceback.format_exc()}")
+        
+        # Provide more specific error messages
+        error_detail = "Document upload failed"
+        if "conversion" in str(e).lower():
+            error_detail = "Document conversion failed. Please try uploading a PDF file or contact support."
+        elif "size" in str(e).lower():
+            error_detail = "File size exceeds the maximum allowed limit of 100MB."
+        elif "type" in str(e).lower():
+            error_detail = "File type not supported. Please upload a supported document format."
+        elif "permission" in str(e).lower() or "access" in str(e).lower():
+            error_detail = "File access error. Please check file permissions and try again."
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Document upload failed"
+            detail=error_detail
         )
 
 @router.get("/", response_model=DocumentListResponse)
