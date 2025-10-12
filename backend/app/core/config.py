@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     # Security - REQUIRED
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # Industry standard: 15-30 minutes
+    REFRESH_TOKEN_EXPIRE_DAYS: float = 0.33  # Industry standard: 8 hours (0.33 days)
     INVITE_ONLY: bool = True
     
     # Cookie settings

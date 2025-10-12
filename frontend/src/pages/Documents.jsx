@@ -170,7 +170,7 @@ export default function Documents() {
       
       // Also fetch signatures for this document
       try {
-        const signaturesResponse = await signaturesAPI.adminListAll({ 
+        const signaturesResponse = await signaturesAPI.admin.listAll({ 
           document_id: document.id,
           limit: 100 
         });
