@@ -239,13 +239,14 @@ const DocumentEditor = ({
 
   // Handle scale change
   const handleScaleChange = useCallback((newScale) => {
+    console.log('🔍 Scale changed:', newScale);
     setScale(newScale);
   }, [setScale]);
 
   // Handle PDF offset change - this ensures DocumentEditor uses the same offset as UnifiedDocumentViewer
   const handlePdfOffsetChange = useCallback((offset) => {
+    console.log('📐 PDF Offset changed:', offset);
     setPdfOffset(offset);
-    // console.log('DocumentEditor: PDF offset updated from UnifiedDocumentViewer:', offset);
   }, [setPdfOffset]);
 
   // Handle field type selection
