@@ -197,20 +197,26 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        gap: 1,
-        p: 1.5,
+        gap: 1.5,
+        p: 2,
         mb: 1,
-        border: 1,
-        borderColor: 'divider',
-        borderRadius: 1,
+        border: '2px solid',
+        borderColor: '#e0e0e0',
+        borderRadius: 2,
         cursor: 'grab',
-        bgcolor: 'background.paper',
+        bgcolor: '#ffffff',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        transition: 'all 0.2s ease-in-out',
         '&:hover': {
-          bgcolor: 'action.hover',
-          borderColor: 'primary.main',
+          bgcolor: '#f5f5f5',
+          borderColor: '#1976d2',
+          boxShadow: '0 4px 8px rgba(25,118,210,0.2)',
+          transform: 'translateY(-1px)',
         },
         '&:active': {
           cursor: 'grabbing',
+          transform: 'translateY(0)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
         },
       }}
     >
@@ -273,15 +279,24 @@ const SortableFieldItem = ({ field, isSelected, onFieldClick, onFieldEdit, onFie
       selected={isSelected}
       onClick={() => onFieldClick?.(field)}
       sx={{
-        border: 1,
-        borderColor: isSelected ? 'primary.main' : 'transparent',
-        borderRadius: 1,
-        mb: 0.5,
+        border: '2px solid',
+        borderColor: isSelected ? '#1976d2' : '#e0e0e0',
+        borderRadius: 2,
+        mb: 1,
         mx: 1,
-        bgcolor: isDragging ? 'action.hover' : 'background.paper',
+        bgcolor: isSelected ? '#e3f2fd' : '#ffffff',
+        boxShadow: isSelected ? '0 2px 8px rgba(25,118,210,0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
+        transition: 'all 0.2s ease-in-out',
         '&:hover': {
-          bgcolor: 'action.hover'
-        }
+          bgcolor: isSelected ? '#bbdefb' : '#f5f5f5',
+          borderColor: '#1976d2',
+          boxShadow: '0 2px 8px rgba(25,118,210,0.2)',
+          transform: 'translateY(-1px)',
+        },
+        '&:active': {
+          cursor: 'grabbing',
+          transform: 'translateY(0)',
+        },
       }}
     >
       <Box
@@ -447,18 +462,33 @@ const FieldList = ({
 
   return (
     <Paper 
+      elevation={3}
       sx={{ 
-        width: 300, 
+        width: 320, 
         height: '100%', 
         display: 'flex', 
         flexDirection: 'column',
-        borderRight: 1,
-        borderColor: 'divider'
+        borderRight: '2px solid',
+        borderColor: '#e0e0e0',
+        borderRadius: 0,
+        bgcolor: '#fafafa'
       }}
     >
       {/* Header */}
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Field Palette</Typography>
+      <Box sx={{ 
+        p: 2.5, 
+        borderBottom: '2px solid', 
+        borderColor: '#e0e0e0',
+        bgcolor: '#ffffff'
+      }}>
+        <Typography variant="h6" sx={{ 
+          mb: 2, 
+          fontWeight: 600,
+          color: '#1976d2',
+          fontSize: '1.1rem'
+        }}>
+          Field Palette
+        </Typography>
         
         {/* Search */}
         <TextField
@@ -505,7 +535,14 @@ const FieldList = ({
       </Box>
 
       {/* Field List */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto',
+        bgcolor: '#ffffff',
+        m: 1,
+        borderRadius: 1,
+        border: '1px solid #e0e0e0'
+      }}>
         {Object.keys(fieldsByPage).length === 0 ? (
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="body2" color="text.secondary">
@@ -569,3 +606,4 @@ const FieldList = ({
 };
 
 export default FieldList;
+export { FIELD_TYPE_CONFIG };

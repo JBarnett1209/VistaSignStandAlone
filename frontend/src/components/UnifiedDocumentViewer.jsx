@@ -13,6 +13,9 @@ import {
   NavigateBefore as PreviousIcon,
   NavigateNext as NextIcon
 } from '@mui/icons-material';
+import {
+  useDroppable,
+} from '@dnd-kit/core';
 import { 
   calculatePdfOffset, 
   fieldToScreenCoords, 
@@ -24,6 +27,32 @@ import {
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+// Drop Zone Component for PDF pages
+const PdfDropZone = ({ pageNumber, onFieldDrop, children }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `pdf-page-${pageNumber}`,
+    data: {
+      type: 'pdf-page',
+      pageNumber: pageNumber,
+    },
+  });
+
+  return (
+    <Box
+      ref={setNodeRef}
+      sx={{
+        position: 'relative',
+        border: isOver ? '2px dashed #1976d2' : '2px dashed transparent',
+        borderRadius: 1,
+        transition: 'border-color 0.2s ease',
+        minHeight: '100%',
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
 
 const UnifiedDocumentViewer = ({ 
   documentUrl,
@@ -43,7 +72,9 @@ const UnifiedDocumentViewer = ({
   children,
   containerRef,
   className = '',
-  sx = {}
+  sx = {},
+  onFieldDrop,
+  isDragActive = false
 }) => {
   const [, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -418,20 +449,21 @@ const UnifiedDocumentViewer = ({
     );
   }
 
+
   return (
     <Box 
-      ref={pdfContainerRef}
-      className={className}
-      sx={{ 
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 2,
-        p: 2,
-        ...sx
-      }}
-    >
+        ref={pdfContainerRef}
+        className={className}
+        sx={{ 
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          p: 2,
+          ...sx
+        }}
+      >
       {/* PDF Controls */}
       {showControls && (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -492,29 +524,31 @@ const UnifiedDocumentViewer = ({
 
       {/* PDF Document */}
       <Box sx={{ position: 'relative' }}>
-        <Document
-          file={documentUrl}
-          onLoadSuccess={handleDocumentLoadSuccess}
-          onLoadError={handleDocumentLoadError}
-          loading={
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: 400 
-            }}>
-              <CircularProgress />
-              <Typography sx={{ ml: 2 }}>Loading PDF...</Typography>
-            </Box>
-          }
-        >
-          <Page
-            pageNumber={pageNumber}
-            scale={scale}
-            renderTextLayer={false}
-            renderAnnotationLayer={false}
-          />
-        </Document>
+        <PdfDropZone pageNumber={pageNumber} onFieldDrop={onFieldDrop}>
+          <Document
+            file={documentUrl}
+            onLoadSuccess={handleDocumentLoadSuccess}
+            onLoadError={handleDocumentLoadError}
+            loading={
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: 400 
+              }}>
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Loading PDF...</Typography>
+              </Box>
+            }
+          >
+            <Page
+              pageNumber={pageNumber}
+              scale={scale}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+            />
+          </Document>
+        </PdfDropZone>
 
         {/* Field Overlays */}
         {showFields && currentPageFields.map(field => {

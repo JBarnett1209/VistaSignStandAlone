@@ -16,12 +16,23 @@ import {
   Typography
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 
 // Professional components
 import PdfViewer from './PdfViewer';
 import FieldRenderer from './FieldRenderer';
 import FieldManager from './FieldManager';
-import FieldList from './FieldList';
+import FieldList, { FIELD_TYPE_CONFIG } from './FieldList';
 import Toolbar from './Toolbar';
 
 // State management
@@ -54,6 +65,14 @@ const DocumentEditor = ({
   const [fieldManagerOpen, setFieldManagerOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const [showFieldList, setShowFieldList] = useState(true);
+
+  // Set up sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Simple function implementations
   const setDocument = (doc) => {
@@ -257,11 +276,70 @@ const DocumentEditor = ({
   }, []);
 
   // Handle field type drop from palette
-  const handleFieldTypeDrop = useCallback((newField, event) => {
-    // For now, add the field at a default position
-    // In a full implementation, you'd calculate the drop position from the event
+  const handleFieldTypeDrop = useCallback((fieldData) => {
+    // Create a new field with the drop position
+    const config = FIELD_TYPE_CONFIG[fieldData.type] || { 
+      label: fieldData.type, 
+      defaultWidth: 200, 
+      defaultHeight: 50 
+    };
+    
+    const newField = {
+      id: Date.now(),
+      type: fieldData.type,
+      label: config.label,
+      x: fieldData.x,
+      y: fieldData.y,
+      width: config.defaultWidth,
+      height: config.defaultHeight,
+      page: fieldData.page,
+      required: false,
+      visible: true
+    };
+    
     addField(newField);
   }, [addField]);
+
+  // Main drag and drop handler
+  const handleDragEnd = useCallback((event) => {
+    const { active, over } = event;
+    
+    // Handle field type drops (from palette to document)
+    if (active.data.current?.type === 'field-type' && over?.data.current?.type === 'pdf-page') {
+      const fieldType = active.data.current.fieldType;
+      const dropPage = over.data.current.pageNumber;
+      
+      // Calculate drop position relative to the PDF page
+      const pdfPage = document.querySelector('.react-pdf__Page');
+      if (pdfPage) {
+        const pageRect = pdfPage.getBoundingClientRect();
+        const dropX = event.activatorEvent?.clientX - pageRect.left;
+        const dropY = event.activatorEvent?.clientY - pageRect.top;
+        
+        // Convert screen coordinates to PDF coordinates
+        const pdfX = (dropX - pdfOffset.x) / scale;
+        const pdfY = (dropY - pdfOffset.y) / scale;
+        
+        handleFieldTypeDrop({
+          type: fieldType,
+          x: Math.max(0, pdfX),
+          y: Math.max(0, pdfY),
+          page: dropPage
+        });
+      }
+      return;
+    }
+    
+    // Handle field reordering in the sidebar
+    if (active.id !== over?.id && active.data.current?.type !== 'field-type') {
+      const oldIndex = fields.findIndex(field => field.id === active.id);
+      const newIndex = fields.findIndex(field => field.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        handleFieldReorder(oldIndex, newIndex);
+      }
+    }
+  }, [handleFieldTypeDrop, handleFieldReorder, fields, pdfOffset, scale]);
 
   // Handle field click
   const handleFieldClick = useCallback((field) => {
@@ -347,18 +425,23 @@ const DocumentEditor = ({
   const currentPageFields = fields.filter(field => field.page === pageNumber);
 
   return (
-    <Dialog
-      open={!!document}
-      onClose={handleClose}
-      maxWidth="xl"
-      fullWidth
-      sx={{
-        '& .MuiDialog-paper': {
-          height: '90vh',
-          maxHeight: '90vh'
-        }
-      }}
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
     >
+      <Dialog
+        open={!!document}
+        onClose={handleClose}
+        maxWidth="xl"
+        fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            height: '90vh',
+            maxHeight: '90vh'
+          }
+        }}
+      >
       <DialogTitle sx={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -437,6 +520,7 @@ const DocumentEditor = ({
                 onPdfLoad={handlePdfLoad}
                 onPageChange={handlePageChange}
                 onPdfOffsetChange={handlePdfOffsetChange}
+                onFieldDrop={handleFieldTypeDrop}
               >
                 {/* Field Overlays */}
                 {currentPageFields.map((field) => (
@@ -475,6 +559,7 @@ const DocumentEditor = ({
         message={snackbar.message}
       />
     </Dialog>
+    </DndContext>
   );
 };
 
