@@ -4,6 +4,9 @@
   "description": "VistaSign Digital Signature Platform Frontend",
   "private": true,
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.14.19",
@@ -18,7 +21,6 @@
     "axios": "^1.6.2",
     "date-fns": "^2.30.0",
     "react": "^18.2.0",
-    "react-beautiful-dnd": "^13.1.1",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.3",
     "react-pdf": "^7.6.0",
