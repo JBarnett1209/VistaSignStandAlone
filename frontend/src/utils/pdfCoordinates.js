@@ -31,16 +31,6 @@ export const calculatePdfOffset = (container, pdfWidth = PDF_CONFIG.STANDARD_WID
     y: 0 
   };
   
-  // Enhanced debug logging for coordinate system
-  console.log('🔍 PDF Offset Calculation:', {
-    containerWidth: containerRect.width,
-    pdfWidth,
-    scaledPdfWidth,
-    offsetX,
-    scale,
-    finalOffset: result,
-    timestamp: new Date().toISOString()
-  });
   
   return result;
 };

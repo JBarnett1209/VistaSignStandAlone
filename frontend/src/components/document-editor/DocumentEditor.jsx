@@ -276,8 +276,17 @@ const DocumentEditor = ({
       const dropPage = over.data.current.pageNumber;
       
       // Calculate drop position relative to the PDF page
-      const pdfPage = document.querySelector('.react-pdf__Page');
-      if (pdfPage) {
+      // Use a more robust approach to find the PDF page element
+      let pdfPage = null;
+      try {
+        pdfPage = document.querySelector('.react-pdf__Page') || 
+                 document.querySelector('[data-page-number]') ||
+                 document.querySelector('.pdf-page');
+      } catch (error) {
+        console.warn('Error finding PDF page element:', error);
+      }
+      
+      if (pdfPage && typeof pdfPage.getBoundingClientRect === 'function') {
         const pageRect = pdfPage.getBoundingClientRect();
         
         // Try to get drop coordinates from different sources
@@ -305,6 +314,15 @@ const DocumentEditor = ({
           type: fieldType,
           x: pdfX,
           y: pdfY,
+          page: dropPage
+        });
+      } else {
+        // Fallback: use center of the page if we can't find the PDF element
+        console.warn('Could not find PDF page element, using fallback coordinates');
+        handleFieldTypeDrop({
+          type: fieldType,
+          x: 200, // Default center position
+          y: 200,
           page: dropPage
         });
       }
