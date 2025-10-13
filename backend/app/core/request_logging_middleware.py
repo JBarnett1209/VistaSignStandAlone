@@ -34,10 +34,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("authorization", "")
         if auth_header.startswith("Bearer "):
             try:
-                # Decode JWT to get user ID (simplified - in real app you'd use proper JWT decoding)
-                # For now, we'll extract it from the request context later
-                pass
-            except:
+                # Extract JWT token and decode to get user ID
+                token = auth_header[7:]  # Remove "Bearer " prefix
+                from app.core.security.auth import auth_handler
+                payload = auth_handler.decode_token(token)
+                if payload.get("type") == "access":
+                    user_id = payload.get("sub")
+            except Exception as e:
+                # If JWT decode fails, user_id remains None
                 pass
         
         # Try to get session from cookies
