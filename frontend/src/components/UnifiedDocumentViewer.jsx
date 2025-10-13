@@ -38,6 +38,12 @@ const PdfDropZone = ({ pageNumber, onFieldDrop, children }) => {
     },
   });
 
+  // Debug logging
+  React.useEffect(() => {
+    if (isOver) {
+      console.log(`🎯 PDF Drop Zone ${pageNumber} is being hovered`);
+    }
+  }, [isOver, pageNumber]);
 
   return (
     <Box
@@ -48,6 +54,9 @@ const PdfDropZone = ({ pageNumber, onFieldDrop, children }) => {
         borderRadius: 1,
         transition: 'border-color 0.2s ease',
         minHeight: '100%',
+        // Make sure the drop zone covers the entire area
+        width: '100%',
+        height: '100%',
       }}
     >
       {children}
@@ -525,31 +534,31 @@ const UnifiedDocumentViewer = ({
 
       {/* PDF Document */}
       <Box sx={{ position: 'relative' }}>
-        <PdfDropZone pageNumber={pageNumber} onFieldDrop={onFieldDrop}>
-          <Document
-            file={documentUrl}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            onLoadError={handleDocumentLoadError}
-            loading={
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: 400 
-              }}>
-                <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Loading PDF...</Typography>
-              </Box>
-            }
-          >
+        <Document
+          file={documentUrl}
+          onLoadSuccess={handleDocumentLoadSuccess}
+          onLoadError={handleDocumentLoadError}
+          loading={
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              height: 400 
+            }}>
+              <CircularProgress />
+              <Typography sx={{ ml: 2 }}>Loading PDF...</Typography>
+            </Box>
+          }
+        >
+          <PdfDropZone pageNumber={pageNumber} onFieldDrop={onFieldDrop}>
             <Page
               pageNumber={pageNumber}
               scale={scale}
               renderTextLayer={false}
               renderAnnotationLayer={false}
             />
-          </Document>
-        </PdfDropZone>
+          </PdfDropZone>
+        </Document>
 
         {/* Field Overlays */}
         {showFields && currentPageFields.map(field => {

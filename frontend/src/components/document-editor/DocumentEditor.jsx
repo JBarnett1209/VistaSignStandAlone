@@ -270,6 +270,14 @@ const DocumentEditor = ({
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
     
+    console.log('🎯 Drag End Event:', {
+      activeId: active.id,
+      activeType: active.data.current?.type,
+      overId: over?.id,
+      overType: over?.data.current?.type,
+      overData: over?.data.current
+    });
+    
     // Handle field type drops (from palette to document)
     if (active.data.current?.type === 'field-type' && over?.data.current?.type === 'pdf-page') {
       const fieldType = active.data.current.fieldType;

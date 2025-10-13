@@ -175,6 +175,13 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
     },
   });
 
+  // Debug logging
+  React.useEffect(() => {
+    if (isDragging) {
+      console.log(`🎯 Dragging field type: ${fieldType}`);
+    }
+  }, [isDragging, fieldType]);
+
 
   const style = {
     transform: CSS.Transform.toString(transform),
