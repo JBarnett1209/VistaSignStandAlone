@@ -22,8 +22,8 @@ import FieldRenderer from './FieldRenderer';
 import FieldManager from './FieldManager';
 import Toolbar from './Toolbar';
 
-// State management - temporarily disabled due to Docker build issues
-// import useDocumentStore from '../../stores/documentStore';
+// State management
+import useDocumentStore from '../../stores/documentStore';
 
 // Services
 import { documentsAPI } from '../../services/api';
@@ -33,7 +33,7 @@ const DocumentEditor = ({
   onClose, 
   onSave 
 }) => {
-  // Local state (temporarily replacing Zustand store)
+  // Local state (simplified to avoid Zustand issues)
   const [documentUrl, setDocumentUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -51,6 +51,43 @@ const DocumentEditor = ({
   // Local state
   const [fieldManagerOpen, setFieldManagerOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  // Simple function implementations
+  const setDocument = (doc) => {
+    setDocumentUrl(doc?.file_url || doc?.url);
+  };
+  
+  const addField = (field) => {
+    setFields(prev => [...prev, field]);
+  };
+  
+  const updateField = (fieldId, updates) => {
+    setFields(prev => prev.map(field => 
+      field.id === fieldId ? { ...field, ...updates } : field
+    ));
+  };
+  
+  const deleteField = (fieldId) => {
+    setFields(prev => prev.filter(field => field.id !== fieldId));
+    setSelectedField(null);
+    setEditingField(null);
+  };
+  
+  const clearSelection = () => {
+    setSelectedField(null);
+    setEditingField(null);
+  };
+  
+  const undo = () => {
+    // Simple undo implementation
+  };
+  
+  const redo = () => {
+    // Simple redo implementation
+  };
+  
+  const canUndo = false;
+  const canRedo = false;
 
   // Initialize document
   useEffect(() => {
