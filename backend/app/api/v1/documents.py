@@ -297,6 +297,31 @@ async def convert_document_to_pdf(
             detail="Failed to convert document"
         )
 
+@router.post("/upload-debug")
+async def upload_debug(
+    request: Request
+):
+    """Debug endpoint to see what's being received"""
+    try:
+        logger.info(f"Debug upload request received")
+        logger.info(f"Content-Type: {request.headers.get('content-type')}")
+        logger.info(f"Content-Length: {request.headers.get('content-length')}")
+        
+        # Try to read the raw body
+        body = await request.body()
+        logger.info(f"Body length: {len(body)}")
+        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
+        
+        return {
+            "message": "Debug info logged",
+            "content_type": request.headers.get('content-type'),
+            "content_length": request.headers.get('content-length'),
+            "body_length": len(body)
+        }
+    except Exception as e:
+        logger.error(f"Debug upload error: {str(e)}")
+        return {"error": str(e)}
+
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),

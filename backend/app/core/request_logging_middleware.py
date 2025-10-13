@@ -138,6 +138,9 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
                 try:
                     response = await call_next(request)
                     
+                    # Flush all pending logs to the database
+                    db_handler.flush_logs()
+                    
                     # Commit all logs generated during this request
                     await db_session.commit()
                     
@@ -146,6 +149,7 @@ class DatabaseLoggingMiddleware(BaseHTTPMiddleware):
                 except Exception as e:
                     # Still try to commit logs even for failed requests
                     try:
+                        db_handler.flush_logs()
                         await db_session.commit()
                     except Exception as commit_error:
                         self.logger.warning(f"Failed to commit logs after error: {commit_error}")

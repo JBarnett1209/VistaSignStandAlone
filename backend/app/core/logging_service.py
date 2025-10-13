@@ -27,6 +27,7 @@ class DatabaseLogHandler(logging.Handler):
         super().__init__()
         self.db_session = db_session
         self.setLevel(logging.DEBUG)
+        self._pending_logs = []
     
     def emit(self, record):
         """Emit a log record to the database"""
@@ -84,13 +85,22 @@ class DatabaseLogHandler(logging.Handler):
                 stack_trace=stack_trace
             )
             
-            # Add to session (will be committed by the calling code)
-            self.db_session.add(log_entry)
+            # Store log entry for later commit to avoid flush conflicts
+            self._pending_logs.append(log_entry)
             
         except Exception as e:
             # Fallback to console if database logging fails
             print(f"Database logging failed: {e}")
             print(f"Original log: {record.getMessage()}")
+    
+    def flush_logs(self):
+        """Flush all pending logs to the database"""
+        try:
+            for log_entry in self._pending_logs:
+                self.db_session.add(log_entry)
+            self._pending_logs.clear()
+        except Exception as e:
+            print(f"Failed to flush logs: {e}")
 
 class ComprehensiveLogger:
     """Comprehensive logging service with database integration"""
