@@ -283,19 +283,19 @@ const DocumentEditor = ({
 
   // Handle view mode toggle
   const handleViewModeToggle = useCallback(() => {
-    setViewMode(!isViewMode);
+    setIsViewMode(!isViewMode);
     if (!isViewMode) {
-      clearSelection();
+      clearSelection?.();
     }
-  }, [isViewMode, setViewMode, clearSelection]);
+  }, [isViewMode, setIsViewMode, clearSelection]);
 
   // Handle whiteout mode toggle
   const handleWhiteoutModeToggle = useCallback(() => {
-    setWhiteoutMode(!isWhiteoutMode);
+    setIsWhiteoutMode(!isWhiteoutMode);
     if (!isWhiteoutMode) {
-      clearSelection();
+      clearSelection?.();
     }
-  }, [isWhiteoutMode, setWhiteoutMode, clearSelection]);
+  }, [isWhiteoutMode, setIsWhiteoutMode, clearSelection]);
 
   // Handle send document
   const handleSend = useCallback(() => {
