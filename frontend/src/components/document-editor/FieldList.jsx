@@ -512,6 +512,7 @@ const FieldList = ({
             )}
           </Box>
         ) : (
+          <>
             {Object.entries(fieldsByPage).map(([page, pageFields]) => (
               <Box key={page}>
                 {showAllPages && (
@@ -545,6 +546,7 @@ const FieldList = ({
                 </SortableContext>
               </Box>
             ))}
+          </>
         )}
       </Box>
     </Paper>
