@@ -4,204 +4,161 @@
  */
 
 import { create } from 'zustand';
-import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { generateFieldId, normalizeField } from '../utils/pdfCoordinates';
 
 // Document store state
-const useDocumentStore = create(
-  devtools(
-    subscribeWithSelector((set, get) => ({
-      // Document state
-      document: null,
-      documentUrl: null,
-      numPages: null,
-      pageNumber: 1,
-      scale: 1.0,
-      pdfOffset: { x: 0, y: 0 },
-      
-      // Fields state
-      fields: [],
+const useDocumentStore = create((set, get) => ({
+  // Document state
+  document: null,
+  documentUrl: null,
+  numPages: null,
+  pageNumber: 1,
+  scale: 1.0,
+  pdfOffset: { x: 0, y: 0 },
+  
+  // Fields state
+  fields: [],
+  selectedField: null,
+  editingField: null,
+  
+  // UI state
+  loading: false,
+  error: null,
+  isViewMode: false,
+  isWhiteoutMode: false,
+  selectedFieldType: 'signature',
+  
+  // History state
+  history: [],
+  historyIndex: -1,
+  
+  // Actions
+  setDocument: (document) => set({ document }),
+  
+  setDocumentUrl: (url) => set({ documentUrl: url }),
+  
+  setNumPages: (numPages) => set({ numPages }),
+  
+  setPageNumber: (pageNumber) => set({ pageNumber }),
+  
+  setScale: (scale) => set({ scale }),
+  
+  setPdfOffset: (offset) => set({ pdfOffset: offset }),
+  
+  setLoading: (loading) => set({ loading }),
+  
+  setError: (error) => set({ error }),
+  
+  setViewMode: (isViewMode) => set({ isViewMode }),
+  
+  setWhiteoutMode: (isWhiteoutMode) => set({ isWhiteoutMode }),
+  
+  setSelectedFieldType: (selectedFieldType) => set({ selectedFieldType }),
+  
+  // Field actions
+  addField: (field) => {
+    const normalizedField = normalizeField(field);
+    const newFields = [...get().fields, normalizedField];
+    
+    set({ 
+      fields: newFields,
+      selectedField: normalizedField
+    });
+    
+    // Add to history
+    get().addToHistory();
+  },
+  
+  updateField: (fieldId, updates) => {
+    const fields = get().fields.map(field => 
+      field.id === fieldId 
+        ? { ...field, ...updates }
+        : field
+    );
+    
+    set({ fields });
+    get().addToHistory();
+  },
+  
+  deleteField: (fieldId) => {
+    const fields = get().fields.filter(field => field.id !== fieldId);
+    
+    set({ 
+      fields,
       selectedField: null,
-      editingField: null,
-      
-      // UI state
-      loading: false,
-      error: null,
-      isViewMode: false,
-      isWhiteoutMode: false,
-      selectedFieldType: 'signature',
-      
-      // History state
-      history: [],
-      historyIndex: -1,
-      
-      // Actions
-      setDocument: (document) => set({ document }),
-      
-      setDocumentUrl: (url) => set({ documentUrl: url }),
-      
-      setNumPages: (numPages) => set({ numPages }),
-      
-      setPageNumber: (pageNumber) => set({ pageNumber }),
-      
-      setScale: (scale) => set({ scale }),
-      
-      setPdfOffset: (offset) => set({ pdfOffset: offset }),
-      
-      setLoading: (loading) => set({ loading }),
-      
-      setError: (error) => set({ error }),
-      
-      setViewMode: (isViewMode) => set({ isViewMode }),
-      
-      setWhiteoutMode: (isWhiteoutMode) => set({ isWhiteoutMode }),
-      
-      setSelectedFieldType: (type) => set({ selectedFieldType: type }),
-      
-      // Field actions
-      addField: (fieldData) => {
-        const newField = {
-          id: generateFieldId(),
-          ...normalizeField(fieldData),
-          created_at: new Date().toISOString()
-        };
-        
-        set((state) => ({
-          fields: [...state.fields, newField],
-          selectedField: newField
-        }));
-        
-        get().saveToHistory();
-      },
-      
-      updateField: (fieldId, updates) => {
-        set((state) => ({
-          fields: state.fields.map(field =>
-            field.id === fieldId ? { ...field, ...updates } : field
-          ),
-          selectedField: state.selectedField?.id === fieldId 
-            ? { ...state.selectedField, ...updates }
-            : state.selectedField
-        }));
-        
-        get().saveToHistory();
-      },
-      
-      deleteField: (fieldId) => {
-        set((state) => ({
-          fields: state.fields.filter(field => field.id !== fieldId),
-          selectedField: state.selectedField?.id === fieldId ? null : state.selectedField,
-          editingField: state.editingField?.id === fieldId ? null : state.editingField
-        }));
-        
-        get().saveToHistory();
-      },
-      
-      setSelectedField: (field) => set({ selectedField: field }),
-      
-      setEditingField: (field) => set({ editingField: field }),
-      
-      clearSelection: () => set({ 
-        selectedField: null, 
-        editingField: null 
-      }),
-      
-      // History actions
-      saveToHistory: () => {
-        const state = get();
-        const historyEntry = {
-          fields: [...state.fields],
-          timestamp: Date.now()
-        };
-        
-        set((state) => ({
-          history: [
-            ...state.history.slice(0, state.historyIndex + 1),
-            historyEntry
-          ].slice(-50), // Keep only last 50 entries
-          historyIndex: Math.min(state.historyIndex + 1, 49)
-        }));
-      },
-      
-      undo: () => {
-        const state = get();
-        if (state.historyIndex > 0) {
-          const previousState = state.history[state.historyIndex - 1];
-          set({
-            fields: [...previousState.fields],
-            historyIndex: state.historyIndex - 1,
-            selectedField: null,
-            editingField: null
-          });
-        }
-      },
-      
-      redo: () => {
-        const state = get();
-        if (state.historyIndex < state.history.length - 1) {
-          const nextState = state.history[state.historyIndex + 1];
-          set({
-            fields: [...nextState.fields],
-            historyIndex: state.historyIndex + 1,
-            selectedField: null,
-            editingField: null
-          });
-        }
-      },
-      
-      canUndo: () => get().historyIndex > 0,
-      
-      canRedo: () => {
-        const state = get();
-        return state.historyIndex < state.history.length - 1;
-      },
-      
-      // Reset actions
-      resetDocument: () => set({
-        document: null,
-        documentUrl: null,
-        numPages: null,
-        pageNumber: 1,
-        scale: 1.0,
-        pdfOffset: { x: 0, y: 0 },
-        fields: [],
-        selectedField: null,
-        editingField: null,
-        loading: false,
-        error: null,
-        isViewMode: false,
-        isWhiteoutMode: false,
-        selectedFieldType: 'signature',
-        history: [],
-        historyIndex: -1
-      }),
-      
-      // Computed selectors
-      getFieldsForPage: (pageNumber) => {
-        const state = get();
-        return state.fields.filter(field => field.page === pageNumber);
-      },
-      
-      getSelectedFieldData: () => {
-        const state = get();
-        return state.selectedField;
-      },
-      
-      getFieldById: (fieldId) => {
-        const state = get();
-        return state.fields.find(field => field.id === fieldId);
-      }
-    })),
-    {
-      name: 'document-store',
-      partialize: (state) => ({
-        // Only persist essential data
-        document: state.document,
-        fields: state.fields,
-        scale: state.scale
-      })
+      editingField: null
+    });
+    
+    get().addToHistory();
+  },
+  
+  setSelectedField: (field) => set({ selectedField: field }),
+  
+  setEditingField: (field) => set({ editingField: field }),
+  
+  clearSelection: () => set({ 
+    selectedField: null, 
+    editingField: null 
+  }),
+  
+  // History actions
+  addToHistory: () => {
+    const { fields, history, historyIndex } = get();
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push([...fields]);
+    
+    set({
+      history: newHistory,
+      historyIndex: newHistory.length - 1
+    });
+  },
+  
+  undo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      set({
+        fields: [...history[newIndex]],
+        historyIndex: newIndex
+      });
     }
-  )
-);
+  },
+  
+  redo: () => {
+    const { history, historyIndex } = get();
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      set({
+        fields: [...history[newIndex]],
+        historyIndex: newIndex
+      });
+    }
+  },
+  
+  // Computed values
+  canUndo: () => get().historyIndex > 0,
+  
+  canRedo: () => get().historyIndex < get().history.length - 1,
+  
+  // Reset document
+  resetDocument: () => set({
+    document: null,
+    documentUrl: null,
+    numPages: null,
+    pageNumber: 1,
+    scale: 1.0,
+    pdfOffset: { x: 0, y: 0 },
+    fields: [],
+    selectedField: null,
+    editingField: null,
+    loading: false,
+    error: null,
+    isViewMode: false,
+    isWhiteoutMode: false,
+    selectedFieldType: 'signature',
+    history: [],
+    historyIndex: -1
+  })
+}));
 
 export default useDocumentStore;
