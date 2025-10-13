@@ -256,6 +256,13 @@ const DocumentEditor = ({
     setFieldManagerOpen(true);
   }, []);
 
+  // Handle field type drop from palette
+  const handleFieldTypeDrop = useCallback((newField, event) => {
+    // For now, add the field at a default position
+    // In a full implementation, you'd calculate the drop position from the event
+    addField(newField);
+  }, [addField]);
+
   // Handle field click
   const handleFieldClick = useCallback((field) => {
     setSelectedField(field);
@@ -387,6 +394,7 @@ const DocumentEditor = ({
             onFieldReorder={handleFieldReorder}
             onFieldVisibilityToggle={handleFieldVisibilityToggle}
             onAddField={handleAddField}
+            onFieldTypeDrop={handleFieldTypeDrop}
             currentPage={pageNumber}
           />
         )}

@@ -1,6 +1,6 @@
 /**
- * Field List Sidebar Component
- * Shows all document fields in a drag-and-drop list
+ * Field Palette Sidebar Component
+ * Shows draggable field types and existing fields in a drag-and-drop list
  */
 
 import React, { useState, useCallback } from 'react';
@@ -37,6 +37,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDraggable,
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -50,17 +51,180 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 const FIELD_TYPE_CONFIG = {
-  signature: { label: 'Signature', icon: '✍️', color: 'primary' },
-  date: { label: 'Date', icon: '📅', color: 'secondary' },
-  initials: { label: 'Initials', icon: '🖊️', color: 'info' },
-  text: { label: 'Text', icon: '📝', color: 'default' },
-  checkbox: { label: 'Checkbox', icon: '☑️', color: 'success' },
-  radio: { label: 'Radio', icon: '🔘', color: 'warning' },
-  dropdown: { label: 'Dropdown', icon: '📋', color: 'error' },
-  name: { label: 'Name', icon: '👤', color: 'primary' },
-  email: { label: 'Email', icon: '📧', color: 'secondary' },
-  attachment: { label: 'Attachment', icon: '📎', color: 'info' },
-  whiteout: { label: 'Whiteout', icon: '⬜', color: 'default' }
+  signature: { 
+    label: 'Signature', 
+    icon: '✍️', 
+    color: 'primary',
+    description: 'Digital signature field',
+    defaultWidth: 200,
+    defaultHeight: 50
+  },
+  date: { 
+    label: 'Date', 
+    icon: '📅', 
+    color: 'secondary',
+    description: 'Date picker field',
+    defaultWidth: 120,
+    defaultHeight: 30
+  },
+  initials: { 
+    label: 'Initials', 
+    icon: '🖊️', 
+    color: 'info',
+    description: 'Initials signature field',
+    defaultWidth: 80,
+    defaultHeight: 30
+  },
+  text: { 
+    label: 'Text', 
+    icon: '📝', 
+    color: 'default',
+    description: 'Text input field',
+    defaultWidth: 150,
+    defaultHeight: 30
+  },
+  checkbox: { 
+    label: 'Checkbox', 
+    icon: '☑️', 
+    color: 'success',
+    description: 'Checkbox field',
+    defaultWidth: 20,
+    defaultHeight: 20
+  },
+  radio: { 
+    label: 'Radio', 
+    icon: '🔘', 
+    color: 'warning',
+    description: 'Radio button field',
+    defaultWidth: 20,
+    defaultHeight: 20
+  },
+  dropdown: { 
+    label: 'Dropdown', 
+    icon: '📋', 
+    color: 'error',
+    description: 'Dropdown selection field',
+    defaultWidth: 150,
+    defaultHeight: 30
+  },
+  name: { 
+    label: 'Name', 
+    icon: '👤', 
+    color: 'primary',
+    description: 'Name input field',
+    defaultWidth: 150,
+    defaultHeight: 30
+  },
+  email: { 
+    label: 'Email', 
+    icon: '📧', 
+    color: 'secondary',
+    description: 'Email input field',
+    defaultWidth: 200,
+    defaultHeight: 30
+  },
+  phone: {
+    label: 'Phone',
+    icon: '📞',
+    color: 'info',
+    description: 'Phone number field',
+    defaultWidth: 150,
+    defaultHeight: 30
+  },
+  company: {
+    label: 'Company',
+    icon: '🏢',
+    color: 'default',
+    description: 'Company name field',
+    defaultWidth: 200,
+    defaultHeight: 30
+  },
+  title: {
+    label: 'Title',
+    icon: '💼',
+    color: 'primary',
+    description: 'Job title field',
+    defaultWidth: 150,
+    defaultHeight: 30
+  },
+  attachment: { 
+    label: 'Attachment', 
+    icon: '📎', 
+    color: 'info',
+    description: 'File attachment field',
+    defaultWidth: 200,
+    defaultHeight: 50
+  },
+  whiteout: { 
+    label: 'Whiteout', 
+    icon: '⬜', 
+    color: 'default',
+    description: 'Whiteout/hide content',
+    defaultWidth: 100,
+    defaultHeight: 30
+  }
+};
+
+// Draggable Field Type Component
+const DraggableFieldType = ({ fieldType, onDragStart }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: `field-type-${fieldType}`,
+    data: {
+      type: 'field-type',
+      fieldType: fieldType,
+    },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const config = FIELD_TYPE_CONFIG[fieldType];
+
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        p: 1.5,
+        mb: 1,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        cursor: 'grab',
+        bgcolor: 'background.paper',
+        '&:hover': {
+          bgcolor: 'action.hover',
+          borderColor: 'primary.main',
+        },
+        '&:active': {
+          cursor: 'grabbing',
+        },
+      }}
+    >
+      <Box sx={{ fontSize: '1.2rem' }}>{config.icon}</Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2" fontWeight="medium" noWrap>
+          {config.label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {config.description}
+        </Typography>
+      </Box>
+    </Box>
+  );
 };
 
 // Sortable Field Item Component
@@ -210,6 +374,7 @@ const FieldList = ({
   onFieldReorder,
   onFieldVisibilityToggle,
   onAddField,
+  onFieldTypeDrop,
   currentPage = 1
 }) => {
   const [filter, setFilter] = useState('');
@@ -245,6 +410,30 @@ const FieldList = ({
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
     
+    // Handle field type drops (from palette to document)
+    if (active.data.current?.type === 'field-type') {
+      const fieldType = active.data.current.fieldType;
+      const config = FIELD_TYPE_CONFIG[fieldType];
+      
+      // Create a new field at the drop location
+      const newField = {
+        id: Date.now(), // Temporary ID
+        type: fieldType,
+        label: config.label,
+        x: 100, // Default position - will be updated by drop handler
+        y: 100,
+        width: config.defaultWidth,
+        height: config.defaultHeight,
+        page: currentPage,
+        required: false,
+        visible: true
+      };
+      
+      onFieldTypeDrop?.(newField, event);
+      return;
+    }
+    
+    // Handle field reordering
     if (active.id !== over?.id) {
       const oldIndex = filteredFields.findIndex(field => field.id === active.id);
       const newIndex = filteredFields.findIndex(field => field.id === over.id);
@@ -253,7 +442,7 @@ const FieldList = ({
         onFieldReorder?.(oldIndex, newIndex);
       }
     }
-  }, [filteredFields, onFieldReorder]);
+  }, [filteredFields, onFieldReorder, onFieldTypeDrop, currentPage]);
 
 
   return (
@@ -269,17 +458,7 @@ const FieldList = ({
     >
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-          <Typography variant="h6">Fields</Typography>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={onAddField}
-            variant="outlined"
-          >
-            Add
-          </Button>
-        </Box>
+        <Typography variant="h6" sx={{ mb: 2 }}>Field Palette</Typography>
         
         {/* Search */}
         <TextField
@@ -288,10 +467,11 @@ const FieldList = ({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           fullWidth
+          sx={{ mb: 1 }}
         />
         
         {/* Page Filter */}
-        <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <Button
             size="small"
             variant={showAllPages ? 'outlined' : 'contained'}
@@ -306,6 +486,21 @@ const FieldList = ({
           >
             All Pages
           </Button>
+        </Box>
+      </Box>
+
+      {/* Field Type Palette */}
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+          Drag to add fields:
+        </Typography>
+        <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
+          {Object.entries(FIELD_TYPE_CONFIG).map(([fieldType, config]) => (
+            <DraggableFieldType
+              key={fieldType}
+              fieldType={fieldType}
+            />
+          ))}
         </Box>
       </Box>
 
