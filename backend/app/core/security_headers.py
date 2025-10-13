@@ -33,13 +33,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Referrer Policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         
-        # Content Security Policy - Strict security for production
+        # Content Security Policy - whitelist only required external hosts
+        # Allow Google Fonts if front-end uses them
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             f"script-src 'self' 'nonce-{nonce}'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data: https: blob:; "
-            "font-src 'self' data:; "
+            "font-src 'self' https://fonts.gstatic.com data:; "
             "connect-src 'self' https: wss:; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "

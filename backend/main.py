@@ -7,6 +7,8 @@ from fastapi import FastAPI, HTTPException, Depends, status, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
+from slowapi.util import get_remote_address
+from app.core.rate_limit import limiter, RateLimitExceeded
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -68,6 +70,10 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"detail": "Too Many Requests"})
 
 # Custom middleware to handle ALB proxy headers
 class ProxyHeadersMiddleware(BaseHTTPMiddleware):

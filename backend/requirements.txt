@@ -55,3 +55,6 @@ sentry-sdk[fastapi]==1.38.0
 
 # Environment
 python-dotenv==1.0.0
+
+# Rate limiting
+slowapi==0.1.9

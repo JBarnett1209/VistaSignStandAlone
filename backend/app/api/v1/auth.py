@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.core.security.auth import AuthHandler, get_current_user
 from app.core.cookies import set_refresh_cookie, set_csrf_cookie, delete_auth_cookies
+from app.core.rate_limit import limiter
 from app.models.user import User, UserStatus, UserRole
 from app.models.invite import Invite
 from app.schemas.auth import (
@@ -23,6 +24,7 @@ from app.schemas.auth import (
     UserRegistration, TokenRefreshRequest, TokenRefreshResponse, UserProfile,
     TokenResponse
 )
+ 
 
 router = APIRouter()
 security = HTTPBearer()
@@ -34,6 +36,7 @@ CSRF_COOKIE_NAME = "vst_csrf"
 
 
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit("10/minute")
 async def login(
     login_data: LoginRequest,
     response: Response,
@@ -138,6 +141,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenRefreshResponse)
+@limiter.limit("60/minute")
 async def refresh_token(
     refresh_data: TokenRefreshRequest,
     request: Request,
