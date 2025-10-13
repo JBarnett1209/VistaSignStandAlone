@@ -325,8 +325,8 @@ async def upload_debug(
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    title: Optional[str] = Form(None, description="Document title"),
-    description: Optional[str] = Form(None, description="Document description"),
+    title: str = Form("", description="Document title"),
+    description: str = Form("", description="Document description"),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):

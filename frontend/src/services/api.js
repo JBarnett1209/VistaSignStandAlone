@@ -107,13 +107,10 @@ export const documentsAPI = {
   create: (data) => api.post('/api/v1/documents', data),
   update: (id, data) => api.put(`/api/v1/documents/${id}`, data),
   delete: (id) => api.delete(`/api/v1/documents/${id}`),
-  upload: (file, title, description) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', title);
-    if (description) formData.append('description', description);
+  upload: (formData) => {
     return api.post('/api/v1/documents/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000  // 2 minutes for uploads
     });
   },
   convertToPdf: (id) => api.post(`/api/v1/documents/${id}/convert-to-pdf`),

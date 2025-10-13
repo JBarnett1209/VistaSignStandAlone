@@ -172,7 +172,9 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('title', documentTitle || file.name);
-        formData.append('description', documentDescription);
+        if (documentDescription && documentDescription.trim()) {
+          formData.append('description', documentDescription);
+        }
         
         setUploadProgress(prev => ({ ...prev, [index]: 0 }));
         
