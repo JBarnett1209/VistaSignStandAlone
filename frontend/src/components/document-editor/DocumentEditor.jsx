@@ -304,22 +304,54 @@ const DocumentEditor = ({
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
     
+    console.log('🎯 Drag End Event:', {
+      active: active?.data?.current,
+      over: over?.data?.current,
+      event
+    });
+    
     // Handle field type drops (from palette to document)
     if (active.data.current?.type === 'field-type' && over?.data.current?.type === 'pdf-page') {
       const fieldType = active.data.current.fieldType;
       const dropPage = over.data.current.pageNumber;
       
+      console.log('📍 Field type drop detected:', { fieldType, dropPage });
+      
       // Calculate drop position relative to the PDF page
       const pdfPage = document.querySelector('.react-pdf__Page');
-      if (pdfPage && event.activatorEvent) {
+      if (pdfPage) {
         const pageRect = pdfPage.getBoundingClientRect();
-        const dropX = event.activatorEvent.clientX - pageRect.left;
-        const dropY = event.activatorEvent.clientY - pageRect.top;
+        
+        // Try to get drop coordinates from different sources
+        let dropX, dropY;
+        
+        if (event.activatorEvent) {
+          // Use activator event coordinates
+          dropX = event.activatorEvent.clientX - pageRect.left;
+          dropY = event.activatorEvent.clientY - pageRect.top;
+        } else if (event.delta) {
+          // Use delta coordinates as fallback
+          dropX = pageRect.width / 2; // Center of page
+          dropY = pageRect.height / 2;
+        } else {
+          // Default to center of page
+          dropX = pageRect.width / 2;
+          dropY = pageRect.height / 2;
+        }
+        
+        console.log('📐 Drop coordinates:', {
+          pageRect,
+          dropX,
+          dropY,
+          pdfOffset,
+          scale
+        });
         
         // Convert screen coordinates to PDF coordinates
-        // Account for PDF offset and scale
         const pdfX = Math.max(0, (dropX - pdfOffset.x) / scale);
         const pdfY = Math.max(0, (dropY - pdfOffset.y) / scale);
+        
+        console.log('🎯 Final PDF coordinates:', { pdfX, pdfY });
         
         handleFieldTypeDrop({
           type: fieldType,
@@ -327,6 +359,8 @@ const DocumentEditor = ({
           y: pdfY,
           page: dropPage
         });
+      } else {
+        console.error('❌ PDF page element not found');
       }
       return;
     }
@@ -341,6 +375,11 @@ const DocumentEditor = ({
       }
     }
   }, [handleFieldTypeDrop, handleFieldReorder, fields, pdfOffset, scale]);
+
+  // Handle drag start for debugging
+  const handleDragStart = useCallback((event) => {
+    console.log('🚀 Drag started:', event.active?.data?.current);
+  }, []);
 
   // Handle field click
   const handleFieldClick = useCallback((field) => {
@@ -429,6 +468,7 @@ const DocumentEditor = ({
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       <Dialog

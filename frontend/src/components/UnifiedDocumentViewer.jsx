@@ -38,6 +38,13 @@ const PdfDropZone = ({ pageNumber, onFieldDrop, children }) => {
     },
   });
 
+  // Debug drop zone state
+  React.useEffect(() => {
+    if (isOver) {
+      console.log('🎯 PDF Drop Zone is over:', { pageNumber, isOver });
+    }
+  }, [isOver, pageNumber]);
+
   return (
     <Box
       ref={setNodeRef}

@@ -31,12 +31,6 @@ import {
   Add as AddIcon
 } from '@mui/icons-material';
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDraggable,
 } from '@dnd-kit/core';
 import {
@@ -181,6 +175,11 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
     },
   });
 
+  // Debug drag start
+  const handleDragStart = useCallback(() => {
+    console.log('🚀 Drag started for field type:', fieldType);
+  }, [fieldType]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     opacity: isDragging ? 0.5 : 1,
@@ -194,6 +193,7 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
       style={style}
       {...listeners}
       {...attributes}
+      onDragStart={handleDragStart}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -395,13 +395,6 @@ const FieldList = ({
   const [filter, setFilter] = useState('');
   const [showAllPages, setShowAllPages] = useState(false);
 
-  // Set up sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   // Filter fields by search term and page
   const filteredFields = fields.filter(field => {
@@ -422,42 +415,6 @@ const FieldList = ({
     return acc;
   }, {});
 
-  const handleDragEnd = useCallback((event) => {
-    const { active, over } = event;
-    
-    // Handle field type drops (from palette to document)
-    if (active.data.current?.type === 'field-type') {
-      const fieldType = active.data.current.fieldType;
-      const config = FIELD_TYPE_CONFIG[fieldType];
-      
-      // Create a new field at the drop location
-      const newField = {
-        id: Date.now(), // Temporary ID
-        type: fieldType,
-        label: config.label,
-        x: 100, // Default position - will be updated by drop handler
-        y: 100,
-        width: config.defaultWidth,
-        height: config.defaultHeight,
-        page: currentPage,
-        required: false,
-        visible: true
-      };
-      
-      onFieldTypeDrop?.(newField, event);
-      return;
-    }
-    
-    // Handle field reordering
-    if (active.id !== over?.id) {
-      const oldIndex = filteredFields.findIndex(field => field.id === active.id);
-      const newIndex = filteredFields.findIndex(field => field.id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        onFieldReorder?.(oldIndex, newIndex);
-      }
-    }
-  }, [filteredFields, onFieldReorder, onFieldTypeDrop, currentPage]);
 
 
   return (
@@ -560,11 +517,6 @@ const FieldList = ({
             )}
           </Box>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
             {Object.entries(fieldsByPage).map(([page, pageFields]) => (
               <Box key={page}>
                 {showAllPages && (
@@ -598,7 +550,6 @@ const FieldList = ({
                 </SortableContext>
               </Box>
             ))}
-          </DndContext>
         )}
       </Box>
     </Paper>
