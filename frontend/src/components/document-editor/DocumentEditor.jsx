@@ -20,6 +20,7 @@ import { Close as CloseIcon } from '@mui/icons-material';
 import PdfViewer from './PdfViewer';
 import FieldRenderer from './FieldRenderer';
 import FieldManager from './FieldManager';
+import FieldList from './FieldList';
 import Toolbar from './Toolbar';
 
 // State management
@@ -51,6 +52,7 @@ const DocumentEditor = ({
   // Local state
   const [fieldManagerOpen, setFieldManagerOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [showFieldList, setShowFieldList] = useState(true);
 
   // Simple function implementations
   const setDocument = (doc) => {
@@ -232,6 +234,27 @@ const DocumentEditor = ({
     setFieldManagerOpen(true);
   }, [setSelectedFieldType]);
 
+  // Handle field reorder
+  const handleFieldReorder = useCallback((sourceIndex, destinationIndex) => {
+    setFields(prev => {
+      const newFields = [...prev];
+      const [removed] = newFields.splice(sourceIndex, 1);
+      newFields.splice(destinationIndex, 0, removed);
+      return newFields;
+    });
+  }, []);
+
+  // Handle field visibility toggle
+  const handleFieldVisibilityToggle = useCallback((field) => {
+    updateField(field.id, { visible: field.visible === false ? true : false });
+  }, [updateField]);
+
+  // Handle add field button
+  const handleAddField = useCallback(() => {
+    setSelectedFieldType('signature');
+    setFieldManagerOpen(true);
+  }, []);
+
   // Handle field click
   const handleFieldClick = useCallback((field) => {
     setSelectedField(field);
@@ -321,78 +344,108 @@ const DocumentEditor = ({
       onClose={handleClose}
       maxWidth="xl"
       fullWidth
-      fullScreen
+      sx={{
+        '& .MuiDialog-paper': {
+          height: '90vh',
+          maxHeight: '90vh'
+        }
+      }}
     >
       <DialogTitle sx={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        p: 1
+        p: 2,
+        borderBottom: 1,
+        borderColor: 'divider'
       }}>
         <Box>
-          Document Editor - {document?.title || 'Untitled'}
+          <Typography variant="h6">
+            Document Editor - {document?.title || 'Untitled'}
+          </Typography>
         </Box>
         <Button
           onClick={handleClose}
           startIcon={<CloseIcon />}
           size="small"
+          variant="outlined"
         >
           Close
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
-        {/* Toolbar */}
-        <Toolbar
-          selectedFieldType={selectedFieldType}
-          onFieldTypeSelect={handleFieldTypeSelect}
-          onSave={handleSave}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onSend={handleSend}
-          onViewMode={handleViewModeToggle}
-          onWhiteoutMode={handleWhiteoutModeToggle}
-          canUndo={canUndo}
-          canRedo={canRedo}
-          isViewMode={isViewMode}
-          isWhiteoutMode={isWhiteoutMode}
-          isSaving={loading}
-        />
-
-        {/* Error Display */}
-        {error && (
-          <Alert severity="error" sx={{ m: 2 }}>
-            {error}
-          </Alert>
+      <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'row', height: '100%' }}>
+        {/* Field List Sidebar */}
+        {showFieldList && (
+          <FieldList
+            fields={fields}
+            selectedField={selectedField}
+            onFieldSelect={handleFieldClick}
+            onFieldEdit={handleFieldEdit}
+            onFieldDelete={handleFieldDelete}
+            onFieldReorder={handleFieldReorder}
+            onFieldVisibilityToggle={handleFieldVisibilityToggle}
+            onAddField={handleAddField}
+            currentPage={pageNumber}
+          />
         )}
 
-        {/* PDF Viewer */}
-        <Box sx={{ flex: 1, overflow: 'auto' }}>
-          {documentUrl && (
-            <PdfViewer
-              documentUrl={documentUrl}
-              scale={scale}
-              onScaleChange={handleScaleChange}
-              onPdfLoad={handlePdfLoad}
-              onPageChange={handlePageChange}
-              onPdfOffsetChange={handlePdfOffsetChange}
-            >
-              {/* Field Overlays */}
-              {currentPageFields.map((field) => (
-                <FieldRenderer
-                  key={field.id}
-                  field={field}
-                  scale={scale}
-                  pdfOffset={pdfOffset}
-                  isSelected={selectedField?.id === field.id}
-                  onFieldClick={handleFieldClick}
-                  onFieldEdit={handleFieldEdit}
-                  onFieldDelete={handleFieldDelete}
-                  showControls={!isViewMode}
-                />
-              ))}
-            </PdfViewer>
+        {/* Main Content Area */}
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* Toolbar */}
+          <Toolbar
+            selectedFieldType={selectedFieldType}
+            onFieldTypeSelect={handleFieldTypeSelect}
+            onSave={handleSave}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onSend={handleSend}
+            onViewMode={handleViewModeToggle}
+            onWhiteoutMode={handleWhiteoutModeToggle}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            isViewMode={isViewMode}
+            isWhiteoutMode={isWhiteoutMode}
+            isSaving={loading}
+            showFieldList={showFieldList}
+            onToggleFieldList={() => setShowFieldList(!showFieldList)}
+          />
+
+          {/* Error Display */}
+          {error && (
+            <Alert severity="error" sx={{ m: 2 }}>
+              {error}
+            </Alert>
           )}
+
+          {/* PDF Viewer */}
+          <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+            {documentUrl && (
+              <PdfViewer
+                documentUrl={documentUrl}
+                scale={scale}
+                onScaleChange={handleScaleChange}
+                onPdfLoad={handlePdfLoad}
+                onPageChange={handlePageChange}
+                onPdfOffsetChange={handlePdfOffsetChange}
+              >
+                {/* Field Overlays */}
+                {currentPageFields.map((field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    scale={scale}
+                    pdfOffset={pdfOffset}
+                    isSelected={selectedField?.id === field.id}
+                    onFieldClick={handleFieldClick}
+                    onFieldEdit={handleFieldEdit}
+                    onFieldDelete={handleFieldDelete}
+                    showControls={!isViewMode}
+                  />
+                ))}
+              </PdfViewer>
+            )}
+          </Box>
         </Box>
       </DialogContent>
 

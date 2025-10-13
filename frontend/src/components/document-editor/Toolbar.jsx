@@ -25,7 +25,9 @@ import {
   Delete as DeleteIcon,
   Send as SendIcon,
   Visibility as ViewIcon,
-  EditOff as WhiteoutIcon
+  EditOff as WhiteoutIcon,
+  ViewList as ViewListIcon,
+  ViewSidebar as ViewSidebarIcon
 } from '@mui/icons-material';
 import { FIELD_TYPES } from './FieldManager';
 
@@ -42,7 +44,9 @@ const Toolbar = ({
   canRedo = false,
   isViewMode = false,
   isWhiteoutMode = false,
-  isSaving = false
+  isSaving = false,
+  showFieldList = true,
+  onToggleFieldList
 }) => {
   const [fieldMenuAnchor, setFieldMenuAnchor] = useState(null);
 
@@ -175,6 +179,21 @@ const Toolbar = ({
           </Box>
         )}
       </Box>
+
+      <Divider orientation="vertical" flexItem />
+
+      {/* Field List Toggle */}
+      {onToggleFieldList && (
+        <Tooltip title={showFieldList ? "Hide Field List" : "Show Field List"}>
+          <IconButton 
+            onClick={onToggleFieldList}
+            color={showFieldList ? 'primary' : 'default'}
+            size="small"
+          >
+            {showFieldList ? <ViewSidebarIcon /> : <ViewListIcon />}
+          </IconButton>
+        </Tooltip>
+      )}
 
       <Divider orientation="vertical" flexItem />
 
