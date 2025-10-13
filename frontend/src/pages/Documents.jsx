@@ -187,22 +187,22 @@ export default function Documents() {
     }
   };
 
-  const handleDownloadDocument = async (document) => {
+  const handleDownloadDocument = async (doc) => {
     try {
       // Download the original file
-      const response = await documentsAPI.download(document.id);
+      const response = await documentsAPI.download(doc.id);
       
       // Create blob URL for download
       const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/octet-stream' });
       const url = window.URL.createObjectURL(blob);
       
       // Create a temporary link to download the file
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
-      link.download = document.filename;
-      document.body.appendChild(link);
+      link.download = doc.filename;
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
       
       // Clean up the blob URL
       window.URL.revokeObjectURL(url);
