@@ -332,7 +332,7 @@ async def upload_document(
 ):
     """Upload a new document"""
     try:
-        comprehensive_logger.info(f"Upload request received - User: {current_user.get('user_id')}", extra_data={
+        comprehensive_logger.info(f"Upload request received - User: {current_user.get('user_id')} - Form params fixed", extra_data={
             'user_id': current_user.get('user_id'),
             'user_email': current_user.get('email'),
             'file_filename': file.filename if file else None,

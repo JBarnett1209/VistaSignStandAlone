@@ -96,8 +96,29 @@ const DocumentEditor = ({
     
     try {
       setLoading(true);
+      const fields = document.fields || [];
+      
+      // Enhanced logging for field loading
+      console.log('📝 DocumentEditor: Loading fields:', {
+        documentId: document.id,
+        documentTitle: document.title,
+        totalFields: fields.length,
+        fields: fields.map(field => ({
+          id: field.id,
+          type: field.type,
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          height: field.height,
+          page: field.page,
+          label: field.label,
+          value: field.value
+        })),
+        timestamp: new Date().toISOString()
+      });
+      
       // Fields are loaded as part of the document data
-      useDocumentStore.setState({ fields: document.fields || [] });
+      useDocumentStore.setState({ fields });
     } catch (err) {
       setError('Failed to load document fields');
       console.error('Error loading fields:', err);
@@ -113,13 +134,26 @@ const DocumentEditor = ({
     try {
       setLoading(true);
       
-      // Debug logging for field coordinates being saved (commented out for production)
-      // console.log('DocumentEditor: Saving fields to database:', {
-      //   documentId: document.id,
-      //   fields: fields,
-      //   pdfOffset: pdfOffset,
-      //   scale: scale
-      // });
+      // Enhanced logging for field coordinates being saved
+      console.log('💾 DocumentEditor: Saving fields to database:', {
+        documentId: document.id,
+        documentTitle: document.title,
+        totalFields: fields.length,
+        fields: fields.map(field => ({
+          id: field.id,
+          type: field.type,
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          height: field.height,
+          page: field.page,
+          label: field.label,
+          value: field.value
+        })),
+        pdfOffset,
+        scale,
+        timestamp: new Date().toISOString()
+      });
       
       // Save fields to backend using document update endpoint
       await documentsAPI.update(document.id, {

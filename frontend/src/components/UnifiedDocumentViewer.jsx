@@ -18,6 +18,7 @@ import {
   fieldToScreenCoords, 
   findSignatureForField,
   isFieldSigned,
+  logCoordinateDebugInfo,
   PDF_CONFIG
 } from '../utils/pdfCoordinates';
 
@@ -135,9 +136,47 @@ const UnifiedDocumentViewer = ({
     };
   }, [scale, numPages, updatePdfOffset]);
 
+  // Comprehensive debug logging when fields or PDF offset changes
+  useEffect(() => {
+    if (fields.length > 0 && pdfOffset.x !== undefined) {
+      const containerInfo = pdfContainerRef.current ? {
+        width: pdfContainerRef.current.offsetWidth,
+        height: pdfContainerRef.current.offsetHeight,
+        rect: pdfContainerRef.current.getBoundingClientRect()
+      } : {};
+      
+      logCoordinateDebugInfo({
+        documentId,
+        documentTitle: 'Current Document',
+        fields,
+        signatures,
+        pdfOffset,
+        scale,
+        containerInfo,
+        currentPage: pageNumber
+      });
+    }
+  }, [fields, pdfOffset, scale, pageNumber, documentId, signatures, pdfContainerRef]);
+
   // Default field renderer
   const defaultFieldRenderer = useCallback((field) => {
     if (!field) return null;
+
+    // Enhanced logging for field rendering
+    console.log('🎯 Rendering Field:', {
+      fieldId: field.id,
+      fieldType: field.type,
+      fieldData: {
+        x: field.x,
+        y: field.y,
+        width: field.width,
+        height: field.height,
+        page: field.page,
+        label: field.label,
+        value: field.value
+      },
+      timestamp: new Date().toISOString()
+    });
 
     // Use centralized signature checking
     const isSigned = isFieldSigned(field, signatures, documentId);
@@ -178,6 +217,22 @@ const UnifiedDocumentViewer = ({
       zIndex: 10,
       transition: 'all 0.2s ease-in-out'
     };
+
+    // Log final field positioning
+    console.log('🎨 Final Field Style:', {
+      fieldId: field.id,
+      fieldType: field.type,
+      screenCoords,
+      fieldStyle: {
+        left: fieldStyle.left,
+        top: fieldStyle.top,
+        width: fieldStyle.width,
+        height: fieldStyle.height
+      },
+      isSigned,
+      hasTemplate,
+      timestamp: new Date().toISOString()
+    });
 
     return (
       <Box

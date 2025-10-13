@@ -33,7 +33,7 @@ import {
 } from '@mui/icons-material';
 import { documentsAPI, signaturesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
-import DocumentEditor from '../components/DocumentEditor';
+import DocumentEditor from '../components/document-editor/DocumentEditor';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import DocumentViewer from '../components/DocumentViewer';
 

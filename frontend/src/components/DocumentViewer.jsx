@@ -48,6 +48,24 @@ export default function DocumentViewer({ document, onClose, signatures = [] }) {
 
   const allFields = document?.fields || [];
 
+  // Enhanced logging for field loading
+  console.log('📄 DocumentViewer: Loading fields:', {
+    documentId: document?.id,
+    documentTitle: document?.title,
+    totalFields: allFields.length,
+    fields: allFields.map(field => ({
+      id: field.id,
+      type: field.type,
+      x: field.x,
+      y: field.y,
+      width: field.width,
+      height: field.height,
+      page: field.page,
+      label: field.label
+    })),
+    timestamp: new Date().toISOString()
+  });
+
   return (
     <Dialog
       open={!!document}

@@ -26,20 +26,23 @@ export const calculatePdfOffset = (container, pdfWidth = PDF_CONFIG.STANDARD_WID
   const scaledPdfWidth = pdfWidth * scale;
   const offsetX = (containerRect.width - scaledPdfWidth) / 2;
   
-  // Debug logging for coordinate system (commented out for production)
-  // console.log('PDF Offset Calculation:', {
-  //   containerWidth: containerRect.width,
-  //   pdfWidth,
-  //   scaledPdfWidth,
-  //   offsetX,
-  //   scale,
-  //   finalOffset: { x: Math.max(0, offsetX), y: 0 }
-  // });
-  
-  return { 
+  const result = { 
     x: Math.max(0, offsetX), 
     y: 0 
   };
+  
+  // Enhanced debug logging for coordinate system
+  console.log('🔍 PDF Offset Calculation:', {
+    containerWidth: containerRect.width,
+    pdfWidth,
+    scaledPdfWidth,
+    offsetX,
+    scale,
+    finalOffset: result,
+    timestamp: new Date().toISOString()
+  });
+  
+  return result;
 };
 
 /**
@@ -57,14 +60,22 @@ export const fieldToScreenCoords = (field, pdfOffset, scale = 1.0) => {
     height: field.height * scale
   };
   
-  // Debug logging for coordinate transformation (commented out for production)
-  // console.log('Field to Screen Coords:', {
-  //   fieldId: field.id,
-  //   fieldCoords: { x: field.x, y: field.y, width: field.width, height: field.height },
-  //   pdfOffset,
-  //   scale,
-  //   screenCoords
-  // });
+  // Enhanced debug logging for coordinate transformation
+  console.log('📍 Field to Screen Coords:', {
+    fieldId: field.id,
+    fieldType: field.type,
+    fieldCoords: { x: field.x, y: field.y, width: field.width, height: field.height },
+    pdfOffset,
+    scale,
+    screenCoords,
+    calculation: {
+      x: `(${field.x} * ${scale}) + ${pdfOffset.x} = ${screenCoords.x}`,
+      y: `(${field.y} * ${scale}) + ${pdfOffset.y} = ${screenCoords.y}`,
+      width: `${field.width} * ${scale} = ${screenCoords.width}`,
+      height: `${field.height} * ${scale} = ${screenCoords.height}`
+    },
+    timestamp: new Date().toISOString()
+  });
   
   return screenCoords;
 };
@@ -210,4 +221,82 @@ export const isFieldSigned = (field, signatures, documentId) => {
   return signature && 
          signature.signed_at && 
          (signature.signature_image || signature.digital_signature || signature.signature_data);
+};
+
+/**
+ * Comprehensive logging function for debugging coordinate issues
+ * @param {Object} context - Context object with all relevant data
+ */
+export const logCoordinateDebugInfo = (context) => {
+  const {
+    documentId,
+    documentTitle,
+    fields = [],
+    signatures = [],
+    pdfOffset = { x: 0, y: 0 },
+    scale = 1.0,
+    containerInfo = {},
+    currentPage = 1
+  } = context;
+
+  console.group('🔍 COORDINATE DEBUG INFO');
+  console.log('📄 Document Info:', {
+    documentId,
+    documentTitle,
+    currentPage,
+    timestamp: new Date().toISOString()
+  });
+
+  console.log('📐 PDF Configuration:', {
+    pdfOffset,
+    scale,
+    containerInfo,
+    PDF_CONFIG
+  });
+
+  console.log('📋 Fields Summary:', {
+    totalFields: fields.length,
+    fieldsOnCurrentPage: fields.filter(f => f.page === currentPage).length,
+    signatureFields: fields.filter(f => f.type === 'signature').length
+  });
+
+  console.log('📝 All Fields Details:');
+  fields.forEach((field, index) => {
+    const screenCoords = fieldToScreenCoords(field, pdfOffset, scale);
+    const isSigned = isFieldSigned(field, signatures, documentId);
+    const signature = findSignatureForField(field, signatures, documentId);
+    
+    console.log(`  Field ${index + 1}:`, {
+      id: field.id,
+      type: field.type,
+      page: field.page,
+      label: field.label,
+      originalCoords: { x: field.x, y: field.y, width: field.width, height: field.height },
+      screenCoords,
+      isSigned,
+      hasSignature: !!signature,
+      signatureId: signature?.id
+    });
+  });
+
+  console.log('✍️ Signatures Summary:', {
+    totalSignatures: signatures.length,
+    signaturesForDocument: signatures.filter(s => s.document_id === documentId).length,
+    completedSignatures: signatures.filter(s => s.signed_at).length
+  });
+
+  console.log('🔍 Signature Details:');
+  signatures.filter(s => s.document_id === documentId).forEach((signature, index) => {
+    console.log(`  Signature ${index + 1}:`, {
+      id: signature.id,
+      fieldId: signature.field_id,
+      signedAt: signature.signed_at,
+      hasImage: !!signature.signature_image,
+      hasDigital: !!signature.digital_signature,
+      hasData: !!signature.signature_data,
+      position: signature.signature_position
+    });
+  });
+
+  console.groupEnd();
 };

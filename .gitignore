@@ -36,3 +36,8 @@ letsencrypt/
 
 # Alembic
 backend/alembic/versions/*.pyc
+
+# Local scripts (not for GitHub)
+get-logs.ps1
+get_logs.py
+test_upload.txt
