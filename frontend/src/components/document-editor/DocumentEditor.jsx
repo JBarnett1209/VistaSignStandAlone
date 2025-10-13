@@ -22,8 +22,8 @@ import FieldRenderer from './FieldRenderer';
 import FieldManager from './FieldManager';
 import Toolbar from './Toolbar';
 
-// State management
-import useDocumentStore from '../../stores/documentStore';
+// State management - temporarily disabled due to Docker build issues
+// import useDocumentStore from '../../stores/documentStore';
 
 // Services
 import { documentsAPI } from '../../services/api';
@@ -33,45 +33,20 @@ const DocumentEditor = ({
   onClose, 
   onSave 
 }) => {
-  // Zustand store
-  const {
-    documentUrl,
-    numPages,
-    pageNumber,
-    scale,
-    pdfOffset,
-    fields,
-    selectedField,
-    editingField,
-    loading,
-    error,
-    isViewMode,
-    isWhiteoutMode,
-    selectedFieldType,
-    canUndo,
-    canRedo,
-    
-    // Actions
-    setDocument,
-    setDocumentUrl,
-    setNumPages,
-    setScale,
-    setPdfOffset,
-    setLoading,
-    setError,
-    setViewMode,
-    setWhiteoutMode,
-    setSelectedFieldType,
-    addField,
-    updateField,
-    deleteField,
-    setSelectedField,
-    setEditingField,
-    clearSelection,
-    undo,
-    redo,
-    resetDocument
-  } = useDocumentStore();
+  // Local state (temporarily replacing Zustand store)
+  const [documentUrl, setDocumentUrl] = useState(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [scale, setScale] = useState(1.0);
+  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
+  const [fields, setFields] = useState([]);
+  const [selectedField, setSelectedField] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [isWhiteoutMode, setIsWhiteoutMode] = useState(false);
+  const [selectedFieldType, setSelectedFieldType] = useState('signature');
 
   // Local state
   const [fieldManagerOpen, setFieldManagerOpen] = useState(false);
@@ -86,9 +61,22 @@ const DocumentEditor = ({
     }
     
     return () => {
-      resetDocument();
+      // Reset local state
+      setDocumentUrl(null);
+      setNumPages(null);
+      setPageNumber(1);
+      setScale(1.0);
+      setPdfOffset({ x: 0, y: 0 });
+      setFields([]);
+      setSelectedField(null);
+      setEditingField(null);
+      setLoading(false);
+      setError(null);
+      setIsViewMode(false);
+      setIsWhiteoutMode(false);
+      setSelectedFieldType('signature');
     };
-  }, [document, setDocument, setDocumentUrl, resetDocument]);
+  }, [document, setDocument, setDocumentUrl]);
 
   // Load document fields
   const loadDocumentFields = useCallback(async () => {
@@ -118,7 +106,7 @@ const DocumentEditor = ({
       });
       
       // Fields are loaded as part of the document data
-      useDocumentStore.setState({ fields });
+      setFields(fields);
     } catch (err) {
       setError('Failed to load document fields');
       console.error('Error loading fields:', err);
@@ -187,7 +175,7 @@ const DocumentEditor = ({
 
   // Handle page change
   const handlePageChange = useCallback((newPageNumber) => {
-    useDocumentStore.setState({ pageNumber: newPageNumber });
+    setPageNumber(newPageNumber);
   }, []);
 
   // Handle scale change
