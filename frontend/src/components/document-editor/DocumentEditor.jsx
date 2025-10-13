@@ -317,7 +317,7 @@ const DocumentEditor = ({
 
   return (
     <Dialog
-      open={true}
+      open={!!document}
       onClose={handleClose}
       maxWidth="xl"
       fullWidth
