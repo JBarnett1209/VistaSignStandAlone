@@ -175,10 +175,6 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
     },
   });
 
-  // Debug drag start
-  const handleDragStart = useCallback(() => {
-    console.log('🚀 Drag started for field type:', fieldType);
-  }, [fieldType]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -193,7 +189,6 @@ const DraggableFieldType = ({ fieldType, onDragStart }) => {
       style={style}
       {...listeners}
       {...attributes}
-      onDragStart={handleDragStart}
       sx={{
         display: 'flex',
         alignItems: 'center',

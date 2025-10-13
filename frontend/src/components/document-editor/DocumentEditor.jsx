@@ -116,7 +116,10 @@ const DocumentEditor = ({
     if (document) {
       setDocument(document);
       setDocumentUrl(document.file_url || document.url);
-      loadDocumentFields();
+      
+      // Load fields directly without separate function to avoid infinite loop
+      const fields = document.fields || [];
+      setFields(fields);
     }
     
     return () => {
@@ -137,42 +140,6 @@ const DocumentEditor = ({
     };
   }, [document, setDocument, setDocumentUrl]);
 
-  // Load document fields
-  const loadDocumentFields = useCallback(async () => {
-    if (!document?.id) return;
-    
-    try {
-      setLoading(true);
-      const fields = document.fields || [];
-      
-      // Enhanced logging for field loading
-      console.log('📝 DocumentEditor: Loading fields:', {
-        documentId: document.id,
-        documentTitle: document.title,
-        totalFields: fields.length,
-        fields: fields.map(field => ({
-          id: field.id,
-          type: field.type,
-          x: field.x,
-          y: field.y,
-          width: field.width,
-          height: field.height,
-          page: field.page,
-          label: field.label,
-          value: field.value
-        })),
-        timestamp: new Date().toISOString()
-      });
-      
-      // Fields are loaded as part of the document data
-      setFields(fields);
-    } catch (err) {
-      setError('Failed to load document fields');
-      console.error('Error loading fields:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [document, setLoading, setError]);
 
   // Save document fields
   const handleSave = useCallback(async () => {
@@ -239,13 +206,11 @@ const DocumentEditor = ({
 
   // Handle scale change
   const handleScaleChange = useCallback((newScale) => {
-    console.log('🔍 Scale changed:', newScale);
     setScale(newScale);
   }, [setScale]);
 
   // Handle PDF offset change - this ensures DocumentEditor uses the same offset as UnifiedDocumentViewer
   const handlePdfOffsetChange = useCallback((offset) => {
-    console.log('📐 PDF Offset changed:', offset);
     setPdfOffset(offset);
   }, [setPdfOffset]);
 
@@ -305,18 +270,10 @@ const DocumentEditor = ({
   const handleDragEnd = useCallback((event) => {
     const { active, over } = event;
     
-    console.log('🎯 Drag End Event:', {
-      active: active?.data?.current,
-      over: over?.data?.current,
-      event
-    });
-    
     // Handle field type drops (from palette to document)
     if (active.data.current?.type === 'field-type' && over?.data.current?.type === 'pdf-page') {
       const fieldType = active.data.current.fieldType;
       const dropPage = over.data.current.pageNumber;
-      
-      console.log('📍 Field type drop detected:', { fieldType, dropPage });
       
       // Calculate drop position relative to the PDF page
       const pdfPage = document.querySelector('.react-pdf__Page');
@@ -340,19 +297,9 @@ const DocumentEditor = ({
           dropY = pageRect.height / 2;
         }
         
-        console.log('📐 Drop coordinates:', {
-          pageRect,
-          dropX,
-          dropY,
-          pdfOffset,
-          scale
-        });
-        
         // Convert screen coordinates to PDF coordinates
         const pdfX = Math.max(0, (dropX - pdfOffset.x) / scale);
         const pdfY = Math.max(0, (dropY - pdfOffset.y) / scale);
-        
-        console.log('🎯 Final PDF coordinates:', { pdfX, pdfY });
         
         handleFieldTypeDrop({
           type: fieldType,
@@ -360,8 +307,6 @@ const DocumentEditor = ({
           y: pdfY,
           page: dropPage
         });
-      } else {
-        console.error('❌ PDF page element not found');
       }
       return;
     }
@@ -377,9 +322,9 @@ const DocumentEditor = ({
     }
   }, [handleFieldTypeDrop, handleFieldReorder, fields, pdfOffset, scale]);
 
-  // Handle drag start for debugging
+  // Handle drag start
   const handleDragStart = useCallback((event) => {
-    console.log('🚀 Drag started:', event.active?.data?.current);
+    // Drag started - no action needed here
   }, []);
 
   // Handle field click
