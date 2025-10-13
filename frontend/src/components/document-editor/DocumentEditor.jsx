@@ -311,19 +311,20 @@ const DocumentEditor = ({
       
       // Calculate drop position relative to the PDF page
       const pdfPage = document.querySelector('.react-pdf__Page');
-      if (pdfPage) {
+      if (pdfPage && event.activatorEvent) {
         const pageRect = pdfPage.getBoundingClientRect();
-        const dropX = event.activatorEvent?.clientX - pageRect.left;
-        const dropY = event.activatorEvent?.clientY - pageRect.top;
+        const dropX = event.activatorEvent.clientX - pageRect.left;
+        const dropY = event.activatorEvent.clientY - pageRect.top;
         
         // Convert screen coordinates to PDF coordinates
-        const pdfX = (dropX - pdfOffset.x) / scale;
-        const pdfY = (dropY - pdfOffset.y) / scale;
+        // Account for PDF offset and scale
+        const pdfX = Math.max(0, (dropX - pdfOffset.x) / scale);
+        const pdfY = Math.max(0, (dropY - pdfOffset.y) / scale);
         
         handleFieldTypeDrop({
           type: fieldType,
-          x: Math.max(0, pdfX),
-          y: Math.max(0, pdfY),
+          x: pdfX,
+          y: pdfY,
           page: dropPage
         });
       }

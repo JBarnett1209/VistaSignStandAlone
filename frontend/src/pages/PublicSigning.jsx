@@ -21,6 +21,7 @@ import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
 import UnifiedDocumentViewer from '../components/UnifiedDocumentViewer';
+import FieldRenderer from '../components/document-editor/FieldRenderer';
 import { handleError } from '../utils/errorHandler';
 import LoadingErrorState from '../components/LoadingErrorState';
 
@@ -43,6 +44,8 @@ export default function PublicSigning() {
   const [signingComplete, setSigningComplete] = useState(false);
   const [autoProgressing, setAutoProgressing] = useState(false);
   const [autoProgressEnabled, setAutoProgressEnabled] = useState(true);
+  const [scale, setScale] = useState(1.0);
+  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
   const pdfContainerRef = useRef(null);
 
   const loadSigningData = useCallback(async () => {
@@ -101,6 +104,14 @@ export default function PublicSigning() {
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
   };
+
+  const handlePdfOffsetChange = useCallback((offset) => {
+    setPdfOffset(offset);
+  }, []);
+
+  const handleScaleChange = useCallback((newScale) => {
+    setScale(newScale);
+  }, []);
 
   const getAllSignatures = () => {
     // Convert signedFields state to the format expected by signature system
@@ -370,7 +381,7 @@ export default function PublicSigning() {
     }
   };
 
-  const renderSignatureField = (field) => {
+  // const renderSignatureField = (field) => {
     const isSigned = signedFields[field.id];
     const participantSigningOrder = workflowData?.participant?.signing_order || 1;
     const isAssignedToMe = field.signingOrder === participantSigningOrder;
@@ -610,7 +621,7 @@ export default function PublicSigning() {
         </Button>
       </Box>
     );
-  }
+  // }
 
   const isCompleted = workflowData?.participant?.status === 'completed';
 
@@ -773,15 +784,28 @@ export default function PublicSigning() {
                 fields={workflowData.document?.fields || []}
                 signatures={getAllSignatures()}
                 documentId={workflowData.document?.id}
-                scale={1.0}
-                onScaleChange={() => {}} // No zoom controls in public signing
+                scale={scale}
+                onScaleChange={handleScaleChange}
                 onPdfLoad={onDocumentLoadSuccess}
                 onPageChange={setPageNumber}
+                onPdfOffsetChange={handlePdfOffsetChange}
                 pageNumber={pageNumber}
                 numPages={numPages}
                 showControls={false}
                 showFields={true}
-                fieldRenderer={renderSignatureField}
+                fieldRenderer={(field) => (
+                  <FieldRenderer
+                    key={field.id}
+                    field={field}
+                    scale={scale}
+                    pdfOffset={pdfOffset}
+                    signatures={getAllSignatures()}
+                    documentId={workflowData.document?.id}
+                    isSelected={selectedField?.id === field.id}
+                    onFieldClick={handleFieldClick}
+                    showControls={false}
+                  />
+                )}
                 containerRef={pdfContainerRef}
                 sx={{ 
                   flex: 1, 
