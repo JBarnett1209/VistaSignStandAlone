@@ -12,6 +12,7 @@ class EnvelopeStatus(str, Enum):
     SENT = "SENT"
     COMPLETED = "COMPLETED"
     VOIDED = "VOIDED"
+    FINALIZATION_FAILED = "FINALIZATION_FAILED"
 
 
 class RecipientRole(str, Enum):

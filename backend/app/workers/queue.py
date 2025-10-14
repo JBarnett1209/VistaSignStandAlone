@@ -17,3 +17,11 @@ def enqueue_ingest(document_id: str, path: str, mime_type: str, title: str) -> s
     return job.id
 
 
+def enqueue_finalize(envelope_id: str) -> str:
+    """Enqueue envelope finalization job."""
+    from app.workers.finalize import finalize_envelope
+    q = get_queue("finalize")
+    job = q.enqueue(finalize_envelope, envelope_id)
+    return job.id
+
+
