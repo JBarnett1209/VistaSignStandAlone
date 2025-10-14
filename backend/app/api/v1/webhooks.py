@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.auth import get_current_user
+from app.core.security.auth import get_current_user
 from app.models.user import User
 from app.models.envelope import Envelope, AuditEvent, ActorType, Recipient, RecipientStatus
 from app.core.email import send_email
