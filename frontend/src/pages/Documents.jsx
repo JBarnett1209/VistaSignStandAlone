@@ -31,11 +31,9 @@ import {
   Edit as EditIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { documentsAPI, signaturesAPI } from '../services/api';
+import { documentsAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
-import DocumentEditor from '../components/document-editor/DocumentEditor';
 import ConfirmationDialog from '../components/ConfirmationDialog';
-import DocumentViewer from '../components/DocumentViewer';
 
 const getDocumentIcon = (type) => {
   switch (type) {
@@ -95,9 +93,7 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [editingDocument, setEditingDocument] = useState(null);
-  const [viewingDocument, setViewingDocument] = useState(null);
-  const [documentSignatures, setDocumentSignatures] = useState([]);
+  // Editor/Viewer removed
   const [deleteDialog, setDeleteDialog] = useState({ open: false, documentId: null, documentTitle: '' });
 
   const fetchDocuments = async () => {
@@ -142,18 +138,7 @@ export default function Documents() {
     }
   };
 
-  const handleEditDocument = async (document) => {
-    try {
-      // Fetch the latest document data from the database to ensure we have the most recent fields
-      const response = await documentsAPI.get(document.id);
-      setEditingDocument(response.data);
-    } catch (err) {
-      console.error('Error fetching document for editing:', err);
-      setError('Failed to load document for editing');
-      // Fallback to the document from the list
-      setEditingDocument(document);
-    }
-  };
+  // Editing is disabled (document editor removed)
 
   const handleDocumentSave = (updatedDocument) => {
     setDocuments(prev => prev.map(doc => 
@@ -162,30 +147,7 @@ export default function Documents() {
     // Don't close the editor - just update the document list
   };
 
-  const handleViewDocument = async (document) => {
-    try {
-      // Fetch the latest document data to ensure we have current signatures
-      const response = await documentsAPI.get(document.id);
-      setViewingDocument(response.data);
-      
-      // Also fetch signatures for this document
-      try {
-        const signaturesResponse = await signaturesAPI.admin.listAll({ 
-          document_id: document.id,
-          limit: 100 
-        });
-        setDocumentSignatures(signaturesResponse.data.signatures || []);
-      } catch (sigErr) {
-        setDocumentSignatures([]);
-      }
-    } catch (err) {
-      console.error('Error fetching document for viewing:', err);
-      setError('Failed to load document for viewing');
-      // Fallback to the document from the list
-      setViewingDocument(document);
-      setDocumentSignatures([]);
-    }
-  };
+  // Viewing is disabled (viewer removed)
 
   const handleDownloadDocument = async (doc) => {
     try {
@@ -370,22 +332,7 @@ export default function Documents() {
                       gap: 0.5,
                       flexWrap: 'nowrap'
                     }}>
-                      <IconButton 
-                        size="small" 
-                        title="View" 
-                        onClick={() => handleViewDocument(doc)}
-                        sx={{ flexShrink: 0 }}
-                      >
-                        <ViewIcon />
-                      </IconButton>
-                      <IconButton 
-                        size="small" 
-                        title="Edit"
-                        onClick={() => handleEditDocument(doc)}
-                        sx={{ flexShrink: 0 }}
-                      >
-                        <EditIcon />
-                      </IconButton>
+                      {/* Viewer/Editor removed */}
                       <IconButton 
                         size="small" 
                         title="Download" 
@@ -427,87 +374,7 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
-      {/* Document Editor */}
-      <DocumentEditor
-        document={editingDocument}
-        onClose={() => setEditingDocument(null)}
-        onSave={handleDocumentSave}
-      />
-
-      {/* Document Viewer Dialog - Same structure as Document Editor */}
-      <Dialog
-        open={!!viewingDocument}
-        onClose={() => {
-          setViewingDocument(null);
-          setDocumentSignatures([]);
-        }}
-        maxWidth="xl"
-        fullWidth
-        PaperProps={{
-          sx: { 
-            height: '90vh',
-            maxHeight: '90vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          pb: 1
-        }}>
-          <Typography variant="h6">
-            View Document: {viewingDocument?.title || 'Untitled Document'}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="outlined"
-              startIcon={<DownloadIcon />}
-              onClick={() => viewingDocument && handleDownloadDocument(viewingDocument)}
-              size="small"
-            >
-              Download
-            </Button>
-            <IconButton
-              onClick={() => {
-                setViewingDocument(null);
-                setDocumentSignatures([]);
-              }}
-              size="small"
-            >
-              <CloseIcon />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          {viewingDocument && (
-            <Box sx={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column',
-              overflow: 'hidden'
-            }}>
-              {/* Document Viewer - Same layout as Document Editor but without sidebar */}
-              <Box sx={{ 
-                flex: 1, 
-                overflow: 'auto', 
-                p: 2,
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: '#f5f5f5',
-                minHeight: 0,
-                position: 'relative'
-              }}>
-                <DocumentViewer
-                  document={viewingDocument}
-                  signatures={documentSignatures}
-                  onClose={() => setViewingDocument(null)}
-                />
-              </Box>
-            </Box>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Editor/Viewer removed */}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog

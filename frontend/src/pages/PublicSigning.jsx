@@ -20,8 +20,7 @@ import {
 import api from '../services/api';
 import SignatureCapture from '../components/SignatureCapture';
 import ConsentDialog from '../components/ConsentDialog';
-import UnifiedDocumentViewer from '../components/UnifiedDocumentViewer';
-import FieldRenderer from '../components/document-editor/FieldRenderer';
+// Viewer removed
 import { handleError } from '../utils/errorHandler';
 import LoadingErrorState from '../components/LoadingErrorState';
 
@@ -44,7 +43,7 @@ export default function PublicSigning() {
     try {
       setLoading(true);
       setError(null);
-
+      
       const response = await api.get(`/api/v1/public-signing/${workflowId}/${participantId}`);
       const data = response.data;
 
@@ -74,7 +73,7 @@ export default function PublicSigning() {
 
   useEffect(() => {
     if (workflowId && participantId) {
-      loadSigningData();
+    loadSigningData();
     }
   }, [workflowId, participantId, loadSigningData]);
 
@@ -215,22 +214,22 @@ export default function PublicSigning() {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
+            <Box>
             <Typography variant="h4" sx={{ 
               fontWeight: 'bold', 
               color: '#333',
               mb: 1
             }}>
               {workflowData?.title || 'Document Signing'}
-            </Typography>
+              </Typography>
             <Typography variant="body1" color="text.secondary">
               Please review and sign the document below
-            </Typography>
+              </Typography>
           </Box>
           
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Chip 
-              label={isCompleted ? 'Completed' : 'Pending'} 
+              label={isCompleted ? 'Completed' : 'Pending'}
               color={isCompleted ? 'success' : 'warning'}
               variant="outlined"
             />
@@ -243,7 +242,7 @@ export default function PublicSigning() {
         </Box>
       </Paper>
 
-      {/* Document Viewer */}
+        {/* Document Viewer */}
       <Box sx={{ flex: 1, p: 2 }}>
         <Paper sx={{ 
           height: 'calc(100vh - 200px)',
@@ -251,25 +250,7 @@ export default function PublicSigning() {
           borderRadius: 2,
           boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
         }}>
-          <UnifiedDocumentViewer
-            document={documentData}
-            fields={workflowData?.fields || []}
-            signedFields={signedFields}
-            onFieldClick={handleFieldClick}
-            scale={scale}
-            onScaleChange={handleScaleChange}
-            onPdfOffsetChange={handlePdfOffsetChange}
-            fieldRenderer={(field, screenCoords) => (
-              <FieldRenderer
-                field={field}
-                screenCoords={screenCoords}
-                isSigned={!!signedFields[field.id]}
-                onClick={() => handleFieldClick(field)}
-                signedData={signedFields[field.id]}
-              />
-            )}
-            readOnly={isCompleted}
-          />
+          {/* Document viewer removed */}
         </Paper>
       </Box>
 
@@ -280,29 +261,29 @@ export default function PublicSigning() {
           borderRadius: 0,
           boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
         }}>
-          <Box sx={{ 
-            display: 'flex', 
+            <Box sx={{ 
+              display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center' 
-          }}>
+            }}>
             <Typography variant="body2" color="text.secondary">
               {Object.keys(signedFields).length} of {workflowData?.fields?.length || 0} fields signed
-            </Typography>
+              </Typography>
             
-            <Button
-              variant="contained"
-              size="large"
+              <Button
+                variant="contained"
+                size="large"
               onClick={handleSubmitSignatures}
               disabled={submitting || Object.keys(signedFields).length === 0}
-              sx={{
+                sx={{ 
                 backgroundColor: '#7B5CFF',
                 '&:hover': {
                   backgroundColor: '#6A4CFF'
                 },
-                px: 4,
-                py: 1.5
-              }}
-            >
+                  px: 4,
+                  py: 1.5
+                }}
+              >
               {submitting ? (
                 <>
                   <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
