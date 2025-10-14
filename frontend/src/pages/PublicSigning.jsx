@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, Paper, Button, TextField, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import SignatureCapture from '../components/SignatureCapture';
-import { documentsAPI, envelopesAPI } from '../services/api';
+import { publicAPI } from '../services/api';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
@@ -21,7 +21,7 @@ export default function PublicSigning() {
     const loadEnvelope = async () => {
     try {
       setLoading(true);
-        const response = await envelopesAPI.get(workflowId);
+        const response = await publicAPI.getEnvelope(workflowId, participantId);
         setEnvelope(response.data);
         
         const recipientData = response.data.recipients.find(r => r.id === participantId);
@@ -46,9 +46,7 @@ export default function PublicSigning() {
     
     try {
       setSaving(true);
-      await envelopesAPI.fields.upsert(workflowId, {
-        fields: [{ id: fieldId, value }]
-      });
+      await publicAPI.submitFieldValue(workflowId, participantId, fieldId, { value });
     } catch (err) {
       console.error('Error saving field value:', err);
     } finally {
@@ -72,9 +70,7 @@ export default function PublicSigning() {
   const handleComplete = useCallback(async () => {
     try {
       setSaving(true);
-      await envelopesAPI.recipients.update(workflowId, participantId, {
-        status: 'completed'
-      });
+      await publicAPI.completeSigning(workflowId, participantId);
       navigate('/signing-complete');
     } catch (err) {
       console.error('Error completing signing:', err);
@@ -87,9 +83,7 @@ export default function PublicSigning() {
   const handleDecline = useCallback(async () => {
     try {
       setSaving(true);
-      await envelopesAPI.recipients.update(workflowId, participantId, {
-        status: 'declined'
-      });
+      await publicAPI.declineSigning(workflowId, participantId);
       navigate('/signing-declined');
     } catch (err) {
       console.error('Error declining signing:', err);

@@ -187,4 +187,14 @@ export const usersAPI = {
   activate: (id) => api.post(`/api/v1/users/${id}/activate`)
 };
 
+// Public API (no authentication required)
+export const publicAPI = {
+  getEnvelope: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}`),
+  getDocument: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}/document`),
+  getDocumentPdf: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}/document/pdf`),
+  submitFieldValue: (envelopeId, recipientId, fieldId, data) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/fields/${fieldId}`, data),
+  completeSigning: (envelopeId, recipientId) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/complete`),
+  declineSigning: (envelopeId, recipientId) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/decline`)
+};
+
 export default api;
