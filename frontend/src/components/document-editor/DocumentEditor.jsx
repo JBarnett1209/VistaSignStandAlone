@@ -443,6 +443,23 @@ const DocumentEditor = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
+      {/* Global CSS fix for drag overlay */}
+      <style>
+        {`
+          .MuiDialog-root {
+            overflow: visible !important;
+          }
+          .MuiDialog-paper {
+            overflow: visible !important;
+          }
+          .MuiDialogContent-root {
+            overflow: visible !important;
+          }
+          [data-rbd-drag-handle-dragging-id] {
+            z-index: 9999 !important;
+          }
+        `}
+      </style>
       <Dialog
         open={!!document}
         onClose={handleClose}
@@ -451,7 +468,8 @@ const DocumentEditor = ({
         sx={{
           '& .MuiDialog-paper': {
             height: '90vh',
-            maxHeight: '90vh'
+            maxHeight: '90vh',
+            overflow: 'visible' // Allow drag to extend beyond dialog bounds
           }
         }}
       >
@@ -478,7 +496,13 @@ const DocumentEditor = ({
         </Button>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'row', height: '100%' }}>
+      <DialogContent sx={{ 
+        p: 0, 
+        display: 'flex', 
+        flexDirection: 'row', 
+        height: '100%',
+        overflow: 'visible' // Allow drag to extend beyond dialog bounds
+      }}>
         {/* Field List Sidebar */}
         {showFieldList && (
           <FieldList
@@ -496,7 +520,13 @@ const DocumentEditor = ({
         )}
 
         {/* Main Content Area */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <Box sx={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          minWidth: 0,
+          overflow: 'visible' // Allow drag to extend beyond content bounds
+        }}>
           {/* Toolbar */}
           <Toolbar
             selectedFieldType={selectedFieldType}
@@ -524,7 +554,11 @@ const DocumentEditor = ({
           )}
 
           {/* PDF Viewer */}
-          <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+          <Box sx={{ 
+            flex: 1, 
+            overflow: 'visible', // Allow drag to extend beyond container bounds
+            p: 1 
+          }}>
             {documentUrl && (
               <PdfViewer
                 documentUrl={documentUrl}
