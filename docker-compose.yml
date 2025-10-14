@@ -89,12 +89,82 @@ services:
     networks:
       - web
 
-  # Frontend dev server removed in production
+  # ClamAV Antivirus Scanner
+  clamav:
+    image: clamav/clamav:1.0
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    environment:
+      - CLAMAV_NO_FRESHCLAMD=false
+    healthcheck:
+      test: ["CMD", "clamdscan", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - web
+
+  # LibreOffice for document conversion
+  libreoffice:
+    image: lscr.io/linuxserver/libreoffice:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+    volumes:
+      - ./backend/uploads:/documents
+      - libreoffice_data:/config
+    ports:
+      - "3000:3000"
+    networks:
+      - web
+
+  # RQ Worker for background tasks
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    command: python -m rq worker --url redis://redis:6379/0
+    networks:
+      - web
+
+  # RQ Scheduler for periodic tasks
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    command: python -m rq scheduler --url redis://redis:6379/0
+    networks:
+      - web
 
 volumes:
   postgres_data:
   redis_data:
   uploads_data:
+  clamav_data:
+  libreoffice_data:
 
 networks:
   web:

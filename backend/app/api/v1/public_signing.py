@@ -348,3 +348,103 @@ async def decline_signing(
     )
     
     return {"message": "Signing declined successfully"}
+
+
+@router.get("/{envelope_id}/{recipient_id}/document")
+async def get_public_document(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get document for public signing (no auth required)."""
+    # Get envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(
+                Recipient.id == recipient_id,
+                Recipient.envelope_id == envelope_id
+            )
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Get document
+    from app.models.document import Document
+    document = await db.execute(
+        select(Document).where(Document.id == envelope.document_id)
+    )
+    document = document.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Return document info (not the actual file)
+    return {
+        "document_id": str(document.id),
+        "title": document.title,
+        "filename": document.filename,
+        "mime_type": document.mime_type,
+        "file_url": f"/api/v1/public/{envelope_id}/{recipient_id}/document/pdf"
+    }
+
+
+@router.get("/{envelope_id}/{recipient_id}/document/pdf")
+async def get_public_document_pdf(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get document PDF for public signing (no auth required)."""
+    # Get envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(
+                Recipient.id == recipient_id,
+                Recipient.envelope_id == envelope_id
+            )
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Get document
+    from app.models.document import Document
+    document = await db.execute(
+        select(Document).where(Document.id == envelope.document_id)
+    )
+    document = document.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Return the PDF file
+    from fastapi.responses import FileResponse
+    import os
+    from app.core.config import settings
+    
+    # If already a PDF and exists, stream it
+    if document.mime_type == "application/pdf" and os.path.exists(document.file_path):
+        return FileResponse(
+            path=document.file_path, 
+            filename=document.filename, 
+            media_type=document.mime_type
+        )
+    
+    # For non-PDF documents, we'd need to convert them
+    # For now, return a 404 if not PDF
+    raise HTTPException(status_code=404, detail="PDF version not available")

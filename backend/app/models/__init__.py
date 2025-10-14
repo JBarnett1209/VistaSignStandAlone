@@ -10,11 +10,9 @@ from .workflow import Workflow, WorkflowStep, WorkflowParticipant
 from .invite import Invite
 from .public_signing import PublicDocument, PublicSigningRecipient, PublicSignature, Organization
 from .subscription import Subscription, Payment, UsageTracking
-from .envelope import (
-    Envelope,
-    Recipient,
-    Field,
-    FieldValue,
-    AuditEvent,
-    SignLink,
-)
+from .envelope import Envelope
+from .recipient import Recipient
+from .field import Field
+from .field_value import FieldValue
+from .audit_event import AuditEvent
+from .sign_link import SignLink

@@ -47,8 +47,52 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             recipients_query = select(Recipient).where(Recipient.envelope_id == envelope.id)
             recipients = (await db.execute(recipients_query)).scalars().all()
             
-            # For now, just mark as completed
-            # TODO: Implement actual PDF flattening and evidence generation
+            # 1. Get the original document
+            from app.models.document import Document
+            document = await db.get(Document, envelope.document_id)
+            if not document:
+                raise ValueError(f"Document not found for envelope {envelope_id}")
+            
+            # 2. Flatten fields into PDF
+            logger.info(f"Flattening fields for envelope {envelope_id}...")
+            from app.services.pdf_flattener import pdf_flattener
+            
+            # Flatten the PDF
+            flattened_pdf_content = await pdf_flattener.flatten_envelope(
+                envelope, document, field_values
+            )
+            
+            # 3. Add certificate page
+            logger.info(f"Adding certificate page for envelope {envelope_id}...")
+            final_pdf_content = await pdf_flattener.add_certificate_page(
+                flattened_pdf_content, envelope, envelope.audit_events
+            )
+
+            # 4. Apply digital signature
+            logger.info(f"Applying digital signature for envelope {envelope_id}...")
+            from app.services.digital_signature import digital_signature_service
+            
+            signature_data = {
+                'reason': 'Document signing completion',
+                'location': 'VistaSign Platform',
+                'contact_info': 'support@vistasign.com'
+            }
+            
+            signed_pdf_content = await digital_signature_service.sign_pdf(
+                final_pdf_content, signature_data
+            )
+            
+            # 5. Save signed PDF to storage
+            signed_pdf_key = await storage_service.save_file(signed_pdf_content, f"signed_{envelope_id}.pdf")
+            
+            # 6. Generate evidence JSON
+            evidence_data = await _generate_evidence_json(envelope, field_values, recipients)
+            evidence_json_content = evidence_data.encode('utf-8')
+            evidence_json_key = await storage_service.save_file(evidence_json_content, f"evidence_{envelope_id}.json")
+            
+            # 7. Update envelope with finalization results
+            envelope.storage_key_signed_pdf = signed_pdf_key
+            envelope.storage_key_evidence_json = evidence_json_key
             envelope.status = EnvelopeStatus.COMPLETED
             envelope.completed_at = datetime.now(timezone.utc)
             
@@ -60,7 +104,9 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
                 "envelope_id": envelope_id,
                 "fields_count": len(fields),
                 "field_values_count": len(field_values),
-                "recipients_count": len(recipients)
+                "recipients_count": len(recipients),
+                "signed_pdf_key": signed_pdf_key,
+                "evidence_json_key": evidence_json_key
             }
             
     except Exception as e:
@@ -77,3 +123,55 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             logger.error(f"Failed to update envelope status to failed: {str(commit_error)}")
         
         raise e
+
+
+async def _generate_evidence_json(envelope, field_values, recipients) -> str:
+    """Generate evidence JSON for the envelope"""
+    import json
+    
+    evidence = {
+        "envelope_id": str(envelope.id),
+        "subject": envelope.subject,
+        "created_at": envelope.created_at.isoformat(),
+        "completed_at": envelope.completed_at.isoformat() if envelope.completed_at else None,
+        "recipients": [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "email": r.email,
+                "role": r.role.value,
+                "status": r.status.value,
+                "signed_at": r.signed_at.isoformat() if r.signed_at else None,
+                "signer_ip": r.signer_ip,
+                "signer_user_agent": r.signer_user_agent,
+            } for r in recipients
+        ],
+        "fields": [
+            {
+                "id": str(f.id),
+                "type": f.type.value,
+                "page_index": f.page_index,
+                "rect_pts": f.rect_pts,
+                "recipient_id": str(f.recipient_id) if f.recipient_id else None,
+                "value": next((fv.value for fv in field_values if fv.field_id == f.id), None),
+                "signed_at": next((fv.signed_at.isoformat() for fv in field_values if fv.field_id == f.id), None),
+                "signer_ip": next((fv.signer_ip for fv in field_values if fv.field_id == f.id), None),
+                "signer_user_agent": next((fv.signer_user_agent for fv in field_values if fv.field_id == f.id), None),
+                "evidence_hash": next((fv.evidence_hash for fv in field_values if fv.field_id == f.id), None),
+            } for f in envelope.fields
+        ],
+        "audit_trail": [
+            {
+                "id": str(ae.id),
+                "event": ae.event,
+                "actor_type": ae.actor_type.value,
+                "actor_id": str(ae.actor_id) if ae.actor_id else None,
+                "occurred_at": ae.occurred_at.isoformat(),
+                "metadata": ae.event_metadata,
+            } for ae in envelope.audit_events
+        ],
+        "document_hash": envelope.document.file_hash if envelope.document else None,
+        "document_title": envelope.document.title if envelope.document else None,
+    }
+    
+    return json.dumps(evidence, indent=2)

@@ -1,75 +1,146 @@
 """
-Ingest worker: scan uploads with ClamAV, convert to PDF with LibreOffice/ImageMagick,
-and update metadata (page count, sizes). This module provides stubs ready for RQ.
+Document Ingest Worker for VistaSign
 """
 
 import os
+import hashlib
 import logging
-import subprocess
+from pathlib import Path
 from typing import Optional
+import uuid
 
-import fitz  # PyMuPDF
-
-from app.core.config import settings
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.database import AsyncSessionLocal
-from app.models.document import Document, DocumentType, DocumentStatus
-from app.core.document_converter import DocumentConverter
+from app.core.database import get_db_session
+from app.models.document import Document, DocumentStatus
+from app.services.document_converter import document_converter
+from app.services.antivirus import antivirus_service
+from app.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
 
-
-def clamav_scan(path: str) -> bool:
-    """Return True if file is clean (stub: attempts clamscan if available)."""
-    try:
-        result = subprocess.run(["clamscan", path], capture_output=True, text=True)
-        logger.info(result.stdout)
-        return result.returncode == 0
-    except Exception as e:
-        logger.warning(f"ClamAV scan skipped/failed: {e}")
-        return True  # allow in dev if scanner not present
-
-
-async def convert_to_pdf_if_needed(input_path: str, mime_type: str, title: str) -> Optional[str]:
-    if not DocumentConverter.needs_conversion(mime_type):
-        return input_path if mime_type == "application/pdf" else None
-    pdf_path = os.path.join(settings.UPLOAD_DIR, f"{os.path.basename(input_path)}.pdf")
-    ok = await DocumentConverter.convert_to_pdf(input_path, pdf_path, mime_type, title)
-    return pdf_path if ok else None
-
-
-def get_pdf_page_count(pdf_path: str) -> int:
-    try:
-        with fitz.open(pdf_path) as doc:
-            return doc.page_count
-    except Exception:
-        return 0
-
-
-def ingest_document(document_id: str, path: str, mime_type: str, title: str) -> bool:
-    """RQ job: scan, convert, update DB metadata."""
-    if not clamav_scan(path):
-        logger.error("ClamAV scan failed")
-        return False
-    # convert if necessary (run loop for async converter)
-    import asyncio
-    async def run():
-        pdf_path = await convert_to_pdf_if_needed(path, mime_type, title)
-        final_path = pdf_path or path
-        pages = get_pdf_page_count(final_path) if (pdf_path or mime_type == 'application/pdf') else 0
-        async with AsyncSessionLocal() as db:  # type: AsyncSession
-            res = await db.execute(select(Document).where(Document.id == document_id))
-            doc = res.scalar_one_or_none()
-            if not doc:
-                return False
-            doc.file_path = final_path
-            doc.document_type = DocumentType.PDF if final_path.endswith('.pdf') else doc.document_type
-            doc.mime_type = 'application/pdf' if final_path.endswith('.pdf') else mime_type
-            doc.page_count = pages
-            doc.status = DocumentStatus.DRAFT
+async def ingest_document(document_id: str, file_path: str, mime_type: str, title: str):
+    """
+    Ingest document: scan for viruses, convert to PDF, update database
+    
+    Args:
+        document_id: UUID of the document record
+        file_path: Path to the uploaded file
+        mime_type: MIME type of the file
+        title: Document title
+    """
+    logger.info(f"Starting document ingest for: {document_id}")
+    
+    async with get_db_session() as db:
+        try:
+            # Get document record
+            document = await db.get(Document, uuid.UUID(document_id))
+            if not document:
+                logger.error(f"Document not found: {document_id}")
+                return
+            
+            # Update status to processing
+            document.status = DocumentStatus.PENDING_SIGNATURE
             await db.commit()
-        return True
-    return asyncio.run(run())
-
-
+            
+            # Step 1: Antivirus scan
+            logger.info(f"Scanning file for viruses: {file_path}")
+            is_clean, virus_name = antivirus_service.scan_file(file_path)
+            
+            if not is_clean:
+                logger.error(f"Virus detected in file: {file_path}, virus: {virus_name}")
+                document.status = DocumentStatus.REJECTED
+                await db.commit()
+                return
+            
+            logger.info(f"File passed antivirus scan: {file_path}")
+            
+            # Step 2: Calculate file hash
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+                file_hash = hashlib.sha256(file_content).hexdigest()
+            
+            # Step 3: Save original file to storage
+            file_ext = Path(file_path).suffix
+            storage_key, storage_path = storage_service.save_original(file_content, file_ext)
+            
+            # Step 4: Convert to PDF if needed
+            pdf_path = None
+            if mime_type != "application/pdf":
+                logger.info(f"Converting document to PDF: {file_path}")
+                pdf_path = f"{file_path}.pdf"
+                
+                success = await document_converter.convert_to_pdf(file_path, pdf_path)
+                if not success:
+                    logger.error(f"Failed to convert document to PDF: {file_path}")
+                    document.status = DocumentStatus.REJECTED
+                    await db.commit()
+                    return
+                
+                # Validate PDF
+                is_valid = await document_converter.validate_pdf(pdf_path)
+                if not is_valid:
+                    logger.error(f"Generated PDF is invalid: {pdf_path}")
+                    document.status = DocumentStatus.REJECTED
+                    await db.commit()
+                    return
+                
+                # Get page count
+                page_count = await document_converter.get_page_count(pdf_path)
+                logger.info(f"PDF conversion successful, pages: {page_count}")
+            else:
+                # Already a PDF, just copy
+                pdf_path = f"{file_path}.pdf"
+                import shutil
+                shutil.copy2(file_path, pdf_path)
+                page_count = await document_converter.get_page_count(pdf_path)
+                logger.info(f"PDF file processed, pages: {page_count}")
+            
+            # Step 5: Save PDF to storage
+            with open(pdf_path, 'rb') as f:
+                pdf_content = f.read()
+            
+            pdf_storage_key, pdf_storage_path = storage_service.save_pdf(pdf_content)
+            
+            # Step 6: Update document record
+            document.file_path = storage_path
+            document.file_hash = file_hash
+            document.mime_type = mime_type
+            document.status = DocumentStatus.DRAFT
+            document.page_count = page_count
+            document.pdf_storage_key = pdf_storage_key
+            document.pdf_storage_path = pdf_storage_path
+            
+            await db.commit()
+            
+            # Step 7: Cleanup temporary files
+            try:
+                if pdf_path and os.path.exists(pdf_path):
+                    os.remove(pdf_path)
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
+            except Exception as e:
+                logger.warning(f"Failed to cleanup temporary files: {e}")
+            
+            logger.info(f"Document ingest completed successfully: {document_id}")
+            
+        except Exception as e:
+            logger.error(f"Document ingest failed for {document_id}: {e}", exc_info=True)
+            
+            # Update document status to failed
+            try:
+                document = await db.get(Document, uuid.UUID(document_id))
+                if document:
+                    document.status = DocumentStatus.REJECTED
+                    await db.commit()
+            except Exception as cleanup_error:
+                logger.error(f"Failed to update document status after error: {cleanup_error}")
+            
+            # Cleanup temporary files
+            try:
+                if file_path and os.path.exists(file_path):
+                    os.remove(file_path)
+                pdf_path = f"{file_path}.pdf"
+                if pdf_path and os.path.exists(pdf_path):
+                    os.remove(pdf_path)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup files after error: {cleanup_error}")
