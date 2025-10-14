@@ -1,103 +1,474 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from uuid import UUID
+from sqlalchemy import select, and_
+from typing import List, Optional
+import uuid
+from datetime import datetime, timezone
 
 from app.core.database import get_db
-from app.core.security.auth import AuthHandler
-from app.schemas.envelope import EnvelopeCreate, EnvelopeOut, FieldsUpsertRequest
-from app.models.envelope import Envelope, Recipient, Field, AuditEvent
-from app.workers.finalize import finalize_pdf
-from app.services import storage
+from app.core.auth import get_current_user
+from app.models.user import User
 from app.models.document import Document
-from sqlalchemy import select, and_
-from app.core.realtime import emit_envelope_status
+from app.models.envelope import Envelope, Recipient, Field, FieldValue, AuditEvent, ActorType, EnvelopeStatus, RecipientStatus
+from app.schemas.envelope import (
+    EnvelopeCreate, EnvelopeUpdate, EnvelopeResponse, EnvelopeListResponse,
+    RecipientCreate, RecipientUpdate, RecipientResponse,
+    FieldCreate, FieldUpdate, FieldResponse,
+    FieldValueCreate, FieldValueResponse
+)
+from app.workers.queue import enqueue_finalize
+from app.core.realtime import realtime_service
 
-router = APIRouter(prefix="/envelopes", tags=["envelopes"])
+router = APIRouter()
 
-
-@router.post("/", response_model=EnvelopeOut)
-async def create_envelope(payload: EnvelopeCreate, db: AsyncSession = Depends(get_db), user=Depends(AuthHandler.get_current_user)):
-    env = Envelope(document_id=payload.document_id, subject=payload.subject, message=payload.message, status="DRAFT", created_by=user.id)
-    db.add(env)
-    await db.flush()
-    for r in payload.recipients:
-        db.add(Recipient(envelope_id=env.id, role=r.role, name=r.name, email=r.email, routing_order=r.routing_order))
+@router.post("/", response_model=EnvelopeResponse)
+async def create_envelope(
+    envelope_data: EnvelopeCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new envelope."""
+    # Verify document exists and user has access
+    document = await db.execute(
+        select(Document).where(
+            and_(Document.id == envelope_data.document_id, Document.owner_id == current_user.id)
+        )
+    )
+    document = document.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Create envelope
+    envelope = Envelope(
+        tenant_id=current_user.id,
+        document_id=envelope_data.document_id,
+        subject=envelope_data.subject,
+        message=envelope_data.message,
+        created_by=current_user.id,
+        status=EnvelopeStatus.DRAFT
+    )
+    db.add(envelope)
+    await db.flush()  # Get the envelope ID
+    
+    # Create recipients
+    for i, recipient_data in enumerate(envelope_data.recipients):
+        recipient = Recipient(
+            envelope_id=envelope.id,
+            name=recipient_data.name,
+            email=recipient_data.email,
+            role=recipient_data.role,
+            routing_order=recipient_data.routing_order,
+            status=RecipientStatus.PENDING
+        )
+        db.add(recipient)
+    
+    # Create fields if provided
+    if envelope_data.fields:
+        for field_data in envelope_data.fields:
+            field = Field(
+                envelope_id=envelope.id,
+                page_index=field_data.page_index,
+                type=field_data.type,
+                rect_pts=field_data.rect_pts.dict(),
+                rotation=field_data.rotation,
+                required=field_data.required,
+                recipient_id=field_data.recipient_id,
+                tab_settings=field_data.tab_settings.dict() if field_data.tab_settings else None
+            )
+            db.add(field)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope.id,
+        actor_type=ActorType.USER,
+        actor_id=current_user.id,
+        event="envelope.created",
+        metadata={"subject": envelope.subject}
+    )
+    db.add(audit_event)
+    
     await db.commit()
-    await db.refresh(env)
-    return env
+    await db.refresh(envelope)
+    
+    return envelope
 
+@router.get("/", response_model=EnvelopeListResponse)
+async def list_envelopes(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List envelopes for the current user."""
+    query = select(Envelope).where(Envelope.tenant_id == current_user.id)
+    total_query = select(Envelope).where(Envelope.tenant_id == current_user.id)
+    
+    envelopes = await db.execute(query.offset(skip).limit(limit))
+    total = await db.execute(total_query)
+    
+    return EnvelopeListResponse(
+        envelopes=envelopes.scalars().all(),
+        total=len(total.scalars().all()),
+        skip=skip,
+        limit=limit,
+        has_more=skip + limit < len(total.scalars().all())
+    )
 
-@router.get("/{envelope_id}", response_model=EnvelopeOut)
-async def get_envelope(envelope_id: UUID, db: AsyncSession = Depends(get_db), user=Depends(AuthHandler.get_current_user)):
-    result = await db.execute(select(Envelope).where(Envelope.id == envelope_id))
-    env = result.scalar_one_or_none()
-    if not env:
+@router.get("/{envelope_id}", response_model=EnvelopeResponse)
+async def get_envelope(
+    envelope_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get a specific envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
         raise HTTPException(status_code=404, detail="Envelope not found")
-    return env
+    
+    return envelope
 
-
-@router.post("/{envelope_id}/fields")
-async def upsert_fields(envelope_id: UUID, payload: FieldsUpsertRequest, db: AsyncSession = Depends(get_db), user=Depends(AuthHandler.get_current_user)):
-    # naive upsert: replace all for envelope
-    await db.execute(Field.__table__.delete().where(Field.envelope_id == envelope_id))
-    for f in payload.fields:
-        db.add(Field(envelope_id=envelope_id, recipient_id=f.recipient_id, page=f.page, type=f.type, rect=f.rect.model_dump(), required=f.required, tab_settings=f.tab_settings))
+@router.put("/{envelope_id}", response_model=EnvelopeResponse)
+async def update_envelope(
+    envelope_id: uuid.UUID,
+    envelope_data: EnvelopeUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    if envelope.status != EnvelopeStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Cannot update envelope that is not in draft status")
+    
+    # Update fields
+    if envelope_data.subject is not None:
+        envelope.subject = envelope_data.subject
+    if envelope_data.message is not None:
+        envelope.message = envelope_data.message
+    if envelope_data.signing_order is not None:
+        envelope.signing_order = envelope_data.signing_order
+    if envelope_data.status is not None:
+        envelope.status = envelope_data.status
+    
+    envelope.updated_at = datetime.now(timezone.utc)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope.id,
+        actor_type=ActorType.USER,
+        actor_id=current_user.id,
+        event="envelope.updated",
+        metadata={"changes": envelope_data.dict(exclude_unset=True)}
+    )
+    db.add(audit_event)
+    
     await db.commit()
-    return {"ok": True}
-
+    await db.refresh(envelope)
+    
+    return envelope
 
 @router.post("/{envelope_id}/send")
-async def send_envelope(envelope_id: UUID, db: AsyncSession = Depends(get_db), user=Depends(AuthHandler.get_current_user)):
-    # Load envelope and related document
-    result = await db.execute(select(Envelope).where(Envelope.id == envelope_id))
-    env = result.scalar_one_or_none()
-    if not env:
+async def send_envelope(
+    envelope_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Send an envelope for signing."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
         raise HTTPException(status_code=404, detail="Envelope not found")
-
-    doc_res = await db.execute(select(Document).where(Document.id == env.document_id))
-    doc = doc_res.scalar_one_or_none()
-    if not doc or not doc.file_path:
-        raise HTTPException(status_code=400, detail="Envelope document missing")
-
-    # Read PDF bytes (convert on-the-fly if needed)
-    if doc.mime_type != "application/pdf":
-        from app.core.document_converter import DocumentConverter
-        import os, uuid
-        tmp_pdf = f"/tmp/{uuid.uuid4()}.pdf"
-        ok = await DocumentConverter.convert_to_pdf(doc.file_path, tmp_pdf, doc.mime_type, doc.title or doc.filename)
-        if not ok:
-            raise HTTPException(status_code=500, detail="Failed to convert document to PDF")
-        with open(tmp_pdf, "rb") as f:
-            pdf_bytes = f.read()
-    else:
-        with open(doc.file_path, "rb") as f:
-            pdf_bytes = f.read()
-
-    # Fetch fields for flattening
-    fields_res = await db.execute(select(Field).where(Field.envelope_id == envelope_id))
-    fields = [
-        {
-            "page": f.page,
-            "type": f.type,
-            "rect_pts": f.rect,
-            "required": f.required,
-        }
-        for f in fields_res.scalars().all()
-    ]
-
-    # Finalize (flatten + sign)
-    signed_pdf = finalize_pdf(pdf_bytes, fields)
-    signed_path, signed_key = storage.save_signed_pdf(signed_pdf)
-
-    # Audit event
-    db.add(AuditEvent(envelope_id=envelope_id, actor_type="USER", actor_id=user.id, event="envelope.sent", metadata={"signed_key": signed_key}))
-    env.status = "SENT"
+    
+    if envelope.status != EnvelopeStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Envelope is not in draft status")
+    
+    # Validate envelope has recipients and fields
+    recipients = await db.execute(
+        select(Recipient).where(Recipient.envelope_id == envelope_id)
+    )
+    recipients = recipients.scalars().all()
+    if not recipients:
+        raise HTTPException(status_code=400, detail="Envelope must have at least one recipient")
+    
+    fields = await db.execute(
+        select(Field).where(Field.envelope_id == envelope_id)
+    )
+    fields = fields.scalars().all()
+    if not fields:
+        raise HTTPException(status_code=400, detail="Envelope must have at least one field")
+    
+    # Update envelope status
+    envelope.status = EnvelopeStatus.SENT
+    envelope.updated_at = datetime.now(timezone.utc)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope.id,
+        actor_type=ActorType.USER,
+        actor_id=current_user.id,
+        event="envelope.sent",
+        metadata={"recipient_count": len(recipients), "field_count": len(fields)}
+    )
+    db.add(audit_event)
+    
     await db.commit()
-    # Emit status update
-    try:
-        await emit_envelope_status(str(envelope_id), {"status": "SENT"})
-    except Exception:
-        pass
-    return {"ok": True, "signed_storage_key": signed_key}
+    
+    # Enqueue finalization job
+    enqueue_finalize(str(envelope_id))
+    
+    # Emit real-time event
+    await realtime_service.emit_to_room(
+        f"envelope_{envelope_id}",
+        "envelope.status",
+        {"envelope_id": str(envelope_id), "status": "sent"}
+    )
+    
+    return {"message": "Envelope sent successfully", "envelope_id": envelope_id}
 
+@router.post("/{envelope_id}/void")
+async def void_envelope(
+    envelope_id: uuid.UUID,
+    reason: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Void an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    if envelope.status in [EnvelopeStatus.COMPLETED, EnvelopeStatus.VOIDED]:
+        raise HTTPException(status_code=400, detail="Cannot void envelope in current status")
+    
+    envelope.status = EnvelopeStatus.VOIDED
+    envelope.updated_at = datetime.now(timezone.utc)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope.id,
+        actor_type=ActorType.USER,
+        actor_id=current_user.id,
+        event="envelope.voided",
+        metadata={"reason": reason}
+    )
+    db.add(audit_event)
+    
+    await db.commit()
+    
+    # Emit real-time event
+    await realtime_service.emit_to_room(
+        f"envelope_{envelope_id}",
+        "envelope.status",
+        {"envelope_id": str(envelope_id), "status": "voided"}
+    )
+    
+    return {"message": "Envelope voided successfully", "envelope_id": envelope_id}
+
+@router.post("/{envelope_id}/fields")
+async def upsert_fields(
+    envelope_id: uuid.UUID,
+    fields_data: List[FieldCreate],
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create or update fields for an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    if envelope.status != EnvelopeStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Cannot modify fields of envelope that is not in draft status")
+    
+    # Delete existing fields
+    existing_fields = await db.execute(
+        select(Field).where(Field.envelope_id == envelope_id)
+    )
+    for field in existing_fields.scalars().all():
+        await db.delete(field)
+    
+    # Create new fields
+    for field_data in fields_data:
+        field = Field(
+            envelope_id=envelope_id,
+            page_index=field_data.page_index,
+            type=field_data.type,
+            rect_pts=field_data.rect_pts.dict(),
+            rotation=field_data.rotation,
+            required=field_data.required,
+            recipient_id=field_data.recipient_id,
+            tab_settings=field_data.tab_settings.dict() if field_data.tab_settings else None
+        )
+        db.add(field)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope.id,
+        actor_type=ActorType.USER,
+        actor_id=current_user.id,
+        event="envelope.fields_updated",
+        metadata={"field_count": len(fields_data)}
+    )
+    db.add(audit_event)
+    
+    await db.commit()
+    
+    return {"message": "Fields updated successfully", "field_count": len(fields_data)}
+
+@router.get("/{envelope_id}/recipients", response_model=List[RecipientResponse])
+async def list_recipients(
+    envelope_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List recipients for an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipients = await db.execute(
+        select(Recipient).where(Recipient.envelope_id == envelope_id)
+    )
+    return recipients.scalars().all()
+
+@router.post("/{envelope_id}/recipients", response_model=RecipientResponse)
+async def add_recipient(
+    envelope_id: uuid.UUID,
+    recipient_data: RecipientCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Add a recipient to an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    if envelope.status != EnvelopeStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Cannot modify recipients of envelope that is not in draft status")
+    
+    recipient = Recipient(
+        envelope_id=envelope_id,
+        name=recipient_data.name,
+        email=recipient_data.email,
+        role=recipient_data.role,
+        routing_order=recipient_data.routing_order,
+        status=RecipientStatus.PENDING
+    )
+    db.add(recipient)
+    await db.commit()
+    await db.refresh(recipient)
+    
+    return recipient
+
+@router.put("/{envelope_id}/recipients/{recipient_id}", response_model=RecipientResponse)
+async def update_recipient(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    recipient_data: RecipientUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a recipient."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Update fields
+    if recipient_data.name is not None:
+        recipient.name = recipient_data.name
+    if recipient_data.email is not None:
+        recipient.email = recipient_data.email
+    if recipient_data.role is not None:
+        recipient.role = recipient_data.role
+    if recipient_data.routing_order is not None:
+        recipient.routing_order = recipient_data.routing_order
+    if recipient_data.status is not None:
+        recipient.status = recipient_data.status
+    
+    await db.commit()
+    await db.refresh(recipient)
+    
+    return recipient
+
+@router.delete("/{envelope_id}/recipients/{recipient_id}")
+async def delete_recipient(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete a recipient from an envelope."""
+    envelope = await db.execute(
+        select(Envelope).where(
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+        )
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    if envelope.status != EnvelopeStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Cannot modify recipients of envelope that is not in draft status")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    await db.delete(recipient)
+    await db.commit()
+    
+    return {"message": "Recipient deleted successfully"}

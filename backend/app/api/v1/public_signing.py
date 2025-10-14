@@ -1,467 +1,350 @@
-"""
-VistaSign Public Signing API Endpoints
-DocuSign-style public document signing
-"""
-
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_
 from typing import List, Optional
-import logging
-import secrets
-import string
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timezone
+import hashlib
 
 from app.core.database import get_db
-from app.core.security.auth import get_current_user, get_current_user_optional
-from app.models.public_signing import (
-    PublicDocument, PublicSigningRecipient, PublicSignature, Organization,
-    PublicSigningStatus
-)
-from app.models.subscription import Subscription, SubscriptionTier
-from app.schemas.public_signing import (
-    PublicDocumentCreate, PublicDocumentResponse, PublicDocumentListResponse,
-    PublicSigningRecipientCreate, PublicSigningRecipientResponse,
-    PublicSignatureCreate, PublicSignatureResponse,
-    PublicSigningRequest, PublicSigningResponse
-)
+from app.models.envelope import Envelope, Recipient, Field, FieldValue, AuditEvent, ActorType, RecipientStatus
+from app.schemas.envelope import FieldValueCreate, FieldValueResponse
+from app.core.realtime import realtime_service
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
-def generate_public_id():
-    """Generate a short public ID for URLs"""
-    return ''.join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(8))
-
-def generate_access_token():
-    """Generate access token for recipients"""
-    return secrets.token_urlsafe(32)
-
-@router.post("/documents", response_model=PublicDocumentResponse)
-async def create_public_document(
-    document_data: PublicDocumentCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Create a public document for external signing"""
-    try:
-        # Check user's subscription limits
-        result = await db.execute(
-            select(Subscription).where(Subscription.user_id == current_user["user_id"])
-        )
-        subscription = result.scalar_one_or_none()
-        
-        if not subscription:
-            # Create free subscription if none exists
-            subscription = Subscription(
-                user_id=current_user["user_id"],
-                tier=SubscriptionTier.FREE
-            )
-            db.add(subscription)
-            await db.commit()
-        
-        # Check if user has reached monthly limit
-        from datetime import datetime
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
-        
-        usage_result = await db.execute(
-            select(UsageTracking).where(
-                and_(
-                    UsageTracking.user_id == current_user["user_id"],
-                    UsageTracking.year == current_year,
-                    UsageTracking.month == current_month
-                )
-            )
-        )
-        usage = usage_result.scalar_one_or_none()
-        
-        if not usage:
-            usage = UsageTracking(
-                user_id=current_user["user_id"],
-                subscription_id=subscription.id,
-                year=current_year,
-                month=current_month
-            )
-            db.add(usage)
-        
-        # Check limits
-        if usage.documents_uploaded >= subscription.max_documents_per_month:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Monthly document limit reached ({subscription.max_documents_per_month}). Upgrade your plan for more documents."
-            )
-        
-        # Create public document
-        public_doc = PublicDocument(
-            title=document_data.title,
-            description=document_data.description,
-            document_url=document_data.document_url,
-            sender_name=document_data.sender_name,
-            sender_email=document_data.sender_email,
-            sender_company=document_data.sender_company,
-            requires_signature=document_data.requires_signature,
-            allow_decline=document_data.allow_decline,
-            allow_forward=document_data.allow_forward,
-            reminder_frequency=document_data.reminder_frequency,
-            expires_at=document_data.expires_at,
-            public_id=generate_public_id(),
-            access_code=document_data.access_code,
-            created_by=current_user["user_id"]
-        )
-        
-        db.add(public_doc)
-        await db.commit()
-        await db.refresh(public_doc)
-        
-        # Create recipients
-        for recipient_data in document_data.recipients:
-            recipient = PublicSigningRecipient(
-                document_id=public_doc.id,
-                name=recipient_data.name,
-                email=recipient_data.email,
-                role=recipient_data.role,
-                order=recipient_data.order,
-                access_token=generate_access_token(),
-                custom_fields=recipient_data.custom_fields
-            )
-            db.add(recipient)
-        
-        # Update usage
-        usage.documents_uploaded += 1
-        await db.commit()
-        
-        return PublicDocumentResponse(
-            id=str(public_doc.id),
-            title=public_doc.title,
-            description=public_doc.description,
-            public_id=public_doc.public_id,
-            public_url=public_doc.public_url,
-            status=public_doc.status.value,
-            expires_at=public_doc.expires_at,
-            created_at=public_doc.created_at
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Create public document error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create public document"
-        )
-
-@router.get("/documents", response_model=PublicDocumentListResponse)
-async def list_public_documents(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    status: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """List user's public documents"""
-    try:
-        # Build query
-        query = select(PublicDocument).where(PublicDocument.created_by == current_user["user_id"])
-        
-        # Apply filters
-        if status:
-            query = query.where(PublicDocument.status == status)
-        
-        # Get total count
-        count_query = select(PublicDocument).where(PublicDocument.created_by == current_user["user_id"])
-        if status:
-            count_query = count_query.where(PublicDocument.status == status)
-        
-        total_result = await db.execute(count_query)
-        total = len(total_result.scalars().all())
-        
-        # Get documents with pagination
-        result = await db.execute(query.offset(skip).limit(limit))
-        documents = result.scalars().all()
-        
-        return PublicDocumentListResponse(
-            documents=[
-                PublicDocumentResponse(
-                    id=str(doc.id),
-                    title=doc.title,
-                    description=doc.description,
-                    public_id=doc.public_id,
-                    public_url=doc.public_url,
-                    status=doc.status.value,
-                    expires_at=doc.expires_at,
-                    created_at=doc.created_at
-                ) for doc in documents
-            ],
-            total=total,
-            skip=skip,
-            limit=limit,
-            has_more=(skip + limit) < total
-        )
-        
-    except Exception as e:
-        logger.error(f"List public documents error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list public documents"
-        )
-
-@router.get("/sign/{public_id}", response_model=PublicSigningResponse)
-async def get_public_signing_page(
-    public_id: str,
-    access_token: Optional[str] = Query(None),
-    access_code: Optional[str] = Query(None),
+@router.get("/{envelope_id}/{recipient_id}")
+async def get_public_signing_data(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get public signing page (no authentication required)"""
-    try:
-        # Find document by public ID
-        result = await db.execute(
-            select(PublicDocument).where(PublicDocument.public_id == public_id)
+    """Get envelope data for public signing."""
+    # Get envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
         )
-        document = result.scalar_one_or_none()
-        
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found"
-            )
-        
-        # Check if document is expired
-        if document.is_expired:
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail="Document has expired"
-            )
-        
-        # Check access code if required
-        if document.access_code and access_code != document.access_code:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid access code"
-            )
-        
-        # Get recipients
-        recipients_result = await db.execute(
-            select(PublicSigningRecipient).where(
-                PublicSigningRecipient.document_id == document.id
-            )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Get fields assigned to this recipient
+    fields = await db.execute(
+        select(Field).where(
+            and_(Field.envelope_id == envelope_id, Field.recipient_id == recipient_id)
         )
-        recipients = recipients_result.scalars().all()
-        
-        return PublicSigningResponse(
-            document=PublicDocumentResponse(
-                id=str(document.id),
-                title=document.title,
-                description=document.description,
-                public_id=document.public_id,
-                public_url=document.public_url,
-                status=document.status.value,
-                expires_at=document.expires_at,
-                created_at=document.created_at
-            ),
-            recipients=[
-                PublicSigningRecipientResponse(
-                    id=str(recipient.id),
-                    name=recipient.name,
-                    email=recipient.email,
-                    role=recipient.role,
-                    status=recipient.status.value,
-                    signed_at=recipient.signed_at
-                ) for recipient in recipients
-            ],
-            requires_access_code=bool(document.access_code),
-            access_code_provided=bool(access_code)
+    )
+    fields = fields.scalars().all()
+    
+    # Get existing field values
+    field_values = await db.execute(
+        select(FieldValue).where(
+            and_(FieldValue.envelope_id == envelope_id, FieldValue.recipient_id == recipient_id)
         )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Get public signing page error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get signing page"
-        )
+    )
+    field_values = field_values.scalars().all()
+    
+    return {
+        "envelope": {
+            "id": envelope.id,
+            "subject": envelope.subject,
+            "message": envelope.message,
+            "status": envelope.status
+        },
+        "recipient": {
+            "id": recipient.id,
+            "name": recipient.name,
+            "email": recipient.email,
+            "role": recipient.role,
+            "status": recipient.status
+        },
+        "fields": [
+            {
+                "id": field.id,
+                "type": field.type,
+                "page_index": field.page_index,
+                "rect_pts": field.rect_pts,
+                "rotation": field.rotation,
+                "required": field.required,
+                "tab_settings": field.tab_settings
+            }
+            for field in fields
+        ],
+        "field_values": {
+            fv.field_id: {
+                "id": fv.id,
+                "value": fv.value,
+                "signed_at": fv.signed_at
+            }
+            for fv in field_values
+        }
+    }
 
-@router.post("/sign/{public_id}/sign", response_model=PublicSignatureResponse)
-async def sign_public_document(
-    public_id: str,
-    signature_data: PublicSignatureCreate,
+@router.post("/{envelope_id}/{recipient_id}/fields/{field_id}")
+async def update_field_value(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    field_id: uuid.UUID,
+    field_value_data: FieldValueCreate,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Sign a public document (no authentication required)"""
-    try:
-        # Find document
-        result = await db.execute(
-            select(PublicDocument).where(PublicDocument.public_id == public_id)
+    """Update a field value for public signing."""
+    # Verify envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
         )
-        document = result.scalar_one_or_none()
-        
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found"
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Verify field belongs to this recipient
+    field = await db.execute(
+        select(Field).where(
+            and_(
+                Field.id == field_id,
+                Field.envelope_id == envelope_id,
+                Field.recipient_id == recipient_id
             )
-        
-        # Check if document is expired
-        if document.is_expired:
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail="Document has expired"
+        )
+    )
+    field = field.scalar_one_or_none()
+    if not field:
+        raise HTTPException(status_code=404, detail="Field not found")
+    
+    # Get client info
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+    
+    # Create or update field value
+    existing_value = await db.execute(
+        select(FieldValue).where(
+            and_(
+                FieldValue.field_id == field_id,
+                FieldValue.recipient_id == recipient_id
             )
-        
-        # Find recipient by access token
-        recipient_result = await db.execute(
-            select(PublicSigningRecipient).where(
+        )
+    )
+    existing_value = existing_value.scalar_one_or_none()
+    
+    if existing_value:
+        existing_value.value = field_value_data.value
+        existing_value.signer_ip = client_ip
+        existing_value.signer_user_agent = user_agent
+        existing_value.signed_at = datetime.now(timezone.utc)
+        # Generate evidence hash
+        evidence_data = f"{field_value_data.value}{client_ip}{user_agent}{field_id}{recipient_id}"
+        existing_value.evidence_hash = hashlib.sha256(evidence_data.encode()).hexdigest()
+    else:
+        field_value = FieldValue(
+            field_id=field_id,
+            recipient_id=recipient_id,
+            envelope_id=envelope_id,
+            value=field_value_data.value,
+            signer_ip=client_ip,
+            signer_user_agent=user_agent,
+            signed_at=datetime.now(timezone.utc)
+        )
+        # Generate evidence hash
+        evidence_data = f"{field_value_data.value}{client_ip}{user_agent}{field_id}{recipient_id}"
+        field_value.evidence_hash = hashlib.sha256(evidence_data.encode()).hexdigest()
+        db.add(field_value)
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope_id,
+        actor_type=ActorType.RECIPIENT,
+        actor_id=recipient_id,
+        event="field.signed",
+        metadata={
+            "field_id": str(field_id),
+            "field_type": field.type,
+            "signer_ip": client_ip,
+            "signer_user_agent": user_agent
+        }
+    )
+    db.add(audit_event)
+    
+    await db.commit()
+    
+    # Emit real-time event
+    await realtime_service.emit_to_room(
+        f"envelope_{envelope_id}",
+        "field.updated",
+        {
+            "envelope_id": str(envelope_id),
+            "field_id": str(field_id),
+            "recipient_id": str(recipient_id),
+            "value": field_value_data.value
+        }
+    )
+    
+    return {"message": "Field value updated successfully"}
+
+@router.post("/{envelope_id}/{recipient_id}/complete")
+async def complete_signing(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark recipient as completed signing."""
+    # Verify envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Check if all required fields are completed
+    required_fields = await db.execute(
+        select(Field).where(
+            and_(
+                Field.envelope_id == envelope_id,
+                Field.recipient_id == recipient_id,
+                Field.required == True
+            )
+        )
+    )
+    required_fields = required_fields.scalars().all()
+    
+    completed_values = await db.execute(
+        select(FieldValue).where(
                 and_(
-                    PublicSigningRecipient.document_id == document.id,
-                    PublicSigningRecipient.access_token == signature_data.access_token
-                )
+                FieldValue.envelope_id == envelope_id,
+                FieldValue.recipient_id == recipient_id,
+                FieldValue.value.isnot(None)
             )
         )
-        recipient = recipient_result.scalar_one_or_none()
-        
-        if not recipient:
+    )
+    completed_values = completed_values.scalars().all()
+    completed_field_ids = {fv.field_id for fv in completed_values}
+    
+    missing_required = [f for f in required_fields if f.id not in completed_field_ids]
+    if missing_required:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Invalid access token"
-            )
-        
-        # Check if already signed
-        if recipient.status == PublicSigningStatus.SIGNED:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Document already signed"
-            )
-        
-        # Create signature
-        signature = PublicSignature(
-            recipient_id=recipient.id,
-            signature_data=signature_data.signature_data,
-            signature_image=signature_data.signature_image,
-            signature_position=signature_data.signature_position,
-            signing_reason=signature_data.signing_reason,
-            signing_location=signature_data.signing_location,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
-            timestamp=datetime.utcnow()
+            status_code=400, 
+            detail=f"Missing required fields: {[f.type for f in missing_required]}"
         )
-        
-        db.add(signature)
-        
+    
         # Update recipient status
-        recipient.status = PublicSigningStatus.SIGNED
-        recipient.signed_at = datetime.utcnow()
-        recipient.last_accessed = datetime.utcnow()
-        
-        # Check if all recipients have signed
-        all_recipients_result = await db.execute(
-            select(PublicSigningRecipient).where(
-                PublicSigningRecipient.document_id == document.id
-            )
-        )
-        all_recipients = all_recipients_result.scalars().all()
-        
-        if all(r.status == PublicSigningStatus.SIGNED for r in all_recipients):
-            document.status = PublicSigningStatus.COMPLETED
-            document.completed_at = datetime.utcnow()
+    recipient.status = RecipientStatus.COMPLETED
+    recipient.signed_at = datetime.now(timezone.utc)
+    recipient.signer_ip = request.client.host if request.client else None
+    recipient.signer_user_agent = request.headers.get("user-agent")
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope_id,
+        actor_type=ActorType.RECIPIENT,
+        actor_id=recipient_id,
+        event="recipient.completed",
+        metadata={
+            "signer_ip": recipient.signer_ip,
+            "signer_user_agent": recipient.signer_user_agent
+        }
+    )
+    db.add(audit_event)
         
         await db.commit()
-        await db.refresh(signature)
-        
-        return PublicSignatureResponse(
-            id=str(signature.id),
-            signed_at=signature.signed_at,
-            status="signed"
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Sign public document error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to sign document"
-        )
+    
+    # Emit real-time event
+    await realtime_service.emit_to_room(
+        f"envelope_{envelope_id}",
+        "recipient.progress",
+        {
+            "envelope_id": str(envelope_id),
+            "recipient_id": str(recipient_id),
+            "status": "completed"
+        }
+    )
+    
+    return {"message": "Signing completed successfully"}
 
-@router.get("/pricing")
-async def get_pricing_plans():
-    """Get pricing plans (public endpoint)"""
-    return {
-        "plans": [
-            {
-                "tier": "free",
-                "name": "Free",
-                "price_monthly": 0,
-                "price_yearly": 0,
-                "features": [
-                    "5 documents per month",
-                    "10 signatures per month",
-                    "Basic templates",
-                    "Email support"
-                ],
-                "limits": {
-                    "documents_per_month": 5,
-                    "signatures_per_month": 10,
-                    "storage_gb": 1
-                }
-            },
-            {
-                "tier": "basic",
-                "name": "Basic",
-                "price_monthly": 9.99,
-                "price_yearly": 99.99,
-                "features": [
-                    "50 documents per month",
-                    "100 signatures per month",
-                    "Advanced templates",
-                    "Priority support",
-                    "Custom branding"
-                ],
-                "limits": {
-                    "documents_per_month": 50,
-                    "signatures_per_month": 100,
-                    "storage_gb": 10
-                }
-            },
-            {
-                "tier": "professional",
-                "name": "Professional",
-                "price_monthly": 29.99,
-                "price_yearly": 299.99,
-                "features": [
-                    "Unlimited documents",
-                    "Unlimited signatures",
-                    "Advanced workflows",
-                    "API access",
-                    "Team collaboration",
-                    "Advanced analytics"
-                ],
-                "limits": {
-                    "documents_per_month": -1,  # Unlimited
-                    "signatures_per_month": -1,
-                    "storage_gb": 100
-                }
-            },
-            {
-                "tier": "enterprise",
-                "name": "Enterprise",
-                "price_monthly": 99.99,
-                "price_yearly": 999.99,
-                "features": [
-                    "Everything in Professional",
-                    "Custom integrations",
-                    "Dedicated support",
-                    "SLA guarantee",
-                    "Custom domain",
-                    "Advanced security"
-                ],
-                "limits": {
-                    "documents_per_month": -1,
-                    "signatures_per_month": -1,
-                    "storage_gb": -1
-                }
-            }
-        ]
-    }
+@router.post("/{envelope_id}/{recipient_id}/decline")
+async def decline_signing(
+    envelope_id: uuid.UUID,
+    recipient_id: uuid.UUID,
+    reason: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """Decline to sign the envelope."""
+    # Verify envelope and recipient
+    envelope = await db.execute(
+        select(Envelope).where(Envelope.id == envelope_id)
+    )
+    envelope = envelope.scalar_one_or_none()
+    if not envelope:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    
+    recipient = await db.execute(
+        select(Recipient).where(
+            and_(Recipient.id == recipient_id, Recipient.envelope_id == envelope_id)
+        )
+    )
+    recipient = recipient.scalar_one_or_none()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found")
+    
+    # Update recipient status
+    recipient.status = RecipientStatus.DECLINED
+    recipient.signer_ip = request.client.host if request.client else None
+    recipient.signer_user_agent = request.headers.get("user-agent")
+    
+    # Create audit event
+    audit_event = AuditEvent(
+        envelope_id=envelope_id,
+        actor_type=ActorType.RECIPIENT,
+        actor_id=recipient_id,
+        event="recipient.declined",
+        metadata={
+            "reason": reason,
+            "signer_ip": recipient.signer_ip,
+            "signer_user_agent": recipient.signer_user_agent
+        }
+    )
+    db.add(audit_event)
+    
+    await db.commit()
+    
+    # Emit real-time event
+    await realtime_service.emit_to_room(
+        f"envelope_{envelope_id}",
+        "recipient.progress",
+        {
+            "envelope_id": str(envelope_id),
+            "recipient_id": str(recipient_id),
+            "status": "declined"
+        }
+    )
+    
+    return {"message": "Signing declined successfully"}
