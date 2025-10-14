@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, Paper, Button, TextField, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import { SignatureCapture } from '../components/SignatureCapture';
+import SignatureCapture from '../components/SignatureCapture';
 import { documentsAPI, envelopesAPI } from '../services/api';
 
 export default function PublicSigning() {
