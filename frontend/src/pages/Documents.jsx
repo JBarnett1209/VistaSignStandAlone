@@ -334,8 +334,8 @@ export default function Documents() {
                     }}>
                       <IconButton 
                         size="small" 
-                        title="View PDF" 
-                        onClick={() => window.open(`/api/v1/documents/${doc.id}/pdf`, '_blank')}
+                        title="View"
+                        onClick={() => window.location.assign(`/documents/${doc.id}/view`)}
                         sx={{ flexShrink: 0 }}
                       >
                         <ViewIcon />

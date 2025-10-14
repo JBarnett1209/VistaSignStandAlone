@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Documents from './pages/Documents';
+import DocumentView from './pages/DocumentView';
 import Signatures from './pages/Signatures';
 import Workflows from './pages/Workflows';
 import Profile from './pages/Profile';
@@ -153,6 +154,7 @@ function AppRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="documents" element={<Documents />} />
+          <Route path="documents/:id/view" element={<DocumentView />} />
           <Route path="signatures" element={<Signatures />} />
           <Route path="workflows" element={<Workflows />} />
           <Route path="profile" element={<Profile />} />
