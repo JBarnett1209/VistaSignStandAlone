@@ -13,7 +13,7 @@ from sqlalchemy import select
 from app.core.database import get_db_session
 from app.models.document import Document, DocumentStatus
 from app.services.document_converter import document_converter
-from app.services.antivirus import antivirus_service
+# from app.services.antivirus import antivirus_service  # REMOVED - ClamAV
 from app.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
@@ -42,17 +42,9 @@ async def ingest_document(document_id: str, file_path: str, mime_type: str, titl
             document.status = DocumentStatus.PENDING_SIGNATURE
             await db.commit()
             
-            # Step 1: Antivirus scan
-            logger.info(f"Scanning file for viruses: {file_path}")
-            is_clean, virus_name = antivirus_service.scan_file(file_path)
-            
-            if not is_clean:
-                logger.error(f"Virus detected in file: {file_path}, virus: {virus_name}")
-                document.status = DocumentStatus.REJECTED
-                await db.commit()
-                return
-            
-            logger.info(f"File passed antivirus scan: {file_path}")
+            # Step 1: Antivirus scan - DISABLED (ClamAV removed)
+            logger.info(f"Skipping antivirus scan (ClamAV disabled): {file_path}")
+            # TODO: Implement alternative antivirus solution or file validation
             
             # Step 2: Calculate file hash
             with open(file_path, 'rb') as f:
