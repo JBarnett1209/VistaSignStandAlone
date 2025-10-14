@@ -27,7 +27,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Get token from auth manager
-    const token = authManager.accessToken;
+    const token = authManager.getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -63,6 +63,10 @@ api.interceptors.response.use(
       // Check if we have a refresh token
       if (!authManager.hasRefreshToken()) {
         authManager.clearAuth();
+        // Redirect to login if we're not already there
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
 
@@ -81,6 +85,10 @@ api.interceptors.response.use(
 
         if (!refreshResponse.ok) {
           authManager.clearAuth();
+          // Redirect to login if refresh fails
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
           return Promise.reject(error);
         }
 
@@ -91,7 +99,12 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${refreshData.access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
         authManager.clearAuth();
+        // Redirect to login if refresh fails
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(error);
       }
     }

@@ -4,10 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 export const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
   // Show loading spinner while authentication is being checked
-  if (loading) {
+  if (isLoading) {
     return (
       <Box 
         sx={{ 

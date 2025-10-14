@@ -352,6 +352,13 @@ class AuthManager {
       isLoading: this.loading
     };
   }
+
+  /**
+   * Get current access token
+   */
+  getAccessToken() {
+    return this.accessToken || null;
+  }
 }
 
 // Create singleton instance
