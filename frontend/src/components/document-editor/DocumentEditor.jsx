@@ -134,17 +134,49 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
 
   // Set document URL when document changes
   useEffect(() => {
-    if (document?.file_url) {
-      console.log('📄 Document URL:', document.file_url);
-      console.log('📄 Document object:', document);
+    console.log('📄 Document object:', document);
+    
+    // Try different possible URL properties
+    const possibleUrls = [
+      document?.file_url,
+      document?.url,
+      document?.download_url,
+      document?.public_url,
+      document?.file_path
+    ];
+    
+    const documentUrl = possibleUrls.find(url => url && typeof url === 'string');
+    
+    if (documentUrl) {
+      console.log('📄 Found document URL:', documentUrl);
       
-      // Determine document type
-      const url = document.file_url;
-      const extension = url.split('.').pop()?.toLowerCase();
+      // Determine document type from filename or URL
+      let extension = 'pdf'; // Default to PDF
+      
+      if (document?.filename) {
+        extension = document.filename.split('.').pop()?.toLowerCase() || 'pdf';
+      } else if (documentUrl.includes('.')) {
+        extension = documentUrl.split('.').pop()?.toLowerCase() || 'pdf';
+      }
+      
+      console.log('📄 Detected document type:', extension);
+      
       setDocumentType(extension);
-      
-      setDocumentUrl(url);
+      setDocumentUrl(documentUrl);
       setLoadingError(null);
+    } else {
+      console.log('❌ No document URL found. Available properties:', Object.keys(document || {}));
+      
+      // Try to construct URL from document ID if available
+      if (document?.id) {
+        const constructedUrl = `/api/v1/documents/${document.id}/file`;
+        console.log('🔧 Constructing URL from ID:', constructedUrl);
+        setDocumentType('pdf'); // Assume PDF for constructed URLs
+        setDocumentUrl(constructedUrl);
+        setLoadingError(null);
+      } else {
+        setLoadingError('No document URL found');
+      }
     }
   }, [document]);
 
@@ -186,7 +218,12 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
   // Handle PDF load error
   const handlePdfLoadError = useCallback((error) => {
     console.error('❌ PDF load error:', error);
-    setLoadingError('Failed to load PDF document');
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
+    setLoadingError(`Failed to load PDF: ${error.message || 'Unknown error'}`);
   }, []);
 
   // Save document
@@ -369,7 +406,7 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
           
           {/* Main Content */}
           <Box sx={{ flex: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
-            {/* Toolbar */}
+        {/* Toolbar */}
             <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
               <Button variant="contained" onClick={handleSave}>
                 Save
@@ -400,11 +437,11 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
                 {/* Fields Overlay */}
                 {fields.map(field => (
                   <Field 
-                    key={field.id} 
-                    field={field} 
+                  key={field.id}
+                  field={field}
                     onRemove={handleRemoveField}
-                  />
-                ))}
+                />
+              ))}
               </Box>
             </PdfDropZone>
         </Box>
