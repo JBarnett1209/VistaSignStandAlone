@@ -12,6 +12,12 @@ import {
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
+import { Document, Page, pdfjs } from 'react-pdf';
+import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
+import 'react-pdf/dist/esm/Page/TextLayer.css';
+
+// Set up PDF.js worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 // Simple field palette component
 const FieldPalette = () => {
@@ -138,12 +144,15 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
     if (active.data.current?.type === 'field' && over?.data.current?.type === 'pdf') {
       const fieldType = active.data.current.fieldType;
       
-      // Get drop position (simplified - just use center for now)
+      // Get drop position from the drag event
+      const dropX = event.over?.rect?.left || 100;
+      const dropY = event.over?.rect?.top || 100;
+      
       const newField = {
         id: Date.now(),
         type: fieldType,
-        x: 100,
-        y: 100,
+        x: Math.max(0, dropX - 200), // Adjust for dialog position
+        y: Math.max(0, dropY - 200), // Adjust for dialog position
         width: 150,
         height: 40
       };
@@ -214,20 +223,43 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
             <PdfDropZone onFieldDrop={() => {}}>
               {documentUrl ? (
                 <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-                  {/* PDF Viewer - simplified for now */}
-                  <Box sx={{ 
-                    width: '100%', 
-                    height: 600, 
-                    bgcolor: 'white',
-                    border: '1px solid #ddd',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Typography variant="body1" color="text.secondary">
-                      PDF Document: {document?.title}
-                    </Typography>
-                  </Box>
+                  {/* Real PDF Viewer */}
+                  <Document
+                    file={documentUrl}
+                    loading={
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        height: 600,
+                        bgcolor: '#f5f5f5'
+                      }}>
+                        <Typography variant="body1" color="text.secondary">
+                          Loading PDF...
+                        </Typography>
+                      </Box>
+                    }
+                    error={
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        height: 600,
+                        bgcolor: '#f5f5f5'
+                      }}>
+                        <Typography variant="body1" color="error">
+                          Error loading PDF
+                        </Typography>
+                      </Box>
+                    }
+                  >
+                    <Page
+                      pageNumber={1}
+                      scale={1.0}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                    />
+                  </Document>
                   
                   {/* Fields */}
                   {fields.map(field => (
