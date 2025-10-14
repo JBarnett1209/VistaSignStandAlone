@@ -51,6 +51,10 @@ async def get_document_pdf(
     """Return a PDF rendition of the document, converting if required.
     For now this streams a locally persisted PDF under UPLOAD_DIR/pdf.
     """
+    # Debug logging
+    logger.info(f"PDF request - document_id: {document_id}, user_id: {current_user.get('user_id')}")
+    logger.info(f"PDF request - user_id type: {type(current_user.get('user_id'))}")
+    
     # Fetch document
     result = await db.execute(
         select(Document).where(
@@ -62,6 +66,7 @@ async def get_document_pdf(
     )
     document = result.scalar_one_or_none()
     if not document:
+        logger.error(f"Document not found - document_id: {document_id}, user_id: {current_user.get('user_id')}")
         raise HTTPException(status_code=404, detail="Document not found")
 
     # If already a PDF and exists, stream it
