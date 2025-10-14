@@ -11,7 +11,7 @@ def get_queue(name: str = "default") -> Queue:
 
 
 def enqueue_ingest(document_id: str, path: str, mime_type: str, title: str) -> str:
-    from app.app.workers.ingest import ingest_document
+    from app.workers.ingest import ingest_document
     q = get_queue("ingest")
     job = q.enqueue(ingest_document, document_id, path, mime_type, title)
     return job.id
