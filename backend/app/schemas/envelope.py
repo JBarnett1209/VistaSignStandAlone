@@ -52,6 +52,30 @@ class FieldsUpsertRequest(BaseModel):
     fields: List[FieldDef]
 
 
+class FieldValueCreate(BaseModel):
+    field_id: UUID
+    recipient_id: UUID
+    value: Optional[str] = None
+    signer_ip: Optional[str] = None
+    signer_user_agent: Optional[str] = None
+    evidence_hash: Optional[str] = None
+
+
+class FieldValueResponse(BaseModel):
+    id: UUID
+    field_id: UUID
+    recipient_id: UUID
+    envelope_id: UUID
+    value: Optional[str] = None
+    signed_at: datetime
+    signer_ip: Optional[str] = None
+    signer_user_agent: Optional[str] = None
+    evidence_hash: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class EvidenceOut(BaseModel):
     envelope_id: UUID
     hash: str
