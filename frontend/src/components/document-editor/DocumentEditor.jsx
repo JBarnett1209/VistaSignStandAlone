@@ -150,17 +150,26 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
     if (documentUrl) {
       console.log('📄 Found document URL:', documentUrl);
       
-      // Determine document type from filename or URL
+      // Determine document type from explicit fields first, then filename/URL
       let extension = 'pdf'; // Default to PDF
-      
-      if (document?.filename) {
-        extension = document.filename.split('.').pop()?.toLowerCase() || 'pdf';
-        console.log('📄 Using filename for type detection:', document.filename, '->', extension);
-      } else if (documentUrl.includes('.')) {
-        // Remove query parameters before extracting extension
-        const urlWithoutParams = documentUrl.split('?')[0];
-        extension = urlWithoutParams.split('.').pop()?.toLowerCase() || 'pdf';
-        console.log('📄 Using URL for type detection:', urlWithoutParams, '->', extension);
+
+      if (document?.mime_type?.toLowerCase?.().includes('application/pdf')) {
+        extension = 'pdf';
+        console.log('📄 Using mime_type for type detection:', document.mime_type);
+      } else if (typeof document?.document_type === 'string' && document.document_type.toLowerCase() === 'pdf') {
+        extension = 'pdf';
+        console.log('📄 Using document_type for type detection:', document.document_type);
+      } else {
+        // Fallbacks
+        if (document?.filename) {
+          extension = document.filename.split('.').pop()?.toLowerCase() || 'pdf';
+          console.log('📄 Using filename for type detection:', document.filename, '->', extension);
+        } else if (documentUrl.includes('.')) {
+          // Remove query parameters before extracting extension
+          const urlWithoutParams = documentUrl.split('?')[0];
+          extension = urlWithoutParams.split('.').pop()?.toLowerCase() || 'pdf';
+          console.log('📄 Using URL for type detection:', urlWithoutParams, '->', extension);
+        }
       }
       
       // Force PDF if filename contains 'pdf' (case insensitive)
@@ -281,7 +290,7 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
         console.log('📄 Rendering PDF with URL:', documentUrl);
         return (
           <Document
-            file={documentUrl}
+            file={{ url: documentUrl, withCredentials: true }}
             onLoadSuccess={handlePdfLoadSuccess}
             onLoadError={handlePdfLoadError}
             loading={
