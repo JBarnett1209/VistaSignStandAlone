@@ -129,11 +129,22 @@ const Field = ({ field, onRemove }) => {
 const DocumentEditor = ({ document, onClose, onSave }) => {
   const [fields, setFields] = useState([]);
   const [documentUrl, setDocumentUrl] = useState(null);
+  const [documentType, setDocumentType] = useState(null);
+  const [loadingError, setLoadingError] = useState(null);
 
   // Set document URL when document changes
   useEffect(() => {
     if (document?.file_url) {
-      setDocumentUrl(document.file_url);
+      console.log('📄 Document URL:', document.file_url);
+      console.log('📄 Document object:', document);
+      
+      // Determine document type
+      const url = document.file_url;
+      const extension = url.split('.').pop()?.toLowerCase();
+      setDocumentType(extension);
+      
+      setDocumentUrl(url);
+      setLoadingError(null);
     }
   }, [document]);
 
@@ -166,40 +177,189 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
     setFields(prev => prev.filter(field => field.id !== fieldId));
   }, []);
 
+  // Handle PDF load success
+  const handlePdfLoadSuccess = useCallback(({ numPages }) => {
+    console.log('✅ PDF loaded successfully:', numPages, 'pages');
+    setLoadingError(null);
+  }, []);
+
+  // Handle PDF load error
+  const handlePdfLoadError = useCallback((error) => {
+    console.error('❌ PDF load error:', error);
+    setLoadingError('Failed to load PDF document');
+  }, []);
+
   // Save document
   const handleSave = useCallback(() => {
     onSave?.(fields);
   }, [fields, onSave]);
 
+  // Render different document types
+  const renderDocument = () => {
+    if (!documentUrl) {
+      return (
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: 600,
+          bgcolor: '#f5f5f5'
+        }}>
+          <Typography variant="body1" color="text.secondary">
+            No document loaded
+          </Typography>
+        </Box>
+      );
+    }
+
+    if (loadingError) {
+      return (
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: 600,
+          bgcolor: '#ffebee'
+        }}>
+          <Typography variant="body1" color="error">
+            {loadingError}
+          </Typography>
+        </Box>
+      );
+    }
+
+    // Render based on document type
+    switch (documentType) {
+      case 'pdf':
+        return (
+          <Document
+            file={documentUrl}
+            onLoadSuccess={handlePdfLoadSuccess}
+            onLoadError={handlePdfLoadError}
+            loading={
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                height: 600,
+                bgcolor: '#f5f5f5'
+              }}>
+                <Typography variant="body1" color="text.secondary">
+                  Loading PDF...
+                </Typography>
+              </Box>
+            }
+          >
+            <Page
+              pageNumber={1}
+              scale={1.0}
+              renderTextLayer={false}
+              renderAnnotationLayer={false}
+            />
+          </Document>
+        );
+      
+      case 'doc':
+      case 'docx':
+        return (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: 600,
+            bgcolor: '#e3f2fd'
+          }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+                Word Document
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {document?.title || 'Document'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Word documents will be converted to PDF for editing
+              </Typography>
+            </Box>
+          </Box>
+        );
+      
+      case 'txt':
+        return (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: 600,
+            bgcolor: '#f3e5f5'
+          }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+                Text Document
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {document?.title || 'Document'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Text documents will be converted to PDF for editing
+              </Typography>
+            </Box>
+          </Box>
+        );
+      
+      default:
+        return (
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            height: 600,
+            bgcolor: '#fff3e0'
+          }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+                Document Type: {documentType?.toUpperCase() || 'Unknown'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {document?.title || 'Document'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                This document type will be converted to PDF for editing
+              </Typography>
+            </Box>
+          </Box>
+        );
+    }
+  };
+
   return (
     <DndContext onDragEnd={handleDragEnd}>
-      <Dialog
+    <Dialog
         open={!!document}
         onClose={onClose}
         maxWidth="lg"
-        fullWidth
+      fullWidth
         sx={{
           '& .MuiDialog-paper': {
             height: '90vh',
             maxHeight: '90vh'
           }
         }}
-      >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
           p: 2,
           borderBottom: 1,
           borderColor: 'divider'
-        }}>
+      }}>
           <Typography variant="h6">
-            Document Editor - {document?.title || 'Untitled'}
+          Document Editor - {document?.title || 'Untitled'}
           </Typography>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
           </IconButton>
-        </DialogTitle>
+      </DialogTitle>
 
         <DialogContent sx={{ p: 0, display: 'flex', height: '100%' }}>
           {/* Field Palette */}
@@ -210,83 +370,46 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
           {/* Main Content */}
           <Box sx={{ flex: 1, p: 2, display: 'flex', flexDirection: 'column' }}>
             {/* Toolbar */}
-            <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+            <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
               <Button variant="contained" onClick={handleSave}>
                 Save
               </Button>
               <Button variant="outlined" onClick={onClose}>
                 Cancel
               </Button>
-            </Box>
-            
-            {/* PDF Area */}
-            <PdfDropZone onFieldDrop={() => {}}>
-              {documentUrl ? (
-                <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
-                  {/* Real PDF Viewer */}
-                  <Document
-                    file={documentUrl}
-                    loading={
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        height: 600,
-                        bgcolor: '#f5f5f5'
-                      }}>
-                        <Typography variant="body1" color="text.secondary">
-                          Loading PDF...
-                        </Typography>
-                      </Box>
-                    }
-                    error={
-                      <Box sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        height: 600,
-                        bgcolor: '#f5f5f5'
-                      }}>
-                        <Typography variant="body1" color="error">
-                          Error loading PDF
-                        </Typography>
-                      </Box>
-                    }
-                  >
-                    <Page
-                      pageNumber={1}
-                      scale={1.0}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                    />
-                  </Document>
-                  
-                  {/* Fields */}
-                  {fields.map(field => (
-                    <Field 
-                      key={field.id} 
-                      field={field} 
-                      onRemove={handleRemoveField}
-                    />
-                  ))}
-                </Box>
-              ) : (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  height: 600,
-                  bgcolor: '#f5f5f5'
-                }}>
-                  <Typography variant="body1" color="text.secondary">
-                    No document loaded
+              
+              {/* Debug Info */}
+              {documentUrl && (
+                <Box sx={{ ml: 'auto', display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Type: {documentType?.toUpperCase() || 'Unknown'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    URL: {documentUrl.length > 50 ? documentUrl.substring(0, 50) + '...' : documentUrl}
                   </Typography>
                 </Box>
               )}
+            </Box>
+            
+            {/* Document Area */}
+            <PdfDropZone onFieldDrop={() => {}}>
+              <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                {/* Document Renderer */}
+                {renderDocument()}
+                
+                {/* Fields Overlay */}
+                {fields.map(field => (
+                  <Field 
+                    key={field.id} 
+                    field={field} 
+                    onRemove={handleRemoveField}
+                  />
+                ))}
+              </Box>
             </PdfDropZone>
-          </Box>
-        </DialogContent>
-      </Dialog>
+        </Box>
+      </DialogContent>
+    </Dialog>
     </DndContext>
   );
 };
