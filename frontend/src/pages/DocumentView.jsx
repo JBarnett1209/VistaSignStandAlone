@@ -21,14 +21,28 @@ export default function DocumentView() {
         setLoading(true);
         const meta = await documentsAPI.get(id);
         setDocMeta(meta.data);
-        setFileUrl(`/api/v1/documents/${id}/pdf`);
+        
+        // Get the PDF through our authenticated API client
+        const pdfResponse = await documentsAPI.convertToPdf(id);
+        // Create a blob URL from the PDF response
+        const blob = new Blob([pdfResponse.data], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        setFileUrl(blobUrl);
       } catch (e) {
+        console.error('Failed to load document:', e);
         setError('Failed to load document');
       } finally {
         setLoading(false);
       }
     };
     run();
+    
+    // Cleanup blob URL on unmount
+    return () => {
+      if (fileUrl && fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(fileUrl);
+      }
+    };
   }, [id]);
 
   if (loading) return (
