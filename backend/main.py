@@ -132,6 +132,7 @@ async def csrf_protect(request: Request, call_next):
         logger.info(f"CSRF: exempting {request.method} {path}")
         return await call_next(request)
 
+    # Only check CSRF for state-changing methods (POST, PUT, PATCH, DELETE)
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         # If a Bearer token is present, skip CSRF (Bearer requests are not CSRF-prone)
         auth_header = request.headers.get("authorization", "")
@@ -148,6 +149,8 @@ async def csrf_protect(request: Request, call_next):
         if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
             logger.warning(f"CSRF validation failed for {request.method} {path} - Cookie: {csrf_cookie}, Header: {csrf_header}")
             return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+    
+    # For GET requests, always allow (no CSRF needed for safe methods)
     return await call_next(request)
 
 # Global exception handler to ensure JSON responses
