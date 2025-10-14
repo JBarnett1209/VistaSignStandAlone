@@ -14,6 +14,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Documents from './pages/Documents';
 import DocumentView from './pages/DocumentView';
+import DocumentEdit from './pages/DocumentEdit';
 import Signatures from './pages/Signatures';
 import Workflows from './pages/Workflows';
 import Profile from './pages/Profile';
@@ -155,6 +156,7 @@ function AppRoutes() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="documents" element={<Documents />} />
           <Route path="documents/:id/view" element={<DocumentView />} />
+          <Route path="documents/:id/edit" element={<DocumentEdit />} />
           <Route path="signatures" element={<Signatures />} />
           <Route path="workflows" element={<Workflows />} />
           <Route path="profile" element={<Profile />} />
