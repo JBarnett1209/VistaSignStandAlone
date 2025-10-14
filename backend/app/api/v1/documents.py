@@ -20,6 +20,7 @@ from app.core.security.auth import get_current_user
 from app.core.logging_service import get_logger
 from app.core.document_converter import DocumentConverter
 from app.services import storage
+from app.workers.queue import enqueue_ingest
 from app.models.document import Document, DocumentVersion, DocumentStatus, DocumentType
 from app.models.user import User
 from app.schemas.document import (
@@ -418,7 +419,7 @@ async def upload_document(
         # Calculate file hash
         file_hash = hashlib.sha256(file_content).hexdigest()
         
-        # Determine document type and convert to PDF if needed
+        # Determine document type and convert to PDF if needed (enqueue ingest)
         document_type = DocumentType.OTHER
         content_type = file.content_type.lower()
         final_file_path = file_path
@@ -499,6 +500,12 @@ async def upload_document(
         db.add(document)
         await db.commit()
         await db.refresh(document)
+
+        # Enqueue ingest job (scan + convert + metadata)
+        try:
+            enqueue_ingest(str(document.id), file_path, content_type, title)
+        except Exception as qe:
+            logger.warning(f"Failed to enqueue ingest job: {qe}")
         
         return DocumentResponse(
             id=str(document.id),

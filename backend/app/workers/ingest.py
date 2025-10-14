@@ -11,6 +11,10 @@ from typing import Optional
 import fitz  # PyMuPDF
 
 from app.core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.core.database import AsyncSessionLocal
+from app.models.document import Document, DocumentType, DocumentStatus
 from app.core.document_converter import DocumentConverter
 
 logger = logging.getLogger(__name__)
@@ -41,5 +45,31 @@ def get_pdf_page_count(pdf_path: str) -> int:
             return doc.page_count
     except Exception:
         return 0
+
+
+def ingest_document(document_id: str, path: str, mime_type: str, title: str) -> bool:
+    """RQ job: scan, convert, update DB metadata."""
+    if not clamav_scan(path):
+        logger.error("ClamAV scan failed")
+        return False
+    # convert if necessary (run loop for async converter)
+    import asyncio
+    async def run():
+        pdf_path = await convert_to_pdf_if_needed(path, mime_type, title)
+        final_path = pdf_path or path
+        pages = get_pdf_page_count(final_path) if (pdf_path or mime_type == 'application/pdf') else 0
+        async with AsyncSessionLocal() as db:  # type: AsyncSession
+            res = await db.execute(select(Document).where(Document.id == document_id))
+            doc = res.scalar_one_or_none()
+            if not doc:
+                return False
+            doc.file_path = final_path
+            doc.document_type = DocumentType.PDF if final_path.endswith('.pdf') else doc.document_type
+            doc.mime_type = 'application/pdf' if final_path.endswith('.pdf') else mime_type
+            doc.page_count = pages
+            doc.status = DocumentStatus.DRAFT
+            await db.commit()
+        return True
+    return asyncio.run(run())
 
 
