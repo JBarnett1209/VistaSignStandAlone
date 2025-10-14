@@ -206,10 +206,13 @@ async def get_current_user(
     
     user_id: str = payload.get("sub")
     if user_id is None:
+        logger.error(f"get_current_user: No user_id in token payload: {payload}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials"
         )
+    
+    logger.info(f"get_current_user: Found user_id in token: {user_id}, type: {type(user_id)}")
     
     # Fetch user from database
     try:
@@ -220,10 +223,13 @@ async def get_current_user(
         user = result.scalar_one_or_none()
         
         if not user:
+            logger.error(f"get_current_user: User not found in database for user_id: {user_id}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found"
             )
+        
+        logger.info(f"get_current_user: Found user in database - id: {user.id}, email: {user.email}, status: {user.status}")
         
         # Check if user is active
         if user.status != UserStatus.ACTIVE:

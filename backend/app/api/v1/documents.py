@@ -54,19 +54,35 @@ async def get_document_pdf(
     # Debug logging
     logger.info(f"PDF request - document_id: {document_id}, user_id: {current_user.get('user_id')}")
     logger.info(f"PDF request - user_id type: {type(current_user.get('user_id'))}")
+    logger.info(f"PDF request - current_user keys: {list(current_user.keys())}")
+    
+    # Convert user_id to UUID for database query
+    try:
+        user_uuid = uuid.UUID(current_user["user_id"])
+        logger.info(f"PDF request - converted user_uuid: {user_uuid}, type: {type(user_uuid)}")
+    except ValueError as e:
+        logger.error(f"PDF request - Invalid user_id format: {current_user.get('user_id')}, error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
     
     # Fetch document
     result = await db.execute(
         select(Document).where(
             and_(
                 Document.id == document_id,
-                Document.owner_id == uuid.UUID(current_user["user_id"])
+                Document.owner_id == user_uuid
             )
         )
     )
     document = result.scalar_one_or_none()
     if not document:
-        logger.error(f"Document not found - document_id: {document_id}, user_id: {current_user.get('user_id')}")
+        logger.error(f"Document not found - document_id: {document_id}, user_id: {current_user.get('user_id')}, user_uuid: {user_uuid}")
+        # Let's also check if the document exists at all
+        doc_check = await db.execute(select(Document).where(Document.id == document_id))
+        doc_exists = doc_check.scalar_one_or_none()
+        if doc_exists:
+            logger.error(f"Document exists but owner_id mismatch - doc.owner_id: {doc_exists.owner_id}, user_uuid: {user_uuid}")
+        else:
+            logger.error(f"Document does not exist - document_id: {document_id}")
         raise HTTPException(status_code=404, detail="Document not found")
 
     # If already a PDF and exists, stream it

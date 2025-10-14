@@ -432,3 +432,20 @@ async def session_check(
         return Response(status_code=status.HTTP_200_OK)
     except Exception:
         return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content={"detail": "Unauthorized"})
+
+
+@router.get("/debug")
+async def debug_auth_status(
+    current_user: dict = Depends(get_current_user)
+):
+    """Debug endpoint to check authentication status"""
+    return {
+        "authenticated": True,
+        "user_id": current_user.get("user_id"),
+        "user_id_type": str(type(current_user.get("user_id"))),
+        "email": current_user.get("email"),
+        "role": current_user.get("role"),
+        "is_active": current_user.get("is_active"),
+        "all_keys": list(current_user.keys()),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
