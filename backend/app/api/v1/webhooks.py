@@ -65,7 +65,7 @@ async def handle_envelope_webhook(
         envelope_id=envelope_id,
         actor_type=ActorType.SYSTEM,
         event=f"webhook.{event_type}",
-        metadata={
+        event_metadata={
             "webhook_payload": payload,
             "webhook_source": request.headers.get("user-agent", "unknown")
         }

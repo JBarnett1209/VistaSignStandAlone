@@ -90,7 +90,7 @@ class AuditEvent(Base):
     actor_type = Column(String(20), nullable=False)  # USER|SYSTEM|RECIPIENT
     actor_id = Column(UUID(as_uuid=True), nullable=True)
     event = Column(String(64), nullable=False)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column(JSON, nullable=True)
     occurred_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
     envelope = relationship("Envelope", back_populates="events")

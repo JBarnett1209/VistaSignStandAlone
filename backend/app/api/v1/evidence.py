@@ -136,7 +136,7 @@ async def get_envelope_audit_trail(
                 "actor_type": event.actor_type,
                 "actor_id": event.actor_id,
                 "occurred_at": event.occurred_at,
-                "metadata": event.metadata
+                "metadata": event.event_metadata
             }
             for event in audit_events
         ],

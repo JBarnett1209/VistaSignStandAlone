@@ -174,7 +174,7 @@ async def update_field_value(
         actor_type=ActorType.RECIPIENT,
         actor_id=recipient_id,
         event="field.signed",
-        metadata={
+        event_metadata={
             "field_id": str(field_id),
             "field_type": field.type,
             "signer_ip": client_ip,
@@ -267,7 +267,7 @@ async def complete_signing(
         actor_type=ActorType.RECIPIENT,
         actor_id=recipient_id,
         event="recipient.completed",
-        metadata={
+        event_metadata={
             "signer_ip": recipient.signer_ip,
             "signer_user_agent": recipient.signer_user_agent
         }
@@ -326,7 +326,7 @@ async def decline_signing(
         actor_type=ActorType.RECIPIENT,
         actor_id=recipient_id,
         event="recipient.declined",
-        metadata={
+        event_metadata={
             "reason": reason,
             "signer_ip": recipient.signer_ip,
             "signer_user_agent": recipient.signer_user_agent

@@ -83,7 +83,7 @@ async def create_envelope(
         actor_type=ActorType.USER,
         actor_id=current_user.id,
         event="envelope.created",
-        metadata={"subject": envelope.subject}
+        event_metadata={"subject": envelope.subject}
     )
     db.add(audit_event)
     
@@ -170,7 +170,7 @@ async def update_envelope(
         actor_type=ActorType.USER,
         actor_id=current_user.id,
         event="envelope.updated",
-        metadata={"changes": envelope_data.dict(exclude_unset=True)}
+        event_metadata={"changes": envelope_data.dict(exclude_unset=True)}
     )
     db.add(audit_event)
     
@@ -223,7 +223,7 @@ async def send_envelope(
         actor_type=ActorType.USER,
         actor_id=current_user.id,
         event="envelope.sent",
-        metadata={"recipient_count": len(recipients), "field_count": len(fields)}
+        event_metadata={"recipient_count": len(recipients), "field_count": len(fields)}
     )
     db.add(audit_event)
     
@@ -270,7 +270,7 @@ async def void_envelope(
         actor_type=ActorType.USER,
         actor_id=current_user.id,
         event="envelope.voided",
-        metadata={"reason": reason}
+        event_metadata={"reason": reason}
     )
     db.add(audit_event)
     
@@ -332,7 +332,7 @@ async def upsert_fields(
         actor_type=ActorType.USER,
         actor_id=current_user.id,
         event="envelope.fields_updated",
-        metadata={"field_count": len(fields_data)}
+        event_metadata={"field_count": len(fields_data)}
     )
     db.add(audit_event)
     
