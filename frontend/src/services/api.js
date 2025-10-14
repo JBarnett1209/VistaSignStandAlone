@@ -113,7 +113,7 @@ export const documentsAPI = {
       timeout: 120000  // 2 minutes for uploads
     });
   },
-  convertToPdf: (id) => api.post(`/api/v1/documents/${id}/convert-to-pdf`),
+  convertToPdf: (id) => api.get(`/api/v1/documents/${id}/pdf`),
   fields: {
     list: (documentId) => api.get(`/api/v1/documents/${documentId}/fields`),
     create: (documentId, data) => api.post(`/api/v1/documents/${documentId}/fields`, data),
