@@ -40,6 +40,46 @@ def generate_file_access_token(document_id: str, user_id: str) -> str:
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
+
+@router.get("/{document_id}/pdf")
+async def get_document_pdf(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Return a PDF rendition of the document, converting if required.
+    For now this streams a locally persisted PDF under UPLOAD_DIR/pdf.
+    """
+    # Fetch document
+    result = await db.execute(
+        select(Document).where(
+            and_(
+                Document.id == document_id,
+                Document.owner_id == current_user["user_id"]
+            )
+        )
+    )
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # If already a PDF and exists, stream it
+    if document.mime_type == "application/pdf" and os.path.exists(document.file_path):
+        return FileResponse(path=document.file_path, filename=document.filename, media_type=document.mime_type)
+
+    # Convert the original to PDF (uses placeholder-safe converter if LibreOffice unavailable)
+    pdf_tmp = os.path.join(settings.UPLOAD_DIR, f"{uuid.uuid4()}.pdf")
+    ok = await DocumentConverter.convert_to_pdf(document.file_path, pdf_tmp, document.mime_type, document.title or document.filename)
+    if not ok or not os.path.exists(pdf_tmp):
+        raise HTTPException(status_code=500, detail="Failed to produce PDF rendition")
+
+    # Persist under storage/pdf and stream
+    with open(pdf_tmp, "rb") as f:
+        pdf_bytes = f.read()
+    os.remove(pdf_tmp)
+    persisted_path, _ = storage.save_pdf(pdf_bytes)
+    return FileResponse(path=persisted_path, filename=f"{os.path.splitext(document.filename)[0]}.pdf", media_type="application/pdf")
+
 @router.get("/test")
 async def test_documents_endpoint():
     """Test endpoint to verify routing works"""
