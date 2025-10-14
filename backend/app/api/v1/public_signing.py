@@ -273,8 +273,8 @@ async def complete_signing(
         }
     )
     db.add(audit_event)
-        
-        await db.commit()
+    
+    await db.commit()
     
     # Emit real-time event
     await realtime_service.emit_to_room(
