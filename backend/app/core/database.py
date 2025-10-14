@@ -35,7 +35,7 @@ async def init_db():
     try:
         async with engine.begin() as conn:
             # Import all models to ensure they're registered
-            from app.models import user, document, signature, workflow, log, api_token
+            from app.models import user, document, signature, workflow, log, api_token, envelope
             
             # Create all tables
             await conn.run_sync(Base.metadata.create_all)
@@ -54,3 +54,8 @@ async def get_db() -> AsyncSession:
             raise
         finally:
             await session.close()
+
+
+def get_db_session():
+    """Context manager to get database session"""
+    return AsyncSessionLocal()
