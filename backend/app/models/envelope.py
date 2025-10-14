@@ -20,6 +20,21 @@ class RecipientRole(str, Enum):
     VIEWER = "VIEWER"
 
 
+class RecipientStatus(str, Enum):
+    PENDING = "PENDING"
+    VIEWED = "VIEWED"
+    SIGNED = "SIGNED"
+    COMPLETED = "COMPLETED"
+    DECLINED = "DECLINED"
+    BOUNCED = "BOUNCED"
+
+
+class ActorType(str, Enum):
+    USER = "USER"
+    SYSTEM = "SYSTEM"
+    RECIPIENT = "RECIPIENT"
+
+
 class Envelope(Base):
     __tablename__ = "envelopes"
 
