@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.security.auth import get_current_user
 from app.core.logging_service import get_logger
 from app.core.document_converter import DocumentConverter
+from app.services import storage
 from app.models.document import Document, DocumentVersion, DocumentStatus, DocumentType
 from app.models.user import User
 from app.schemas.document import (
@@ -370,17 +371,9 @@ async def upload_document(
                 detail="File size exceeds maximum allowed size"
             )
         
-        # Create upload directory if it doesn't exist
-        os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-        
-        # Generate unique filename
+        # Save original via storage layer
         file_extension = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        file_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
-        
-        # Save original file
-        with open(file_path, "wb") as buffer:
-            buffer.write(file_content)
+        file_path, storage_key_original = storage.save_original(file_content, file_extension)
         
         # Calculate file hash
         file_hash = hashlib.sha256(file_content).hexdigest()
