@@ -11,6 +11,7 @@ from app.workers.finalize import finalize_pdf
 from app.services import storage
 from app.models.document import Document
 from sqlalchemy import select, and_
+from app.core.realtime import emit_envelope_status
 
 router = APIRouter(prefix="/envelopes", tags=["envelopes"])
 
@@ -93,5 +94,10 @@ async def send_envelope(envelope_id: UUID, db: AsyncSession = Depends(get_db), u
     db.add(AuditEvent(envelope_id=envelope_id, actor_type="USER", actor_id=user.id, event="envelope.sent", metadata={"signed_key": signed_key}))
     env.status = "SENT"
     await db.commit()
+    # Emit status update
+    try:
+        await emit_envelope_status(str(envelope_id), {"status": "SENT"})
+    except Exception:
+        pass
     return {"ok": True, "signed_storage_key": signed_key}
 

@@ -27,6 +27,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.acme_watcher import acme_watcher_task
 from app.core.request_logging_middleware import RequestLoggingMiddleware, DatabaseLoggingMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from app.core.realtime import socket_app
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -71,6 +72,9 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan
 )
+
+# Mount Socket.IO app under /ws
+app.mount("/ws", socket_app)
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
