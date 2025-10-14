@@ -37,7 +37,7 @@ async def create_workflow(
             select(Document).where(
                 and_(
                     Document.id == workflow_data.document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -55,7 +55,7 @@ async def create_workflow(
             description=workflow_data.description,
             workflow_data=workflow_data.workflow_data,
             document_id=workflow_data.document_id,
-            created_by=current_user["user_id"],
+            created_by=uuid.UUID(current_user["user_id"]),
             status=WorkflowStatus.DRAFT
         )
         
@@ -96,7 +96,7 @@ async def list_workflows(
     """List workflows"""
     try:
         # Build query
-        query = select(Workflow).where(Workflow.created_by == current_user["user_id"])
+        query = select(Workflow).where(Workflow.created_by == uuid.UUID(current_user["user_id"]))
         
         # Apply filters
         if status:
@@ -105,7 +105,7 @@ async def list_workflows(
             query = query.where(Workflow.document_id == document_id)
         
         # Get total count
-        count_query = select(Workflow).where(Workflow.created_by == current_user["user_id"])
+        count_query = select(Workflow).where(Workflow.created_by == uuid.UUID(current_user["user_id"]))
         if status:
             count_query = count_query.where(Workflow.status == status)
         if document_id:
@@ -183,7 +183,7 @@ async def get_workflow(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -253,7 +253,7 @@ async def add_workflow_step(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -320,7 +320,7 @@ async def add_workflow_participant(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -386,7 +386,7 @@ async def remove_workflow_participant(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -448,7 +448,7 @@ async def send_workflow(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -1048,7 +1048,7 @@ async def update_workflow(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -1108,7 +1108,7 @@ async def delete_workflow(
             select(Workflow).where(
                 and_(
                     Workflow.id == workflow_id,
-                    Workflow.created_by == current_user["user_id"]
+                    Workflow.created_by == uuid.UUID(current_user["user_id"])
                 )
             )
         )

@@ -56,7 +56,7 @@ async def get_document_pdf(
         select(Document).where(
             and_(
                 Document.id == document_id,
-                Document.owner_id == current_user["user_id"]
+                Document.owner_id == uuid.UUID(current_user["user_id"])
             )
         )
     )
@@ -126,7 +126,7 @@ async def get_document_file(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -264,7 +264,7 @@ async def convert_document_to_pdf(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -307,8 +307,8 @@ async def convert_document_to_pdf(
                 document_type=DocumentType.PDF,
                 status=DocumentStatus.DRAFT,
                 mime_type="application/pdf",
-                created_by=current_user["user_id"],
-                owner_id=current_user["user_id"]
+                created_by=uuid.UUID(current_user["user_id"]),
+                owner_id=uuid.UUID(current_user["user_id"])
             )
             
             db.add(converted_document)
@@ -493,8 +493,8 @@ async def upload_document(
             document_type=document_type,
             status=DocumentStatus.DRAFT,
             mime_type=final_mime_type,
-            created_by=current_user["user_id"],
-            owner_id=current_user["user_id"]
+            created_by=uuid.UUID(current_user["user_id"]),
+            owner_id=uuid.UUID(current_user["user_id"])
         )
         
         db.add(document)
@@ -558,7 +558,7 @@ async def list_documents(
     """List user's documents"""
     try:
         # Build query
-        query = select(Document).where(Document.owner_id == current_user["user_id"])
+        query = select(Document).where(Document.owner_id == uuid.UUID(current_user["user_id"]))
         
         # Apply filters
         if status:
@@ -574,7 +574,7 @@ async def list_documents(
             )
         
         # Get total count
-        count_query = select(Document).where(Document.owner_id == current_user["user_id"])
+        count_query = select(Document).where(Document.owner_id == uuid.UUID(current_user["user_id"]))
         if status:
             count_query = count_query.where(Document.status == status)
         if document_type:
@@ -639,7 +639,7 @@ async def get_document(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -690,7 +690,7 @@ async def update_document(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -773,7 +773,7 @@ async def delete_document(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
@@ -844,7 +844,7 @@ async def convert_document_to_pdf(
             select(Document).where(
                 and_(
                     Document.id == document_id,
-                    Document.owner_id == current_user["user_id"]
+                    Document.owner_id == uuid.UUID(current_user["user_id"])
                 )
             )
         )
