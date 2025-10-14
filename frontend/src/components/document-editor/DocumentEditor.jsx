@@ -155,8 +155,18 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
       
       if (document?.filename) {
         extension = document.filename.split('.').pop()?.toLowerCase() || 'pdf';
+        console.log('📄 Using filename for type detection:', document.filename, '->', extension);
       } else if (documentUrl.includes('.')) {
-        extension = documentUrl.split('.').pop()?.toLowerCase() || 'pdf';
+        // Remove query parameters before extracting extension
+        const urlWithoutParams = documentUrl.split('?')[0];
+        extension = urlWithoutParams.split('.').pop()?.toLowerCase() || 'pdf';
+        console.log('📄 Using URL for type detection:', urlWithoutParams, '->', extension);
+      }
+      
+      // Force PDF if filename contains 'pdf' (case insensitive)
+      if (document?.filename && document.filename.toLowerCase().includes('pdf')) {
+        extension = 'pdf';
+        console.log('📄 Forcing PDF type based on filename containing "pdf"');
       }
       
       console.log('📄 Detected document type:', extension);
@@ -268,6 +278,7 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
     // Render based on document type
     switch (documentType) {
       case 'pdf':
+        console.log('📄 Rendering PDF with URL:', documentUrl);
         return (
           <Document
             file={documentUrl}
@@ -283,6 +294,19 @@ const DocumentEditor = ({ document, onClose, onSave }) => {
               }}>
                 <Typography variant="body1" color="text.secondary">
                   Loading PDF...
+                </Typography>
+              </Box>
+            }
+            error={
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                height: 600,
+                bgcolor: '#ffebee'
+              }}>
+                <Typography variant="body1" color="error">
+                  Error loading PDF
                 </Typography>
               </Box>
             }
