@@ -31,7 +31,7 @@ import {
   Edit as EditIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { documentsAPI } from '../services/api';
+import { documentsAPI, envelopesAPI } from '../services/api';
 import DocumentUpload from '../components/DocumentUpload';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 
@@ -332,7 +332,30 @@ export default function Documents() {
                       gap: 0.5,
                       flexWrap: 'nowrap'
                     }}>
-                      {/* Viewer/Editor removed */}
+                      <IconButton 
+                        size="small" 
+                        title="View PDF" 
+                        onClick={() => window.open(`/api/v1/documents/${doc.id}/pdf`, '_blank')}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <ViewIcon />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        title="Send for Signature"
+                        onClick={async () => {
+                          try {
+                            const env = await envelopesAPI.create({ document_id: doc.id, recipients: [] });
+                            await envelopesAPI.send(env.data.id);
+                          } catch (e) {
+                            console.error(e);
+                            setError('Failed to send envelope');
+                          }
+                        }}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <EditIcon />
+                      </IconButton>
                       <IconButton 
                         size="small" 
                         title="Download" 

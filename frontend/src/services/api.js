@@ -160,6 +160,13 @@ export const workflowsAPI = {
   }
 };
 
+export const envelopesAPI = {
+  create: (data) => api.post('/api/v1/envelopes/', data),
+  get: (id) => api.get(`/api/v1/envelopes/${id}`),
+  upsertFields: (id, data) => api.post(`/api/v1/envelopes/${id}/fields`, data),
+  send: (id) => api.post(`/api/v1/envelopes/${id}/send`)
+};
+
 export const invitesAPI = {
   list: () => api.get('/api/v1/invites'),
   get: (id) => api.get(`/api/v1/invites/${id}`),
