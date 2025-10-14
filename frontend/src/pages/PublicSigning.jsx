@@ -1,301 +1,244 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Typography, 
-  Box, 
-  Button, 
-  Alert, 
-  CircularProgress,
-  Paper,
-  Divider,
-  Chip,
-  Switch,
-  FormControlLabel
-} from '@mui/material';
-import { 
-  Description as Document, 
-  CheckCircle, 
-  Schedule as Clock
-} from '@mui/icons-material';
-import api from '../services/api';
-import SignatureCapture from '../components/SignatureCapture';
-import ConsentDialog from '../components/ConsentDialog';
-// Viewer removed
-import { handleError } from '../utils/errorHandler';
-import LoadingErrorState from '../components/LoadingErrorState';
+import { Box, Typography, Paper, Button, TextField, Alert, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { SignatureCapture } from '../components/SignatureCapture';
+import { documentsAPI, envelopesAPI } from '../services/api';
 
 export default function PublicSigning() {
   const { workflowId, participantId } = useParams();
   const navigate = useNavigate();
+  const [envelope, setEnvelope] = useState(null);
+  const [recipient, setRecipient] = useState(null);
+  const [fields, setFields] = useState([]);
+  const [fieldValues, setFieldValues] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [workflowData, setWorkflowData] = useState(null);
-  const [documentData, setDocumentData] = useState(null);
-  const [signedFields, setSignedFields] = useState({});
-  const [showConsent, setShowConsent] = useState(false);
-  const [showSignatureCapture, setShowSignatureCapture] = useState(false);
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [currentField, setCurrentField] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [pdfOffset, setPdfOffset] = useState({ x: 0, y: 0 });
+  const [saving, setSaving] = useState(false);
 
-  const loadSigningData = useCallback(async () => {
+  useEffect(() => {
+    const loadEnvelope = async () => {
     try {
       setLoading(true);
-      setError(null);
-      
-      const response = await api.get(`/api/v1/public-signing/${workflowId}/${participantId}`);
-      const data = response.data;
-
-      setWorkflowData(data.workflow);
-      setDocumentData(data.document);
-      setSignedFields(data.signedFields || {});
-
-      // Check if consent is required
-      if (data.workflow.requireConsent && !data.workflow.participant.consentGiven) {
-        setShowConsent(true);
+        const response = await envelopesAPI.get(workflowId);
+        setEnvelope(response.data);
+        
+        const recipientData = response.data.recipients.find(r => r.id === participantId);
+        setRecipient(recipientData);
+        
+        if (recipientData) {
+          setFields(response.data.fields.filter(f => f.recipient_id === participantId));
       }
     } catch (err) {
-      console.error('Error loading signing data:', err);
-      setError(handleError(err));
+        console.error('Error loading envelope:', err);
+        setError('Failed to load document. Please check your link.');
     } finally {
       setLoading(false);
     }
+    };
+
+    loadEnvelope();
   }, [workflowId, participantId]);
 
-  const handlePdfOffsetChange = useCallback((offset) => {
-    setPdfOffset(offset);
-  }, []);
-
-  const handleScaleChange = useCallback((newScale) => {
-    setScale(newScale);
-  }, []);
-
-  useEffect(() => {
-    if (workflowId && participantId) {
-    loadSigningData();
-    }
-  }, [workflowId, participantId, loadSigningData]);
-
-  const handleConsentAccept = async () => {
+  const handleFieldValueChange = useCallback(async (fieldId, value) => {
+    setFieldValues(prev => ({ ...prev, [fieldId]: value }));
+    
     try {
-      await api.post(`/api/v1/public-signing/${workflowId}/${participantId}/consent`);
-      setShowConsent(false);
-      // Reload data to get updated consent status
-      await loadSigningData();
-    } catch (err) {
-      console.error('Error accepting consent:', err);
-      setError('Failed to accept consent. Please try again.');
-    }
-  };
-
-  const handleConsentDecline = () => {
-    navigate('/signing-declined');
-  };
-
-  const handleFieldClick = (field) => {
-    const isSigned = signedFields[field.id];
-    const participantSigningOrder = workflowData?.participant?.signing_order || 1;
-    const isAssignedToMe = field.signingOrder === participantSigningOrder;
-    const isClickable = !isCompleted && isAssignedToMe && !isSigned;
-
-    if (isClickable) {
-      setCurrentField(field);
-      setShowSignatureCapture(true);
-    }
-  };
-
-  const handleSignatureComplete = async (signatureData) => {
-    try {
-      if (!currentField) return;
-
-      // Store the signature data
-      setSignedFields(prev => ({
-        ...prev,
-        [currentField.id]: {
-          ...signatureData,
-          timestamp: new Date().toISOString(),
-          fieldId: currentField.id
-        }
-      }));
-
-      setShowSignatureCapture(false);
-      setCurrentField(null);
-    } catch (err) {
-      console.error('Error saving signature:', err);
-      setError('Failed to save signature. Please try again.');
-    }
-  };
-
-  const handleSubmitSignatures = async () => {
-    try {
-      setSubmitting(true);
-      
-      const signatureData = Object.values(signedFields).map(sig => ({
-        fieldId: sig.fieldId,
-        signatureType: sig.type,
-        signatureData: sig.type === 'drawn' ? sig.image : sig.text,
-        timestamp: sig.timestamp
-      }));
-
-      await api.post(`/api/v1/public-signing/${workflowId}/${participantId}/submit`, {
-        signatures: signatureData
+      setSaving(true);
+      await envelopesAPI.fields.upsert(workflowId, {
+        fields: [{ id: fieldId, value }]
       });
+    } catch (err) {
+      console.error('Error saving field value:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [workflowId]);
 
-      // Redirect to completion page
+  const handleSignatureFieldClick = useCallback((field) => {
+    setCurrentField(field);
+          setSignatureDialogOpen(true);
+  }, []);
+
+  const handleSignatureCapture = useCallback((signatureData) => {
+    if (currentField) {
+      handleFieldValueChange(currentField.id, signatureData);
+      setSignatureDialogOpen(false);
+      setCurrentField(null);
+    }
+  }, [currentField, handleFieldValueChange]);
+
+  const handleComplete = useCallback(async () => {
+    try {
+      setSaving(true);
+      await envelopesAPI.recipients.update(workflowId, participantId, {
+        status: 'completed'
+      });
       navigate('/signing-complete');
     } catch (err) {
-      console.error('Error submitting signatures:', err);
-      setError('Failed to submit signatures. Please try again.');
+      console.error('Error completing signing:', err);
+      setError('Failed to complete signing. Please try again.');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
-  };
+  }, [workflowId, participantId, navigate]);
 
-  const isCompleted = workflowData?.participant?.status === 'completed';
+  const handleDecline = useCallback(async () => {
+    try {
+      setSaving(true);
+      await envelopesAPI.recipients.update(workflowId, participantId, {
+        status: 'declined'
+      });
+      navigate('/signing-declined');
+    } catch (err) {
+      console.error('Error declining signing:', err);
+      setError('Failed to decline signing. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [workflowId, participantId, navigate]);
 
-  // Show loading or error state
-  if (loading || error) {
+  if (loading) {
     return (
-      <LoadingErrorState
-        loading={loading}
-        error={error}
-        onRetry={() => {
-          setError(null);
-          loadSigningData();
-        }}
-        loadingMessage="Loading document for signing..."
-        fullHeight={true}
-      />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Loading document...</Typography>
+      </Box>
     );
   }
 
-  // Show consent dialog if required
-  if (showConsent) {
+  if (error) {
     return (
-      <ConsentDialog
-        open={showConsent}
-        onAccept={handleConsentAccept}
-        onDecline={handleConsentDecline}
-        workflowTitle={workflowData?.title}
-        participantName={workflowData?.participant?.name}
-      />
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
     );
   }
 
-  // Show signature capture dialog
-  if (showSignatureCapture && currentField) {
+  if (!envelope || !recipient) {
     return (
-      <SignatureCapture
-        open={showSignatureCapture}
-        onClose={() => {
-          setShowSignatureCapture(false);
-          setCurrentField(null);
-        }}
-        onComplete={handleSignatureComplete}
-        fieldType={currentField.type}
-        fieldLabel={currentField.label}
-      />
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">Document not found or access denied.</Alert>
+      </Box>
     );
   }
+
+  const requiredFields = fields.filter(f => f.required);
+  const completedRequiredFields = requiredFields.filter(f => fieldValues[f.id]);
+  const canComplete = requiredFields.length === completedRequiredFields.length;
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh',
-      backgroundColor: '#f5f5f5',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      {/* Header */}
-      <Paper sx={{ 
-        p: 3, 
-        mb: 2, 
-        borderRadius: 0,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-      }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-            <Typography variant="h4" sx={{ 
-              fontWeight: 'bold', 
-              color: '#333',
-              mb: 1
-            }}>
-              {workflowData?.title || 'Document Signing'}
-              </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Please review and sign the document below
-              </Typography>
-          </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Chip 
-              label={isCompleted ? 'Completed' : 'Pending'}
-              color={isCompleted ? 'success' : 'warning'}
-              variant="outlined"
-            />
-            {workflowData?.participant?.name && (
-              <Typography variant="body2" color="text.secondary">
-                Signing as: {workflowData.participant.name}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      </Paper>
-
-        {/* Document Viewer */}
-      <Box sx={{ flex: 1, p: 2 }}>
-        <Paper sx={{ 
-          height: 'calc(100vh - 200px)',
-          overflow: 'hidden',
-          borderRadius: 2,
-          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-        }}>
-          {/* Document viewer removed */}
-        </Paper>
-      </Box>
-
-      {/* Footer with Submit Button */}
-      {!isCompleted && (
-        <Paper sx={{ 
-          p: 3, 
-          borderRadius: 0,
-          boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
-        }}>
-            <Box sx={{ 
-              display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center' 
-            }}>
-            <Typography variant="body2" color="text.secondary">
-              {Object.keys(signedFields).length} of {workflowData?.fields?.length || 0} fields signed
-              </Typography>
-            
-              <Button
-                variant="contained"
-                size="large"
-              onClick={handleSubmitSignatures}
-              disabled={submitting || Object.keys(signedFields).length === 0}
-                sx={{ 
-                backgroundColor: '#7B5CFF',
-                '&:hover': {
-                  backgroundColor: '#6A4CFF'
-                },
-                  px: 4,
-                  py: 1.5
-                }}
-              >
-              {submitting ? (
-                <>
-                  <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Signatures'
-              )}
-            </Button>
-          </Box>
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        {envelope.subject}
+      </Typography>
+      
+      {envelope.message && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="body1">{envelope.message}</Typography>
         </Paper>
       )}
+
+      <Typography variant="h6" gutterBottom>
+        Please complete the following fields:
+      </Typography>
+
+      {fields.map((field) => (
+        <Paper key={field.id} sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            {field.type.replace('_', ' ').toUpperCase()}
+            {field.required && <span style={{ color: 'red' }}> *</span>}
+          </Typography>
+          
+          {field.type === 'signature' ? (
+            <Box>
+              {fieldValues[field.id] ? (
+                <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f5f5f5' }}>
+              <Typography variant="body2" color="text.secondary">
+                    Signature captured
+              </Typography>
+                </Box>
+              ) : (
+                <Button 
+                  variant="outlined" 
+                  onClick={() => handleSignatureFieldClick(field)}
+                  sx={{ minHeight: 100, width: '100%' }}
+                >
+                  Click to Sign
+                </Button>
+              )}
+            </Box>
+          ) : field.type === 'text' || field.type === 'email' ? (
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder={`Enter ${field.type}`}
+              value={fieldValues[field.id] || ''}
+              onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+              type={field.type === 'email' ? 'email' : 'text'}
+            />
+          ) : field.type === 'date_signed' ? (
+            <TextField
+              fullWidth
+                variant="outlined"
+              type="date"
+              value={fieldValues[field.id] || ''}
+              onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            />
+          ) : field.type === 'checkbox' ? (
+            <Button
+              variant={fieldValues[field.id] ? 'contained' : 'outlined'}
+              onClick={() => handleFieldValueChange(field.id, fieldValues[field.id] ? '' : 'true')}
+            >
+              {fieldValues[field.id] ? 'Checked' : 'Check'}
+            </Button>
+          ) : (
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder={`Enter ${field.type}`}
+              value={fieldValues[field.id] || ''}
+              onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+            />
+          )}
+        </Paper>
+      ))}
+
+      {saving && (
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <CircularProgress size={20} />
+          <Typography sx={{ ml: 1 }}>Saving...</Typography>
+                </Box>
+              )}
+              
+      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 4 }}>
+        <Button 
+          variant="outlined" 
+          color="error"
+          onClick={handleDecline}
+          disabled={saving}
+        >
+          Decline to Sign
+        </Button>
+        <Button 
+          variant="contained" 
+          onClick={handleComplete}
+          disabled={!canComplete || saving}
+        >
+          Complete Signing
+        </Button>
+      </Box>
+
+      <Dialog open={signatureDialogOpen} onClose={() => setSignatureDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Capture Signature</DialogTitle>
+        <DialogContent>
+          <SignatureCapture onCapture={handleSignatureCapture} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSignatureDialogOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
