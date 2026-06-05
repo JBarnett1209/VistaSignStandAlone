@@ -80,7 +80,7 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             logger.info(f"Applying digital signature for envelope {envelope_id}...")
             from app.core.pdf_signer import sign_pdf_pades
 
-            signed_pdf_content = sign_pdf_pades(
+            signed_pdf_content = await sign_pdf_pades(
                 final_pdf_content, reason="Document signing completion"
             )
             if signed_pdf_content is None:

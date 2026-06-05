@@ -15,6 +15,13 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 
 from app.core.config import settings
 
+# Shared defaults so the generator (here) and the signer (pdf_signer) agree on
+# where the auto-generated PKCS#12 lives and how it's encrypted when no explicit
+# SIGNATURE_* settings are provided.
+DEFAULT_KEY_PATH = "certs/vistasign_key.pem"
+DEFAULT_P12_PATH = "certs/vistasign_cert.p12"
+DEFAULT_P12_PASSWORD = "change-this-strong-password"
+
 
 def _write_bytes(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -24,9 +31,9 @@ def _write_bytes(path: Path, data: bytes) -> None:
 
 def ensure_signature_certs() -> None:
     """Create RSA key, self-signed cert, and PKCS#12 bundle if paths are missing."""
-    key_path = Path(settings.SIGNATURE_KEY_PATH or "certs/vistasign_key.pem")
-    p12_path = Path(settings.SIGNATURE_CERT_PATH or "certs/vistasign_cert.p12")
-    password = (settings.SIGNATURE_PASSWORD or "change-this-strong-password").encode()
+    key_path = Path(settings.SIGNATURE_KEY_PATH or DEFAULT_KEY_PATH)
+    p12_path = Path(settings.SIGNATURE_CERT_PATH or DEFAULT_P12_PATH)
+    password = (settings.SIGNATURE_PASSWORD or DEFAULT_P12_PASSWORD).encode()
 
     # If both exist, nothing to do
     if key_path.exists() and p12_path.exists():
