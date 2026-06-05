@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from fastapi.responses import FileResponse
 import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete
 from typing import List, Optional
 import os
 import hashlib
@@ -828,7 +828,23 @@ async def delete_document(
         for signature in signatures:
             logger.info(f"Deleting signature {signature.id} that references document {document_id}")
             await db.delete(signature)
-        
+
+        # Delete envelopes that reference this document, plus their children.
+        # Envelopes aren't an ORM relationship on Document, so cascade manually
+        # in foreign-key dependency order (children before parents).
+        from app.models.envelope import Envelope, Recipient, Field, FieldValue, AuditEvent, SignLink
+        env_ids = (await db.execute(
+            select(Envelope.id).where(Envelope.document_id == document_id)
+        )).scalars().all()
+        if env_ids:
+            logger.info(f"Deleting {len(env_ids)} envelope(s) referencing document {document_id}")
+            await db.execute(delete(FieldValue).where(FieldValue.envelope_id.in_(env_ids)))
+            await db.execute(delete(SignLink).where(SignLink.envelope_id.in_(env_ids)))
+            await db.execute(delete(Field).where(Field.envelope_id.in_(env_ids)))
+            await db.execute(delete(Recipient).where(Recipient.envelope_id.in_(env_ids)))
+            await db.execute(delete(AuditEvent).where(AuditEvent.envelope_id.in_(env_ids)))
+            await db.execute(delete(Envelope).where(Envelope.id.in_(env_ids)))
+
         # Delete file from filesystem
         if os.path.exists(document.file_path):
             os.remove(document.file_path)
