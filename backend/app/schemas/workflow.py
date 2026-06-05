@@ -47,6 +47,7 @@ class WorkflowResponse(BaseModel):
     description: Optional[str] = None
     status: str
     document_id: str
+    envelope_id: Optional[str] = None
     created_by: str
     created_at: datetime
     started_at: Optional[datetime] = None

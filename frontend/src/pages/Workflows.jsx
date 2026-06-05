@@ -8,9 +8,10 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Send as SendIcon
+  Send as SendIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
-import { workflowsAPI, documentsAPI } from '../services/api';
+import { workflowsAPI, documentsAPI, evidenceAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
 
 export default function Workflows() {
@@ -74,6 +75,26 @@ export default function Workflows() {
     } catch (err) {
       setError('Failed to re-send workflow emails');
       console.error('Error re-sending workflow:', err);
+    }
+  };
+
+  const handleDownloadSigned = async (workflow) => {
+    if (!workflow.envelope_id) return;
+    try {
+      const resp = await evidenceAPI.certificate(workflow.envelope_id);
+      const blob = new Blob([resp.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(workflow.name || 'document').replace(/[^a-z0-9]+/gi, '_')}_signed.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setError(null);
+    } catch (err) {
+      setError('Signed document is not ready yet.');
+      console.error('Error downloading signed PDF:', err);
     }
   };
 
@@ -226,16 +247,26 @@ export default function Workflows() {
                         </IconButton>
                       )}
                       {workflow.status === 'active' && (
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           title="Re-send Signing Emails"
                           onClick={() => handleResendWorkflow(workflow.id)}
                         >
                           <SendIcon />
                         </IconButton>
                       )}
-                      <IconButton 
-                        size="small" 
+                      {workflow.status === 'completed' && workflow.envelope_id && (
+                        <IconButton
+                          size="small"
+                          title="Download Signed PDF"
+                          color="primary"
+                          onClick={() => handleDownloadSigned(workflow)}
+                        >
+                          <DownloadIcon />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        size="small"
                         title="Edit Workflow"
                         onClick={() => handleEditWorkflow(workflow)}
                       >

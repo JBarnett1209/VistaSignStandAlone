@@ -189,6 +189,13 @@ export const envelopesAPI = {
   send: (id) => api.post(`/api/v1/envelopes/${id}/send`)
 };
 
+// Completed-envelope artifacts (signed PDF, evidence, audit trail)
+export const evidenceAPI = {
+  certificate: (envelopeId) => api.get(`/api/v1/evidence/envelope/${envelopeId}/certificate`, { responseType: 'arraybuffer' }),
+  evidence: (envelopeId) => api.get(`/api/v1/evidence/envelope/${envelopeId}/evidence`),
+  auditTrail: (envelopeId) => api.get(`/api/v1/evidence/envelope/${envelopeId}/audit-trail`),
+};
+
 export const invitesAPI = {
   list: () => api.get('/api/v1/invites'),
   get: (id) => api.get(`/api/v1/invites/${id}`),
