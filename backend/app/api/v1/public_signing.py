@@ -149,6 +149,9 @@ async def submit_field_value(token: str, field_id: str, payload: dict, request: 
         raise HTTPException(status_code=404, detail="Field not found")
     if not field or field.envelope_id != envelope.id:
         raise HTTPException(status_code=404, detail="Field not found")
+    # A recipient may only fill blocks assigned to them (or unassigned ones).
+    if field.recipient_id and str(field.recipient_id) != str(recipient.id):
+        raise HTTPException(status_code=403, detail="This field is assigned to another signer")
 
     value = payload.get("value")
     now = datetime.now(timezone.utc)
