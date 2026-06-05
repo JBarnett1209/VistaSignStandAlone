@@ -139,7 +139,7 @@ async def get_document_file(
 ):
     """Serve document file"""
     try:
-        logger.info(f"Serving file for document {document_id}, user {current_user.get('id')}")
+        logger.info(f"Serving file for document {document_id}, user {current_user.get('user_id')}")
         
         # Get document from database
         result = await db.execute(
@@ -153,7 +153,7 @@ async def get_document_file(
         document = result.scalar_one_or_none()
         
         if not document:
-            logger.warning(f"Document {document_id} not found for user {current_user.get('id')}")
+            logger.warning(f"Document {document_id} not found for user {current_user.get('user_id')}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found"
@@ -277,7 +277,7 @@ async def convert_document_to_pdf(
 ):
     """Convert document to PDF for viewing"""
     try:
-        logger.info(f"Converting document {document_id} to PDF for user {current_user.get('id')}")
+        logger.info(f"Converting document {document_id} to PDF for user {current_user.get('user_id')}")
         
         # Get document from database
         result = await db.execute(
@@ -291,7 +291,7 @@ async def convert_document_to_pdf(
         document = result.scalar_one_or_none()
         
         if not document:
-            logger.warning(f"Document {document_id} not found for user {current_user.get('id')}")
+            logger.warning(f"Document {document_id} not found for user {current_user.get('user_id')}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Document not found"

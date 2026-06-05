@@ -8,7 +8,6 @@ export default function PublicSigning() {
   const { token } = useParams();
   const navigate = useNavigate();
   const [workflow, setWorkflow] = useState(null);
-  const [participant, setParticipant] = useState(null);
   const [documentInfo, setDocumentInfo] = useState(null);
   const [fields, setFields] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
@@ -33,7 +32,6 @@ export default function PublicSigning() {
         }
 
         setWorkflow(data.workflow);
-        setParticipant(data.participant);
         setDocumentInfo(data.document);
         setFields(data.document?.fields || []);
       } catch (err) {
