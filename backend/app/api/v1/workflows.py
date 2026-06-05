@@ -472,91 +472,34 @@ async def send_workflow(
         if workflow.status == WorkflowStatus.DRAFT:
             workflow.status = WorkflowStatus.ACTIVE
             workflow.started_at = datetime.utcnow()
-        
-        await db.commit()
-        await db.refresh(workflow)
-        
-        # Send emails to participants
-        participants_result = await db.execute(
+
+        # Load participants and document
+        participants = (await db.execute(
             select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
-        )
-        participants = participants_result.scalars().all()
-
-        # Issue an opaque per-participant signing token (mirrors UnitVista's
-        # VistaSignSignLink.token_jti). Public signing links carry this token
-        # instead of raw workflow/participant IDs, so links are unguessable.
-        for participant in participants:
-            if not participant.signing_token:
-                participant.signing_token = secrets.token_urlsafe(32)
-        await db.commit()
-
-        # Get document details
-        document_result = await db.execute(
+        )).scalars().all()
+        document = (await db.execute(
             select(Document).where(Document.id == workflow.document_id)
-        )
-        document = document_result.scalar_one_or_none()
-        
-        if participants and document:
-            from app.core.email import send_email
-            
-            # Send email to each participant
-            for participant in participants:
-                try:
-                    # Create token-gated signing URL (opaque, unguessable)
-                    base_url = settings.FRONTEND_URL.rstrip('/')
-                    signing_url = f"{base_url}/sign/{participant.signing_token}"
-                    
-                    subject = f"Document Signing Request: {document.title}"
-                    
-                    html_body = f"""
-                    <html>
-                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                            <h2 style="color: #7E3AF2;">Document Signing Request</h2>
-                            
-                            <p>Hello,</p>
-                            
-                            <p>You have been requested to sign a document.</p>
-                            
-                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                                <h3 style="margin-top: 0; color: #7E3AF2;">Document Details:</h3>
-                                <p><strong>Document:</strong> {document.title}</p>
-                                {f'<p><strong>Description:</strong> {workflow.description}</p>' if workflow.description else ''}
-                            </div>
-                            
-                            <div style="text-align: center; margin: 30px 0;">
-                                <a href="{signing_url}" 
-                                   style="background-color: #7E3AF2; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
-                                    Sign Document
-                                </a>
-                            </div>
-                            
-                            <p style="color: #666; font-size: 14px;">
-                                If the button doesn't work, you can copy and paste this link into your browser:<br>
-                                <a href="{signing_url}">{signing_url}</a>
-                            </p>
-                            
-                            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-                            <p style="color: #666; font-size: 12px;">
-                                This email was sent by VistaSign. If you have any questions, please contact the document owner.
-                            </p>
-                        </div>
-                    </body>
-                    </html>
-                    """
-                    
-                    # Send the email
-                    email_sent = send_email(participant.email, subject, html_body)
-                    
-                    if email_sent:
-                        logger.info(f"Successfully sent signing invitation to {participant.email}")
-                    else:
-                        logger.error(f"Failed to send signing invitation to {participant.email}")
-                        
-                except Exception as e:
-                    logger.error(f"Error sending email to {participant.email}: {str(e)}")
-        
-        return {"message": "Workflow sent successfully", "workflow_id": workflow_id}
+        )).scalar_one_or_none()
+
+        if not participants:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Add at least one participant before sending")
+
+        # Bridge to the DocuSign-style envelope: sending a workflow creates an
+        # envelope (recipients from participants, fields from the document),
+        # issues per-recipient token sign-links, and emails them. The signed PDF
+        # is produced by the finalize worker once all recipients complete.
+        from app.services.envelope_dispatch import create_envelope_from_workflow, dispatch_envelope
+
+        if not workflow.envelope_id:
+            envelope, recipients = await create_envelope_from_workflow(db, workflow, participants, document)
+            workflow.envelope_id = envelope.id
+            await db.flush()
+            await dispatch_envelope(db, envelope, recipients, document)
+
+        await db.commit()
+        return {"message": "Workflow sent successfully", "workflow_id": workflow_id,
+                "envelope_id": str(workflow.envelope_id)}
         
     except HTTPException:
         raise

@@ -85,7 +85,7 @@ async def main() -> None:
             rr = await ac.get(path, headers=H)
             check(rr.status_code == 200, f"GET {path} -> {rr.status_code}")
 
-        print("document upload")
+        print("document upload + field placement")
         up = await ac.post("/api/v1/documents/upload", headers=H,
                            files={"file": ("smoke.pdf", _make_pdf(), "application/pdf")},
                            data={"title": "Smoke"})
@@ -93,59 +93,53 @@ async def main() -> None:
         doc_id = up.json().get("id") if up.status_code == 200 else None
         if not check(bool(doc_id), "upload returned a document id"):
             return
+        pf = await ac.put(f"/api/v1/documents/{doc_id}", headers=H, json={"fields": [
+            {"page": 1, "type": "Signature", "rect": {"x": 100, "y": 120, "w": 160, "h": 40}, "required": True}]})
+        check(pf.status_code == 200, f"PUT /documents/{{id}} (place field) -> {pf.status_code}")
 
-        print("workflow token signing")
+        # Full DocuSign-style flow: author a workflow -> send creates an envelope
+        # -> recipient signs via token -> finalize -> signed PDF.
+        print("workflow -> envelope bridge + signing")
         wf = await ac.post("/api/v1/workflows/", headers=H, json={
             "name": "Smoke", "description": "smoke", "workflow_data": {"steps": []},
             "document_id": doc_id})
         check(wf.status_code == 200, f"POST /workflows/ -> {wf.status_code}")
-        if wf.status_code == 200:
-            wf_id = wf.json()["id"]
-            part = await ac.post(f"/api/v1/workflows/{wf_id}/participants", headers=H,
-                                 json={"email": "signer@example.com", "signingOrder": 1, "role": "signer"})
-            check(part.status_code == 200, f"POST /participants -> {part.status_code}")
-            part_id = part.json()["id"]
-            sw = await ac.post(f"/api/v1/workflows/{wf_id}/send", headers=H)
-            check(sw.status_code == 200, f"POST /workflows/{{id}}/send -> {sw.status_code}")
+        if wf.status_code != 200:
+            return
+        wf_id = wf.json()["id"]
+        part = await ac.post(f"/api/v1/workflows/{wf_id}/participants", headers=H,
+                             json={"email": "signer@example.com", "signingOrder": 1, "role": "signer"})
+        check(part.status_code == 200, f"POST /participants -> {part.status_code}")
+        part_id = part.json()["id"]
+        sw = await ac.post(f"/api/v1/workflows/{wf_id}/send", headers=H)
+        check(sw.status_code == 200, f"POST /workflows/{{id}}/send -> {sw.status_code}")
+        env_id = sw.json().get("envelope_id") if sw.status_code == 200 else None
+        check(bool(env_id), "send created an envelope")
+        if not env_id:
+            return
 
-            row = await _db_one("select signing_token from workflow_participants where id=:i", i=part_id)
-            tok = row[0] if row else None
-            check(bool(tok), "send issued a signing_token")
-            if tok:
-                gs = await ac.get(f"/api/v1/public/sign/{tok}")
-                check(gs.status_code == 200, f"GET /public/sign/{{token}} -> {gs.status_code}")
-                bad = await ac.get("/api/v1/public/sign/not-a-real-token")
-                check(bad.status_code == 404, f"GET /public/sign/{{bad}} -> {bad.status_code} (expect 404)")
-                ps = await ac.post(f"/api/v1/public/sign/{tok}", json={
-                    "type": "field_signatures", "fields": [], "consent_given": True,
-                    "privacy_accepted": True, "legal_binding_accepted": True,
-                    "consent_timestamp": "2026-01-01T00:00:00Z"})
-                check(ps.status_code == 200, f"POST /public/sign/{{token}} -> {ps.status_code}")
-                st = await _db_one("select status from workflow_participants where id=:i", i=part_id)
-                check(bool(st) and st[0] == "completed", f"participant status -> {st[0] if st else None}")
+        row = await _db_one(
+            "select token_jti from sign_links where envelope_id=:e", e=env_id)
+        token = row[0] if row else None
+        check(bool(token), "send issued a SignLink token")
 
-        print("envelope create -> finalize (worker)")
-        env = await ac.post("/api/v1/envelopes/", headers=H, json={
-            "document_id": doc_id, "subject": "Smoke",
-            "recipients": [{"role": "SIGNER", "name": "Sam", "email": "sam@example.com", "routing_order": 1}]})
-        check(env.status_code == 200, f"POST /envelopes/ -> {env.status_code}")
-        if env.status_code == 200:
-            env_id = env.json()["id"]
-            rid = (await ac.get(f"/api/v1/envelopes/{env_id}/recipients", headers=H)).json()[0]["id"]
-            af = await ac.post(f"/api/v1/envelopes/{env_id}/fields", headers=H, json=[{
-                "page_index": 0, "type": "signature",
-                "rect_pts": {"x": 100, "y": 120, "w": 160, "h": 40}, "required": True, "recipient_id": rid}])
-            check(af.status_code == 200, f"POST /envelopes/{{id}}/fields -> {af.status_code}")
-            fid_row = await _db_one("select id from fields where envelope_id=:e", e=env_id)
-            if fid_row:
-                await _db_exec(
-                    "insert into field_values (id,field_id,envelope_id,recipient_id,value,signed_at,signer_ip) "
-                    "values (:i,:f,:e,:r,:v,:t,:ip)",
-                    i=str(uuid.uuid4()), f=str(fid_row[0]), e=env_id, r=rid,
-                    v='"Sam Signer"', t=datetime.now(timezone.utc), ip="127.0.0.1")
-                await _db_exec("update recipients set status='COMPLETED', signed_at=:t where id=:r",
-                               t=datetime.now(timezone.utc), r=rid)
-            await ac.post(f"/api/v1/envelopes/{env_id}/send", headers=H)
+        bad = await ac.get("/api/v1/public/sign/not-a-real-token")
+        check(bad.status_code == 404, f"GET /public/sign/{{bad}} -> {bad.status_code} (expect 404)")
+
+        if token:
+            gs = await ac.get(f"/api/v1/public/sign/{token}")
+            check(gs.status_code == 200, f"GET /public/sign/{{token}} -> {gs.status_code}")
+            page = gs.json() if gs.status_code == 200 else {}
+            fields = page.get("fields", [])
+            check(len(fields) == 1 and fields[0]["type"] == "signature",
+                  f"document field mapped onto envelope -> {[f.get('type') for f in fields]}")
+            if fields:
+                sv = await ac.post(f"/api/v1/public/sign/{token}/fields/{fields[0]['id']}",
+                                   json={"value": "Sam Signer"})
+                check(sv.status_code == 200, f"POST submit field -> {sv.status_code}")
+            cp = await ac.post(f"/api/v1/public/sign/{token}/complete")
+            check(cp.status_code == 200, f"POST complete -> {cp.status_code}")
+
             final = None
             for _ in range(30):  # up to ~60s for the worker to finalize
                 await asyncio.sleep(2)
@@ -154,6 +148,12 @@ async def main() -> None:
                     final = s[0]
                     break
             check(final == "COMPLETED", f"envelope finalize -> {final}")
+
+            pstat = await _db_one("select status from workflow_participants where id=:i", i=part_id)
+            check(bool(pstat) and pstat[0] == "completed", f"participant synced -> {pstat[0] if pstat else None}")
+            wstat = await _db_one("select status from workflows where id=:i", i=wf_id)
+            check(bool(wstat) and wstat[0] == "COMPLETED", f"workflow synced -> {wstat[0] if wstat else None}")
+
             if final == "COMPLETED":
                 cert = await ac.get(f"/api/v1/evidence/envelope/{env_id}/certificate", headers=H)
                 check(cert.status_code == 200 and cert.content[:5] == b"%PDF-",

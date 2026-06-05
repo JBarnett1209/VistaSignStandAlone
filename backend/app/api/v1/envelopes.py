@@ -214,12 +214,15 @@ async def send_envelope(
         event_metadata={"recipient_count": len(recipients), "field_count": len(fields)}
     )
     db.add(audit_event)
-    
+
+    # Issue per-recipient sign links and email them. Finalization happens later,
+    # once all recipients have completed signing (see public_signing), NOT here.
+    from app.services.envelope_dispatch import dispatch_envelope
+    document = await db.get(Document, envelope.document_id)
+    await dispatch_envelope(db, envelope, recipients, document)
+
     await db.commit()
-    
-    # Enqueue finalization job
-    enqueue_finalize(str(envelope_id))
-    
+
     # Emit real-time event
     await realtime_service.emit_to_room(
         f"envelope_{envelope_id}",

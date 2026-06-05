@@ -214,8 +214,9 @@ export const usersAPI = {
 // workflow participant on the backend.
 export const publicAPI = {
   getSigningPage: (token) => api.get(`/api/v1/public/sign/${token}`),
-  submitSignature: (token, data) => api.post(`/api/v1/public/sign/${token}`, data),
-  declineSigning: (token, data = {}) => api.post(`/api/v1/public/sign/${token}`, { action: 'decline', ...data })
+  submitFieldValue: (token, fieldId, data) => api.post(`/api/v1/public/sign/${token}/fields/${fieldId}`, data),
+  completeSigning: (token) => api.post(`/api/v1/public/sign/${token}/complete`),
+  declineSigning: (token, data = {}) => api.post(`/api/v1/public/sign/${token}/decline`, data),
 };
 
 export default api;

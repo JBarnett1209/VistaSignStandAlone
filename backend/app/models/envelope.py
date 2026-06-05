@@ -64,6 +64,9 @@ class Recipient(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     envelope_id = Column(UUID(as_uuid=True), ForeignKey("envelopes.id"), nullable=False, index=True)
+    # Back-link to the WorkflowParticipant this recipient was created from, so
+    # signing status can be mirrored onto the workflow (bridge flow).
+    workflow_participant_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     role = Column(String(20), default=RecipientRole.SIGNER)
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False, index=True)
