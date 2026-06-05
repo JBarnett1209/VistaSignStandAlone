@@ -48,7 +48,11 @@ class Envelope(Base):
     status = Column(String(20), default=EnvelopeStatus.DRAFT)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Finalization artifacts (set by the finalize worker)
+    storage_key_signed_pdf = Column(String(512), nullable=True)
+    storage_key_evidence_json = Column(String(512), nullable=True)
 
     recipients = relationship("Recipient", back_populates="envelope", cascade="all, delete-orphan")
     fields = relationship("Field", back_populates="envelope", cascade="all, delete-orphan")
@@ -66,6 +70,11 @@ class Recipient(Base):
     routing_order = Column(Integer, default=1)
     access_code_hash = Column(String(255), nullable=True)
     phone_mfa = Column(String(32), nullable=True)
+    # Signing state (read by evidence.py / finalize.py / API responses)
+    status = Column(String(20), default=RecipientStatus.PENDING)
+    signed_at = Column(DateTime(timezone=True), nullable=True)
+    signer_ip = Column(String(64), nullable=True)
+    signer_user_agent = Column(String(255), nullable=True)
 
     envelope = relationship("Envelope", back_populates="recipients")
 
@@ -76,9 +85,11 @@ class Field(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     envelope_id = Column(UUID(as_uuid=True), ForeignKey("envelopes.id"), index=True, nullable=False)
     recipient_id = Column(UUID(as_uuid=True), ForeignKey("recipients.id"), nullable=True)
-    page = Column(Integer, default=1)
+    # Names match the API/schema (FieldCreate/FieldResponse) and pdf_flattener.
+    page_index = Column(Integer, default=0)
     type = Column(String(50), nullable=False)
-    rect = Column(JSON, nullable=False)  # {x,y,w,h}
+    rect_pts = Column(JSON, nullable=False)  # {x,y,w,h}
+    rotation = Column(Integer, default=0)
     required = Column(Boolean, default=False)
     tab_settings = Column(JSON, nullable=True)
 
@@ -90,6 +101,7 @@ class FieldValue(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     field_id = Column(UUID(as_uuid=True), ForeignKey("fields.id"), index=True, nullable=False)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("envelopes.id"), index=True, nullable=True)
     recipient_id = Column(UUID(as_uuid=True), ForeignKey("recipients.id"), index=True, nullable=True)
     value = Column(JSON, nullable=True)
     signed_at = Column(DateTime(timezone=True), nullable=True)

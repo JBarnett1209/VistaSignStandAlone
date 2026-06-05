@@ -19,29 +19,31 @@ class PDFFlattener:
         self.temp_dir = Path("/tmp/vistasign")
         self.temp_dir.mkdir(exist_ok=True)
     
-    async def flatten_envelope(self, envelope, document: Document, field_values: List[FieldValue]) -> bytes:
+    async def flatten_envelope(self, envelope, document: Document, fields: List[Field], field_values: List[FieldValue]) -> bytes:
         """
         Flatten envelope fields into PDF
-        
+
         Args:
             envelope: Envelope object
             document: Document object
+            fields: List of Field objects (passed in; accessing envelope.fields
+                lazily would raise MissingGreenlet under async SQLAlchemy)
             field_values: List of FieldValue objects
-            
+
         Returns:
             bytes: Flattened PDF content
         """
         try:
             import fitz  # PyMuPDF
-            
+
             # Load the original PDF
             pdf_doc = fitz.open(document.file_path)
-            
+
             # Create a mapping of field values by field ID
             field_value_map = {fv.field_id: fv for fv in field_values}
-            
+
             # Process each field
-            for field in envelope.fields:
+            for field in fields:
                 if field.id not in field_value_map:
                     continue
                 
@@ -83,24 +85,25 @@ class PDFFlattener:
                 field.rect_pts["y"] + field.rect_pts["h"]
             )
             
-            # Handle different field types
-            if field.type.value == "signature":
+            # Handle different field types (field.type is a plain string column)
+            field_type = field.type
+            if field_type == "signature":
                 await self._flatten_signature(page, rect, field_value)
-            elif field.type.value == "initials":
+            elif field_type == "initials":
                 await self._flatten_initials(page, rect, field_value)
-            elif field.type.value == "text":
+            elif field_type == "text":
                 await self._flatten_text(page, rect, field_value)
-            elif field.type.value == "date_signed":
+            elif field_type == "date_signed":
                 await self._flatten_date(page, rect, field_value)
-            elif field.type.value == "full_name":
+            elif field_type == "full_name":
                 await self._flatten_full_name(page, rect, field_value)
-            elif field.type.value == "email":
+            elif field_type == "email":
                 await self._flatten_email(page, rect, field_value)
-            elif field.type.value == "company":
+            elif field_type == "company":
                 await self._flatten_company(page, rect, field_value)
-            elif field.type.value == "title":
+            elif field_type == "title":
                 await self._flatten_title(page, rect, field_value)
-            elif field.type.value == "checkbox":
+            elif field_type == "checkbox":
                 await self._flatten_checkbox(page, rect, field_value)
             else:
                 # Default to text
@@ -129,14 +132,13 @@ class PDFFlattener:
                 page.insert_image(rect, pixmap=img)
                 
             else:
-                # Text signature - draw as text
+                # Text signature - draw as text. insert_text takes a single
+                # Point (x, y), not separate coords, and has no 'align' kwarg.
                 page.insert_text(
-                    (rect.x0 + rect.x1) / 2,
-                    (rect.y0 + rect.y1) / 2,
+                    fitz.Point(rect.x0 + 2, rect.y1 - 6),
                     field_value.value,
                     fontsize=12,
                     color=(0, 0, 0),
-                    align=1  # Center alignment
                 )
                 
         except Exception as e:
@@ -149,12 +151,10 @@ class PDFFlattener:
             import fitz
             
             page.insert_text(
-                (rect.x0 + rect.x1) / 2,
-                (rect.y0 + rect.y1) / 2,
+                fitz.Point(rect.x0 + 2, rect.y1 - 6),
                 field_value.value,
                 fontsize=14,
                 color=(0, 0, 0),
-                align=1  # Center alignment
             )
             
         except Exception as e:
@@ -165,15 +165,13 @@ class PDFFlattener:
         """Flatten text field"""
         try:
             import fitz
-            
-            # Get font size from tab settings or use default
+
+            # Default font size. (Avoid field_value.field here: that lazy
+            # relationship would raise MissingGreenlet under async SQLAlchemy.)
             font_size = 10
-            if field_value.field.tab_settings and "size" in field_value.field.tab_settings:
-                font_size = field_value.field.tab_settings["size"]
-            
+
             page.insert_text(
-                rect.x0 + 2,  # Small margin from left
-                rect.y1 - 2,  # Small margin from bottom
+                fitz.Point(rect.x0 + 2, rect.y1 - 2),
                 field_value.value,
                 fontsize=font_size,
                 color=(0, 0, 0)
@@ -227,8 +225,13 @@ class PDFFlattener:
             logger.error(f"Failed to flatten checkbox: {e}")
             raise
     
-    async def add_certificate_page(self, pdf_bytes: bytes, envelope, audit_events: List) -> bytes:
-        """Add certificate of completion page to PDF"""
+    async def add_certificate_page(self, pdf_bytes: bytes, envelope, document, recipients: List, audit_events: List) -> bytes:
+        """Add certificate of completion page to PDF.
+
+        document and recipients are passed in explicitly; accessing
+        envelope.document / envelope.recipients lazily would raise
+        MissingGreenlet under async SQLAlchemy.
+        """
         try:
             import fitz
             from reportlab.pdfgen import canvas
@@ -252,7 +255,7 @@ class PDFFlattener:
             c.setFont("Helvetica", 12)
             y_pos = height - 150
             
-            c.drawString(50, y_pos, f"Document: {envelope.document.title}")
+            c.drawString(50, y_pos, f"Document: {document.title}")
             y_pos -= 25
             
             c.drawString(50, y_pos, f"Envelope ID: {envelope.id}")
@@ -270,8 +273,8 @@ class PDFFlattener:
             y_pos -= 30
             
             c.setFont("Helvetica", 12)
-            for recipient in envelope.recipients:
-                c.drawString(70, y_pos, f"• {recipient.name} ({recipient.email}) - {recipient.status.value}")
+            for recipient in recipients:
+                c.drawString(70, y_pos, f"• {recipient.name} ({recipient.email}) - {recipient.status}")
                 y_pos -= 20
             
             y_pos -= 30

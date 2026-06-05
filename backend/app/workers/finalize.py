@@ -62,31 +62,34 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             logger.info(f"Flattening fields for envelope {envelope_id}...")
             from app.services.pdf_flattener import pdf_flattener
             
-            # Flatten the PDF
+            # Flatten the PDF (pass fields explicitly; envelope.fields is lazy)
             flattened_pdf_content = await pdf_flattener.flatten_envelope(
-                envelope, document, field_values
+                envelope, document, fields, field_values
             )
-            
+
             # 3. Add certificate page
             logger.info(f"Adding certificate page for envelope {envelope_id}...")
             final_pdf_content = await pdf_flattener.add_certificate_page(
-                flattened_pdf_content, envelope, audit_events
+                flattened_pdf_content, envelope, document, recipients, audit_events
             )
 
-            # 4. Apply digital signature
+            # 4. Apply digital (PAdES) signature using the real pyHanko signer.
+            # sign_pdf_pades returns None if no signing cert is configured; in
+            # that case fall back to the flattened + certificate PDF so the
+            # envelope still completes.
             logger.info(f"Applying digital signature for envelope {envelope_id}...")
-            from app.services.digital_signature import digital_signature_service
-            
-            signature_data = {
-                'reason': 'Document signing completion',
-                'location': 'VistaSign Platform',
-                'contact_info': 'support@vistasign.com'
-            }
-            
-            signed_pdf_content = await digital_signature_service.sign_pdf(
-                final_pdf_content, signature_data
+            from app.core.pdf_signer import sign_pdf_pades
+
+            signed_pdf_content = sign_pdf_pades(
+                final_pdf_content, reason="Document signing completion"
             )
-            
+            if signed_pdf_content is None:
+                logger.warning(
+                    f"No PAdES signature applied for {envelope_id} "
+                    "(signing cert unavailable); storing unsigned flattened PDF"
+                )
+                signed_pdf_content = final_pdf_content
+
             # 5. Save signed PDF to storage
             signed_pdf_key = await storage_service.save_file(signed_pdf_content, f"signed_{envelope_id}.pdf")
             
@@ -151,8 +154,8 @@ async def _generate_evidence_json(envelope, fields, field_values, recipients, au
                 "id": str(r.id),
                 "name": r.name,
                 "email": r.email,
-                "role": r.role.value,
-                "status": r.status.value,
+                "role": r.role,
+                "status": r.status,
                 "signed_at": r.signed_at.isoformat() if r.signed_at else None,
                 "signer_ip": r.signer_ip,
                 "signer_user_agent": r.signer_user_agent,
@@ -161,7 +164,7 @@ async def _generate_evidence_json(envelope, fields, field_values, recipients, au
         "fields": [
             {
                 "id": str(f.id),
-                "type": f.type.value,
+                "type": f.type,
                 "page_index": f.page_index,
                 "rect_pts": f.rect_pts,
                 "recipient_id": str(f.recipient_id) if f.recipient_id else None,
@@ -176,7 +179,7 @@ async def _generate_evidence_json(envelope, fields, field_values, recipients, au
             {
                 "id": str(ae.id),
                 "event": ae.event,
-                "actor_type": ae.actor_type.value,
+                "actor_type": ae.actor_type,
                 "actor_id": str(ae.actor_id) if ae.actor_id else None,
                 "occurred_at": ae.occurred_at.isoformat(),
                 "metadata": ae.event_metadata,

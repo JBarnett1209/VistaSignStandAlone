@@ -61,22 +61,10 @@ async def create_envelope(
             status=RecipientStatus.PENDING
         )
         db.add(recipient)
-    
-    # Create fields if provided
-    if envelope_data.fields:
-        for field_data in envelope_data.fields:
-            field = Field(
-                envelope_id=envelope.id,
-                page_index=field_data.page_index,
-                type=field_data.type,
-                rect_pts=field_data.rect_pts.dict(),
-                rotation=field_data.rotation,
-                required=field_data.required,
-                recipient_id=field_data.recipient_id,
-                tab_settings=field_data.tab_settings.dict() if field_data.tab_settings else None
-            )
-            db.add(field)
-    
+
+    # Fields are added via the dedicated POST /{id}/fields endpoint
+    # (EnvelopeCreate does not carry fields).
+
     # Create audit event
     audit_event = AuditEvent(
         envelope_id=envelope.id,

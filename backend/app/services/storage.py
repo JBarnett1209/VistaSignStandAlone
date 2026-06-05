@@ -47,8 +47,9 @@ class StorageService:
     
     async def save_file(self, content: bytes, filename: str) -> str:
         """Save file and return storage key."""
-        # For now, use local storage
-        storage_key, _ = storage_local.save_original(content, os.path.splitext(filename)[1])
+        # save_original returns (abs_path, storage_key) — keep the storage_key,
+        # not the abs_path, so resolve_path() can find it later.
+        _abs_path, storage_key = storage_local.save_original(content, os.path.splitext(filename)[1])
         return storage_key
 
 
