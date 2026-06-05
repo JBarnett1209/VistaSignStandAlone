@@ -5,58 +5,55 @@ import SignatureCapture from '../components/SignatureCapture';
 import { publicAPI } from '../services/api';
 
 export default function PublicSigning() {
-  const { workflowId, participantId } = useParams();
+  const { token } = useParams();
   const navigate = useNavigate();
-  const [envelope, setEnvelope] = useState(null);
-  const [recipient, setRecipient] = useState(null);
+  const [workflow, setWorkflow] = useState(null);
+  const [participant, setParticipant] = useState(null);
+  const [documentInfo, setDocumentInfo] = useState(null);
   const [fields, setFields] = useState([]);
   const [fieldValues, setFieldValues] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alreadySigned, setAlreadySigned] = useState(false);
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
   const [currentField, setCurrentField] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const loadEnvelope = async () => {
-    try {
-      setLoading(true);
-        const response = await publicAPI.getEnvelope(workflowId, participantId);
-        setEnvelope(response.data);
-        
-        const recipientData = response.data.recipients.find(r => r.id === participantId);
-        setRecipient(recipientData);
-        
-        if (recipientData) {
-          setFields(response.data.fields.filter(f => f.recipient_id === participantId));
+    const loadSigningPage = async () => {
+      try {
+        setLoading(true);
+        const response = await publicAPI.getSigningPage(token);
+        const data = response.data;
+
+        // Backend returns a short payload when the document is already signed.
+        if (data.message === 'Document already signed' || data.participant?.status === 'completed') {
+          setAlreadySigned(true);
+          return;
+        }
+
+        setWorkflow(data.workflow);
+        setParticipant(data.participant);
+        setDocumentInfo(data.document);
+        setFields(data.document?.fields || []);
+      } catch (err) {
+        console.error('Error loading signing page:', err);
+        setError('Failed to load document. Your signing link may be invalid or expired.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-        console.error('Error loading envelope:', err);
-        setError('Failed to load document. Please check your link.');
-    } finally {
-      setLoading(false);
-    }
     };
 
-    loadEnvelope();
-  }, [workflowId, participantId]);
+    loadSigningPage();
+  }, [token]);
 
-  const handleFieldValueChange = useCallback(async (fieldId, value) => {
+  const handleFieldValueChange = useCallback((fieldId, value) => {
     setFieldValues(prev => ({ ...prev, [fieldId]: value }));
-    
-    try {
-      setSaving(true);
-      await publicAPI.submitFieldValue(workflowId, participantId, fieldId, { value });
-    } catch (err) {
-      console.error('Error saving field value:', err);
-    } finally {
-      setSaving(false);
-    }
-  }, [workflowId]);
+  }, []);
 
   const handleSignatureFieldClick = useCallback((field) => {
     setCurrentField(field);
-          setSignatureDialogOpen(true);
+    setSignatureDialogOpen(true);
   }, []);
 
   const handleSignatureCapture = useCallback((signatureData) => {
@@ -70,7 +67,19 @@ export default function PublicSigning() {
   const handleComplete = useCallback(async () => {
     try {
       setSaving(true);
-      await publicAPI.completeSigning(workflowId, participantId);
+      const fieldPayload = fields.map(f => ({
+        fieldId: f.id,
+        signature: fieldValues[f.id] || '',
+        position: f.position || f.rect || {},
+      }));
+      await publicAPI.submitSignature(token, {
+        type: 'field_signatures',
+        fields: fieldPayload,
+        consent_given: true,
+        privacy_accepted: true,
+        legal_binding_accepted: true,
+        consent_timestamp: new Date().toISOString(),
+      });
       navigate('/signing-complete');
     } catch (err) {
       console.error('Error completing signing:', err);
@@ -78,12 +87,12 @@ export default function PublicSigning() {
     } finally {
       setSaving(false);
     }
-  }, [workflowId, participantId, navigate]);
+  }, [token, fields, fieldValues, navigate]);
 
   const handleDecline = useCallback(async () => {
     try {
       setSaving(true);
-      await publicAPI.declineSigning(workflowId, participantId);
+      await publicAPI.declineSigning(token);
       navigate('/signing-declined');
     } catch (err) {
       console.error('Error declining signing:', err);
@@ -91,7 +100,7 @@ export default function PublicSigning() {
     } finally {
       setSaving(false);
     }
-  }, [workflowId, participantId, navigate]);
+  }, [token, navigate]);
 
   if (loading) {
     return (
@@ -110,7 +119,15 @@ export default function PublicSigning() {
     );
   }
 
-  if (!envelope || !recipient) {
+  if (alreadySigned) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="success">This document has already been signed. Thank you.</Alert>
+      </Box>
+    );
+  }
+
+  if (!documentInfo) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">Document not found or access denied.</Alert>
@@ -125,37 +142,43 @@ export default function PublicSigning() {
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
       <Typography variant="h4" gutterBottom>
-        {envelope.subject}
+        {documentInfo.title}
       </Typography>
-      
-      {envelope.message && (
+
+      {workflow?.description && (
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="body1">{envelope.message}</Typography>
+          <Typography variant="body1">{workflow.description}</Typography>
         </Paper>
       )}
 
-      <Typography variant="h6" gutterBottom>
-        Please complete the following fields:
-      </Typography>
+      {fields.length > 0 ? (
+        <Typography variant="h6" gutterBottom>
+          Please complete the following fields:
+        </Typography>
+      ) : (
+        <Typography variant="body1" gutterBottom>
+          Review the document and click "Complete Signing" to confirm.
+        </Typography>
+      )}
 
       {fields.map((field) => (
         <Paper key={field.id} sx={{ p: 2, mb: 2 }}>
           <Typography variant="subtitle2" gutterBottom>
-            {field.type.replace('_', ' ').toUpperCase()}
+            {(field.type || 'field').replace('_', ' ').toUpperCase()}
             {field.required && <span style={{ color: 'red' }}> *</span>}
           </Typography>
-          
+
           {field.type === 'signature' ? (
             <Box>
               {fieldValues[field.id] ? (
                 <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, bgcolor: '#f5f5f5' }}>
-              <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary">
                     Signature captured
-              </Typography>
+                  </Typography>
                 </Box>
               ) : (
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   onClick={() => handleSignatureFieldClick(field)}
                   sx={{ minHeight: 100, width: '100%' }}
                 >
@@ -163,19 +186,10 @@ export default function PublicSigning() {
                 </Button>
               )}
             </Box>
-          ) : field.type === 'text' || field.type === 'email' ? (
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder={`Enter ${field.type}`}
-              value={fieldValues[field.id] || ''}
-              onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
-              type={field.type === 'email' ? 'email' : 'text'}
-            />
           ) : field.type === 'date_signed' ? (
             <TextField
               fullWidth
-                variant="outlined"
+              variant="outlined"
               type="date"
               value={fieldValues[field.id] || ''}
               onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
@@ -191,9 +205,10 @@ export default function PublicSigning() {
             <TextField
               fullWidth
               variant="outlined"
-              placeholder={`Enter ${field.type}`}
+              placeholder={`Enter ${field.type || 'value'}`}
               value={fieldValues[field.id] || ''}
               onChange={(e) => handleFieldValueChange(field.id, e.target.value)}
+              type={field.type === 'email' ? 'email' : 'text'}
             />
           )}
         </Paper>
@@ -203,20 +218,20 @@ export default function PublicSigning() {
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <CircularProgress size={20} />
           <Typography sx={{ ml: 1 }}>Saving...</Typography>
-                </Box>
-              )}
-              
+        </Box>
+      )}
+
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 4 }}>
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           color="error"
           onClick={handleDecline}
           disabled={saving}
         >
           Decline to Sign
         </Button>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           onClick={handleComplete}
           disabled={!canComplete || saving}
         >

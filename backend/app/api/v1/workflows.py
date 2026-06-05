@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from typing import List, Optional
 import logging
+import uuid
+import secrets
 from datetime import datetime, timedelta
 
 from app.core.database import get_db
@@ -88,7 +90,7 @@ async def create_workflow(
 async def list_workflows(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
     document_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
@@ -97,17 +99,17 @@ async def list_workflows(
     try:
         # Build query
         query = select(Workflow).where(Workflow.created_by == uuid.UUID(current_user["user_id"]))
-        
+
         # Apply filters
-        if status:
-            query = query.where(Workflow.status == status)
+        if status_filter:
+            query = query.where(Workflow.status == status_filter)
         if document_id:
             query = query.where(Workflow.document_id == document_id)
-        
+
         # Get total count
         count_query = select(Workflow).where(Workflow.created_by == uuid.UUID(current_user["user_id"]))
-        if status:
-            count_query = count_query.where(Workflow.status == status)
+        if status_filter:
+            count_query = count_query.where(Workflow.status == status_filter)
         if document_id:
             count_query = count_query.where(Workflow.document_id == document_id)
         
@@ -479,7 +481,15 @@ async def send_workflow(
             select(WorkflowParticipant).where(WorkflowParticipant.workflow_id == workflow_id)
         )
         participants = participants_result.scalars().all()
-        
+
+        # Issue an opaque per-participant signing token (mirrors UnitVista's
+        # VistaSignSignLink.token_jti). Public signing links carry this token
+        # instead of raw workflow/participant IDs, so links are unguessable.
+        for participant in participants:
+            if not participant.signing_token:
+                participant.signing_token = secrets.token_urlsafe(32)
+        await db.commit()
+
         # Get document details
         document_result = await db.execute(
             select(Document).where(Document.id == workflow.document_id)
@@ -492,9 +502,9 @@ async def send_workflow(
             # Send email to each participant
             for participant in participants:
                 try:
-                    # Create signing URL based on environment
+                    # Create token-gated signing URL (opaque, unguessable)
                     base_url = settings.FRONTEND_URL.rstrip('/')
-                    signing_url = f"{base_url}/sign/{workflow_id}/{participant.id}"
+                    signing_url = f"{base_url}/sign/{participant.signing_token}"
                     
                     subject = f"Document Signing Request: {document.title}"
                     

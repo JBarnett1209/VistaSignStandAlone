@@ -262,7 +262,7 @@ async def list_envelope_events(
     # Verify user has access to envelope
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()

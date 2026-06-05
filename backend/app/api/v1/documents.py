@@ -570,7 +570,7 @@ async def upload_document(
 async def list_documents(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
     document_type: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
@@ -580,10 +580,10 @@ async def list_documents(
     try:
         # Build query
         query = select(Document).where(Document.owner_id == uuid.UUID(current_user["user_id"]))
-        
+
         # Apply filters
-        if status:
-            query = query.where(Document.status == status)
+        if status_filter:
+            query = query.where(Document.status == status_filter)
         if document_type:
             query = query.where(Document.document_type == document_type)
         if search:
@@ -593,11 +593,11 @@ async def list_documents(
                     Document.description.ilike(f"%{search}%")
                 )
             )
-        
+
         # Get total count
         count_query = select(Document).where(Document.owner_id == uuid.UUID(current_user["user_id"]))
-        if status:
-            count_query = count_query.where(Document.status == status)
+        if status_filter:
+            count_query = count_query.where(Document.status == status_filter)
         if document_type:
             count_query = count_query.where(Document.document_type == document_type)
         if search:

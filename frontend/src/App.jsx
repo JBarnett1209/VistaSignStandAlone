@@ -142,7 +142,7 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/pricing" element={<Pricing />} />
-        <Route path="/sign/:workflowId/:participantId" element={<PublicSigning />} />
+        <Route path="/sign/:token" element={<PublicSigning />} />
         <Route path="/signing-complete" element={<SigningComplete />} />
         <Route path="/signing-declined" element={<SigningDeclined />} />
         

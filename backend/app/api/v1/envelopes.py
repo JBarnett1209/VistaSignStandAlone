@@ -31,7 +31,7 @@ async def create_envelope(
     # Verify document exists and user has access
     document = await db.execute(
         select(Document).where(
-            and_(Document.id == envelope_data.document_id, Document.owner_id == current_user.id)
+            and_(Document.id == envelope_data.document_id, Document.owner_id == uuid.UUID(current_user["user_id"]))
         )
     )
     document = document.scalar_one_or_none()
@@ -40,11 +40,11 @@ async def create_envelope(
     
     # Create envelope
     envelope = Envelope(
-        tenant_id=current_user.id,
+        tenant_id=uuid.UUID(current_user["user_id"]),
         document_id=envelope_data.document_id,
         subject=envelope_data.subject,
         message=envelope_data.message,
-        created_by=current_user.id,
+        created_by=uuid.UUID(current_user["user_id"]),
         status=EnvelopeStatus.DRAFT
     )
     db.add(envelope)
@@ -81,7 +81,7 @@ async def create_envelope(
     audit_event = AuditEvent(
         envelope_id=envelope.id,
         actor_type=ActorType.USER,
-        actor_id=current_user.id,
+        actor_id=uuid.UUID(current_user["user_id"]),
         event="envelope.created",
         event_metadata={"subject": envelope.subject}
     )
@@ -100,8 +100,8 @@ async def list_envelopes(
     db: AsyncSession = Depends(get_db)
 ):
     """List envelopes for the current user."""
-    query = select(Envelope).where(Envelope.tenant_id == current_user.id)
-    total_query = select(Envelope).where(Envelope.tenant_id == current_user.id)
+    query = select(Envelope).where(Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
+    total_query = select(Envelope).where(Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
     
     envelopes = await db.execute(query.offset(skip).limit(limit))
     total = await db.execute(total_query)
@@ -123,7 +123,7 @@ async def get_envelope(
     """Get a specific envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -142,7 +142,7 @@ async def update_envelope(
     """Update an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -168,7 +168,7 @@ async def update_envelope(
     audit_event = AuditEvent(
         envelope_id=envelope.id,
         actor_type=ActorType.USER,
-        actor_id=current_user.id,
+        actor_id=uuid.UUID(current_user["user_id"]),
         event="envelope.updated",
         event_metadata={"changes": envelope_data.dict(exclude_unset=True)}
     )
@@ -188,7 +188,7 @@ async def send_envelope(
     """Send an envelope for signing."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -221,7 +221,7 @@ async def send_envelope(
     audit_event = AuditEvent(
         envelope_id=envelope.id,
         actor_type=ActorType.USER,
-        actor_id=current_user.id,
+        actor_id=uuid.UUID(current_user["user_id"]),
         event="envelope.sent",
         event_metadata={"recipient_count": len(recipients), "field_count": len(fields)}
     )
@@ -251,7 +251,7 @@ async def void_envelope(
     """Void an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -268,7 +268,7 @@ async def void_envelope(
     audit_event = AuditEvent(
         envelope_id=envelope.id,
         actor_type=ActorType.USER,
-        actor_id=current_user.id,
+        actor_id=uuid.UUID(current_user["user_id"]),
         event="envelope.voided",
         event_metadata={"reason": reason}
     )
@@ -295,7 +295,7 @@ async def upsert_fields(
     """Create or update fields for an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -330,7 +330,7 @@ async def upsert_fields(
     audit_event = AuditEvent(
         envelope_id=envelope.id,
         actor_type=ActorType.USER,
-        actor_id=current_user.id,
+        actor_id=uuid.UUID(current_user["user_id"]),
         event="envelope.fields_updated",
         event_metadata={"field_count": len(fields_data)}
     )
@@ -349,7 +349,7 @@ async def list_recipients(
     """List recipients for an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -371,7 +371,7 @@ async def add_recipient(
     """Add a recipient to an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -406,7 +406,7 @@ async def update_recipient(
     """Update a recipient."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -449,7 +449,7 @@ async def delete_recipient(
     """Delete a recipient from an envelope."""
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()

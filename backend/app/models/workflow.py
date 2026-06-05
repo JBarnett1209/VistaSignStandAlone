@@ -123,6 +123,10 @@ class WorkflowParticipant(Base):
     role = Column(String(50), nullable=False)  # signer, approver, reviewer, etc.
     permissions = Column(JSON, nullable=True)  # Participant-specific permissions
     
+    # Public signing access token (opaque, per-recipient). Mirrors UnitVista's
+    # VistaSignSignLink.token_jti: signing links carry this token instead of raw IDs.
+    signing_token = Column(String(255), nullable=True, unique=True, index=True)
+
     # Signing status and data
     status = Column(String(50), default='pending')  # pending, completed, declined
     signed_at = Column(DateTime(timezone=True), nullable=True)  # When they signed

@@ -209,14 +209,13 @@ export const usersAPI = {
   activate: (id) => api.post(`/api/v1/users/${id}/activate`)
 };
 
-// Public API (no authentication required)
+// Public API (no authentication required).
+// Signing links are token-gated: the opaque token from the email resolves to a
+// workflow participant on the backend.
 export const publicAPI = {
-  getEnvelope: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}`),
-  getDocument: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}/document`),
-  getDocumentPdf: (envelopeId, recipientId) => api.get(`/api/v1/public/${envelopeId}/${recipientId}/document/pdf`),
-  submitFieldValue: (envelopeId, recipientId, fieldId, data) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/fields/${fieldId}`, data),
-  completeSigning: (envelopeId, recipientId) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/complete`),
-  declineSigning: (envelopeId, recipientId) => api.post(`/api/v1/public/${envelopeId}/${recipientId}/decline`)
+  getSigningPage: (token) => api.get(`/api/v1/public/sign/${token}`),
+  submitSignature: (token, data) => api.post(`/api/v1/public/sign/${token}`, data),
+  declineSigning: (token, data = {}) => api.post(`/api/v1/public/sign/${token}`, { action: 'decline', ...data })
 };
 
 export default api;

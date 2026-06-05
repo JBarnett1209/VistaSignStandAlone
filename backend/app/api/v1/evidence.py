@@ -24,7 +24,7 @@ async def get_envelope_evidence(
     # Verify user has access to envelope
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -60,7 +60,7 @@ async def get_envelope_certificate(
     # Verify user has access to envelope
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -99,7 +99,7 @@ async def get_envelope_audit_trail(
     # Verify user has access to envelope
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
@@ -179,7 +179,7 @@ async def verify_envelope_integrity(
     # Verify user has access to envelope
     envelope = await db.execute(
         select(Envelope).where(
-            and_(Envelope.id == envelope_id, Envelope.tenant_id == current_user.id)
+            and_(Envelope.id == envelope_id, Envelope.tenant_id == uuid.UUID(current_user["user_id"]))
         )
     )
     envelope = envelope.scalar_one_or_none()
