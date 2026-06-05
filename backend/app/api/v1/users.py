@@ -4,7 +4,7 @@ VistaSign Users API Endpoints
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, or_
 from typing import List, Optional
 import logging
 from datetime import datetime
@@ -17,45 +17,10 @@ from app.schemas.user import UserResponse, UserUpdate, UserListResponse
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-@router.get("/", response_model=UserListResponse)
-async def list_users(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """List all users (admin only). Simple unpaginated list with meta fields."""
-    if current_user["role"] != UserRole.ADMIN.value:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin only")
+# NOTE: the paginated/filterable list_users handler is defined below. A second
+# @router.get("/") used to shadow it (FastAPI uses the first match), so the
+# filters silently did nothing — removed.
 
-    result = await db.execute(select(User))
-    users = result.scalars().all()
-
-    users_payload = [
-        UserResponse(
-            id=str(user.id),
-            email=user.email,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            phone=user.phone,
-            company=user.company,
-            job_title=user.job_title,
-            role=user.role.value,
-            status=user.status.value,
-            is_verified=user.is_verified,
-            signature_style=user.signature_style,
-            created_at=user.created_at,
-            last_login=user.last_login,
-        )
-        for user in users
-    ]
-
-    total = len(users_payload)
-    return UserListResponse(
-        users=users_payload,
-        total=total,
-        skip=0,
-        limit=total,
-        has_more=False,
-    )
 
 @router.get("/profile", response_model=UserResponse)
 async def get_user_profile(
@@ -175,10 +140,22 @@ async def list_users(
 ):
     if current_user["role"] != UserRole.ADMIN.value:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
     query = select(User)
-    result = await db.execute(query.offset(skip).limit(limit))
-    users = result.scalars().all()
-    total = len(users)
+    if role:
+        query = query.where(User.role == role)
+    if status_filter:
+        query = query.where(User.status == status_filter)
+    if search:
+        like = f"%{search}%"
+        query = query.where(or_(
+            User.email.ilike(like),
+            User.first_name.ilike(like),
+            User.last_name.ilike(like),
+        ))
+
+    total = len((await db.execute(query)).scalars().all())
+    users = (await db.execute(query.offset(skip).limit(limit))).scalars().all()
     return UserListResponse(
         users=[
             UserResponse(
@@ -188,5 +165,5 @@ async def list_users(
                 created_at=u.created_at, last_login=u.last_login
             ) for u in users
         ],
-        total=total, skip=skip, limit=limit, has_more=False
+        total=total, skip=skip, limit=limit, has_more=(skip + limit) < total
     )
