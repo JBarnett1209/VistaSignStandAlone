@@ -43,3 +43,6 @@ get_logs.py
 test_upload.txt
 # Local-only compose overrides (e.g. host port remaps)
 docker-compose.override.yml
+
+# Generated frontend build output (rebuilt at deploy time by entrypoint.sh)
+frontend/build/
