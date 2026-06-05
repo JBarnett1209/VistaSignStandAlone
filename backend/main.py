@@ -126,9 +126,6 @@ async def csrf_protect(request: Request, call_next):
         "/api/v1/auth/csrf",
         "/api/v1/auth/refresh",
         "/api/v1/documents/upload",
-        "/api/v1/documents/upload-debug",
-        "/api/v1/logs/test",
-        "/test-upload",
     ] or (path.startswith("/api/v1/workflows/") and "/sign/" in path) \
       or path.startswith("/api/v1/public/"):
         logger.info(f"CSRF: exempting {request.method} {path}")
@@ -203,74 +200,6 @@ async def mint_csrf():
     response.body = f'{{"csrf": "{token}"}}'.encode()
     return response
 
-# Debug endpoint to check cookie settings
-@app.get("/api/v1/debug/cookies", tags=["Debug"])
-async def debug_cookies(request: Request):
-    """Debug endpoint to check cookie settings and request headers"""
-    return {
-        "cookies": dict(request.cookies),
-        "headers": {
-            "x-forwarded-proto": request.headers.get("x-forwarded-proto"),
-            "x-forwarded-for": request.headers.get("x-forwarded-for"),
-            "x-forwarded-host": request.headers.get("x-forwarded-host"),
-            "x-amzn-trace-id": request.headers.get("x-amzn-trace-id"),
-            "x-forwarded-port": request.headers.get("x-forwarded-port"),
-            "host": request.headers.get("host"),
-            "user-agent": request.headers.get("user-agent")
-        },
-        "url_scheme": request.url.scheme,
-        "environment": settings.ENVIRONMENT,
-        "cookie_domain": settings.COOKIE_DOMAIN,
-        "cookie_secure": settings.COOKIE_SECURE
-    }
-
-# Test upload endpoint for debugging (no auth required)
-@app.post("/test-upload", tags=["Debug"])
-async def test_upload(request: Request):
-    """Test endpoint to debug upload issues (no auth required)"""
-    try:
-        logger.info(f"Test upload request received")
-        logger.info(f"Content-Type: {request.headers.get('content-type')}")
-        logger.info(f"Content-Length: {request.headers.get('content-length')}")
-        
-        # Try to read the raw body
-        body = await request.body()
-        logger.info(f"Body length: {len(body)}")
-        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
-        
-        return {
-            "message": "Test upload debug info logged",
-            "content_type": request.headers.get('content-type'),
-            "content_length": request.headers.get('content-length'),
-            "body_length": len(body)
-        }
-    except Exception as e:
-        logger.error(f"Test upload error: {str(e)}")
-        return {"error": str(e)}
-
-# Test email endpoint for debugging
-@app.post("/test-email", tags=["Debug"])
-async def test_email():
-    """Test email sending for debugging OAuth2 issues"""
-    from app.core.email import send_email
-    
-    test_email_body = """
-    <html>
-    <body>
-        <h2>Test Email</h2>
-        <p>This is a test email to verify OAuth2 configuration.</p>
-    </body>
-    </html>
-    """
-    
-    success = send_email(
-        to_email="jbarnett1209@gmail.com",
-        subject="VistaSign OAuth2 Test",
-        html_body=test_email_body,
-        text_body="This is a test email to verify OAuth2 configuration."
-    )
-    
-    return {"success": success, "message": "Check backend logs for details"}
 
 # Root endpoint
 @app.get("/", tags=["Root"])

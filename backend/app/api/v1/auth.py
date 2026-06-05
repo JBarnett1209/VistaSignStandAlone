@@ -367,34 +367,6 @@ async def register(
         expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
-@router.post("/test-invite")
-async def create_test_invite(
-    db: AsyncSession = Depends(get_db)
-):
-    """Create a test invite for debugging (temporary endpoint)"""
-    import secrets
-    from app.models.invite import Invite
-    from datetime import datetime, timedelta
-    
-    code = secrets.token_urlsafe(24)
-    invite = Invite(
-        code=code,
-        invited_email="test@example.com",
-        role="user",
-        created_by="00000000-0000-0000-0000-000000000000",  # dummy UUID
-        max_uses=1,
-        expires_at=datetime.now(timezone.utc) + timedelta(days=14)
-    )
-    db.add(invite)
-    await db.commit()
-    await db.refresh(invite)
-    
-    return {
-        "code": code,
-        "url": f"https://vistasign.unitvista.com/register?invite={code}",
-        "id": str(invite.id)
-    }
-
 @router.post("/logout")
 async def logout(response: Response):
     """User logout endpoint"""

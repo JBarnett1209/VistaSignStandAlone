@@ -101,36 +101,6 @@ async def get_document_pdf(
     persisted_path, _ = storage.save_pdf(pdf_bytes)
     return FileResponse(path=persisted_path, filename=f"{os.path.splitext(document.filename)[0]}.pdf", media_type="application/pdf")
 
-@router.get("/test")
-async def test_documents_endpoint():
-    """Test endpoint to verify routing works"""
-    return {"message": "Documents API is working"}
-
-@router.post("/upload-debug")
-async def upload_debug(
-    request: Request
-):
-    """Debug endpoint to see what's being received"""
-    try:
-        logger.info(f"Debug upload request received")
-        logger.info(f"Content-Type: {request.headers.get('content-type')}")
-        logger.info(f"Content-Length: {request.headers.get('content-length')}")
-        
-        # Try to read the raw body
-        body = await request.body()
-        logger.info(f"Body length: {len(body)}")
-        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
-        
-        return {
-            "message": "Debug info logged",
-            "content_type": request.headers.get('content-type'),
-            "content_length": request.headers.get('content-length'),
-            "body_length": len(body)
-        }
-    except Exception as e:
-        logger.error(f"Debug upload error: {str(e)}")
-        return {"error": str(e)}
-
 @router.get("/{document_id}/file")
 async def get_document_file(
     document_id: str,
@@ -358,31 +328,6 @@ async def convert_document_to_pdf(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to convert document"
         )
-
-@router.post("/upload-debug")
-async def upload_debug(
-    request: Request
-):
-    """Debug endpoint to see what's being received"""
-    try:
-        logger.info(f"Debug upload request received")
-        logger.info(f"Content-Type: {request.headers.get('content-type')}")
-        logger.info(f"Content-Length: {request.headers.get('content-length')}")
-        
-        # Try to read the raw body
-        body = await request.body()
-        logger.info(f"Body length: {len(body)}")
-        logger.info(f"Body preview: {body[:200] if body else 'Empty'}")
-        
-        return {
-            "message": "Debug info logged",
-            "content_type": request.headers.get('content-type'),
-            "content_length": request.headers.get('content-length'),
-            "body_length": len(body)
-        }
-    except Exception as e:
-        logger.error(f"Debug upload error: {str(e)}")
-        return {"error": str(e)}
 
 @router.post("/upload", response_model=DocumentResponse)
 async def upload_document(
