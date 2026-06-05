@@ -25,7 +25,7 @@ from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.acme_watcher import acme_watcher_task
-from app.core.request_logging_middleware import RequestLoggingMiddleware, DatabaseLoggingMiddleware
+from app.core.request_logging_middleware import RequestLoggingMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.realtime import socket_app
 
@@ -94,10 +94,11 @@ class ProxyHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 # Trust ALB/X-Forwarded-* so app treats scheme/host correctly
 app.add_middleware(ProxyHeadersMiddleware)
-# Request logging middleware (add early to capture all requests)
+# Request logging middleware: stdout + one audit row per request to the DB.
+# (The old DatabaseLoggingMiddleware attached a handler to the root logger on
+# every request, capturing all SQLAlchemy echo output and amplifying writes
+# under concurrency — removed.)
 app.add_middleware(RequestLoggingMiddleware)
-# Database logging middleware (add last to ensure logs are committed)
-app.add_middleware(DatabaseLoggingMiddleware)
 
 # CORS middleware
 app.add_middleware(

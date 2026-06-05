@@ -20,87 +20,12 @@ request_id_var: ContextVar[Optional[str]] = ContextVar('request_id', default=Non
 user_id_var: ContextVar[Optional[str]] = ContextVar('user_id', default=None)
 session_id_var: ContextVar[Optional[str]] = ContextVar('session_id', default=None)
 
-class DatabaseLogHandler(logging.Handler):
-    """Custom logging handler that writes to database"""
-    
-    def __init__(self, db_session: AsyncSession):
-        super().__init__()
-        self.db_session = db_session
-        self.setLevel(logging.DEBUG)
-        self._pending_logs = []
-    
-    def emit(self, record):
-        """Emit a log record to the database"""
-        try:
-            # Extract context information
-            request_id = request_id_var.get()
-            user_id = user_id_var.get()
-            session_id = session_id_var.get()
-            
-            # Extract extra data from record
-            extra_data = {}
-            if hasattr(record, 'extra_data'):
-                extra_data = record.extra_data
-            
-            # Extract API context
-            endpoint = getattr(record, 'endpoint', None)
-            method = getattr(record, 'method', None)
-            status_code = getattr(record, 'status_code', None)
-            response_time_ms = getattr(record, 'response_time_ms', None)
-            
-            # Extract exception information
-            exception_type = None
-            exception_message = None
-            stack_trace = None
-            
-            if record.exc_info:
-                exception_type = record.exc_info[0].__name__ if record.exc_info[0] else None
-                exception_message = str(record.exc_info[1]) if record.exc_info[1] else None
-                stack_trace = traceback.format_exception(*record.exc_info)
-            
-            # Truncate fields to prevent database errors
-            def truncate_field(value, max_length):
-                if value and len(str(value)) > max_length:
-                    return str(value)[:max_length-3] + "..."
-                return value
-            
-            # Create log entry with truncated fields
-            log_entry = ApplicationLog(
-                level=record.levelname,
-                logger_name=truncate_field(record.name, 200),
-                message=record.getMessage(),
-                module=truncate_field(record.module, 200),
-                function=truncate_field(record.funcName, 200),
-                line_number=record.lineno,
-                request_id=truncate_field(request_id, 100),
-                user_id=user_id,
-                session_id=truncate_field(session_id, 100),
-                endpoint=truncate_field(endpoint, 200),
-                method=truncate_field(method, 10),
-                status_code=status_code,
-                response_time_ms=response_time_ms,
-                extra_data=extra_data,
-                exception_type=truncate_field(exception_type, 100),
-                exception_message=exception_message,
-                stack_trace=stack_trace
-            )
-            
-            # Store log entry for later commit to avoid flush conflicts
-            self._pending_logs.append(log_entry)
-            
-        except Exception as e:
-            # Fallback to console if database logging fails
-            print(f"Database logging failed: {e}")
-            print(f"Original log: {record.getMessage()}")
-    
-    def flush_logs(self):
-        """Flush all pending logs to the database"""
-        try:
-            for log_entry in self._pending_logs:
-                self.db_session.add(log_entry)
-            self._pending_logs.clear()
-        except Exception as e:
-            print(f"Failed to flush logs: {e}")
+# NOTE: the previous DatabaseLogHandler (a logging.Handler attached to the root
+# logger per request) was removed. It captured every propagated record —
+# including SQLAlchemy echo SQL — and amplified DB writes under concurrency.
+# Request auditing now happens in RequestLoggingMiddleware, which writes exactly
+# one application_logs row per request.
+
 
 class ComprehensiveLogger:
     """Comprehensive logging service with database integration"""
@@ -108,15 +33,21 @@ class ComprehensiveLogger:
     def __init__(self, name: str):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
-        
-        # Add console handler for immediate feedback
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        console_handler.setFormatter(formatter)
-        self.logger.addHandler(console_handler)
+
+        # Add a console handler ONCE per named logger. get_logger() is called
+        # repeatedly (per module, per middleware), and the previous code added a
+        # new handler every time, so each message was printed N times. Guarding
+        # on existing handlers keeps it to one. propagate=False stops the record
+        # also reaching the root handler (basicConfig), which was the other half
+        # of the duplicate console output.
+        if not self.logger.handlers:
+            console_handler = logging.StreamHandler()
+            console_handler.setLevel(logging.INFO)
+            console_handler.setFormatter(logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            ))
+            self.logger.addHandler(console_handler)
+        self.logger.propagate = False
     
     def _log_with_context(self, level: str, message: str, extra_data: Optional[Dict[str, Any]] = None, 
                          endpoint: Optional[str] = None, method: Optional[str] = None,
