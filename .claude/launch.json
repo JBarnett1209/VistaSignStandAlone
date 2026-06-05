@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 3000,
+      "cwd": "frontend",
+      "env": { "BROWSER": "none", "PORT": "3000", "DANGEROUSLY_DISABLE_HOST_CHECK": "true", "HOST": "127.0.0.1", "WDS_SOCKET_HOST": "127.0.0.1" }
+    }
+  ]
+}

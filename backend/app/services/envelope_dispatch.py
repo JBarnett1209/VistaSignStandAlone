@@ -51,29 +51,35 @@ def _norm_type(t) -> str:
     return _FIELD_TYPE_MAP.get(key, key.replace(" ", "_"))
 
 
-def _map_fields(envelope_id, document_fields, default_recipient_id) -> List[Field]:
+def _map_fields(envelope_id, document_fields, recipients_by_order, default_recipient_id) -> List[Field]:
     """Map document.fields (JSONB list) to envelope Field rows.
 
-    Accepts both the editor shape ({page, rect:{x,y,w,h}}) and the API shape
-    ({page_index, rect_pts}). Fields with no explicit recipient are assigned to
-    the first recipient.
+    Accepts the field editor shape, which may carry coordinates either flat
+    ({x,y,w,h}) or nested ({rect:{...}} / {rect_pts:{...}}), a 1-based `page` or
+    0-based `page_index`, and a `signingOrder`/`recipient_order` used to assign
+    the field to the matching recipient. Unmatched fields go to the first
+    recipient.
     """
     fields: List[Field] = []
     for f in (document_fields or []):
-        rect = f.get("rect_pts") or f.get("rect") or {}
+        rect = f.get("rect_pts") or f.get("rect") or f  # flat shape falls back to f itself
         page = f.get("page_index")
         if page is None:
             page = max(0, int(f.get("page", 1) or 1) - 1)
+        order = f.get("signingOrder") or f.get("recipient_order")
+        recipient_id = f.get("recipient_id")
+        if not recipient_id and order is not None:
+            recipient_id = recipients_by_order.get(int(order))
         fields.append(Field(
             envelope_id=envelope_id,
-            recipient_id=f.get("recipient_id") or default_recipient_id,
+            recipient_id=recipient_id or default_recipient_id,
             page_index=int(page),
             type=_norm_type(f.get("type")),
             rect_pts={
-                "x": rect.get("x", 72),
-                "y": rect.get("y", 72),
-                "w": rect.get("w", rect.get("width", 144)),
-                "h": rect.get("h", rect.get("height", 32)),
+                "x": float(rect.get("x", 72)),
+                "y": float(rect.get("y", 72)),
+                "w": float(rect.get("w", rect.get("width", 144))),
+                "h": float(rect.get("h", rect.get("height", 32))),
             },
             rotation=int(f.get("rotation", 0) or 0),
             required=bool(f.get("required", False)),
@@ -112,7 +118,9 @@ async def create_envelope_from_workflow(
     await db.flush()  # assign recipient ids
 
     default_recipient_id = recipients[0].id if recipients else None
-    for fld in _map_fields(envelope.id, getattr(document, "fields", None), default_recipient_id):
+    recipients_by_order = {r.routing_order: r.id for r in recipients}
+    for fld in _map_fields(envelope.id, getattr(document, "fields", None),
+                           recipients_by_order, default_recipient_id):
         db.add(fld)
     await db.flush()
 
