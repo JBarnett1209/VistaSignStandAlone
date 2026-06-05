@@ -307,8 +307,8 @@ class HybridSignatureService:
                     "organization": self._get_name_attribute(issuer, NameOID.ORGANIZATION_NAME),
                 },
                 "validity": {
-                    "not_valid_before": certificate.not_valid_before.isoformat(),
-                    "not_valid_after": certificate.not_valid_after.isoformat(),
+                    "not_valid_before": certificate.not_valid_before_utc.isoformat(),
+                    "not_valid_after": certificate.not_valid_after_utc.isoformat(),
                     "is_valid": self._is_certificate_valid(certificate),
                 },
                 "fingerprints": {
@@ -337,7 +337,7 @@ class HybridSignatureService:
     def _is_certificate_valid(self, certificate: x509.Certificate) -> bool:
         """Check if certificate is currently valid"""
         now = datetime.now(timezone.utc)
-        return (certificate.not_valid_before <= now <= certificate.not_valid_after)
+        return (certificate.not_valid_before_utc <= now <= certificate.not_valid_after_utc)
     
     def verify_hybrid_signature(self, signature_record: Dict[str, Any]) -> Dict[str, Any]:
         """Verify a hybrid signature with level-specific validation"""

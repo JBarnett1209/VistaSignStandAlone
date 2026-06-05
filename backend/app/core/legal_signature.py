@@ -79,11 +79,11 @@ class CertificateValidator:
         try:
             # Check certificate validity period
             now = datetime.now(timezone.utc)
-            if cert.not_valid_before > now:
+            if cert.not_valid_before_utc > now:
                 validation_result["errors"].append("Certificate not yet valid")
                 validation_result["is_valid"] = False
             
-            if cert.not_valid_after < now:
+            if cert.not_valid_after_utc < now:
                 validation_result["errors"].append("Certificate expired")
                 validation_result["is_valid"] = False
             
@@ -203,8 +203,8 @@ class LegalSignatureService:
                     "country": self._get_name_attribute(issuer, NameOID.COUNTRY_NAME),
                 },
                 "validity": {
-                    "not_valid_before": self._certificate.not_valid_before.isoformat(),
-                    "not_valid_after": self._certificate.not_valid_after.isoformat(),
+                    "not_valid_before": self._certificate.not_valid_before_utc.isoformat(),
+                    "not_valid_after": self._certificate.not_valid_after_utc.isoformat(),
                     "is_valid": self._is_certificate_valid(),
                 },
                 "technical": {
@@ -236,7 +236,7 @@ class LegalSignatureService:
     def _is_certificate_valid(self) -> bool:
         """Check if certificate is currently valid"""
         now = datetime.now(timezone.utc)
-        return (self._certificate.not_valid_before <= now <= self._certificate.not_valid_after)
+        return (self._certificate.not_valid_before_utc <= now <= self._certificate.not_valid_after_utc)
     
     def _get_key_size(self) -> Optional[int]:
         """Get the key size of the certificate's public key"""

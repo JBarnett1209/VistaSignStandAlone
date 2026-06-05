@@ -100,8 +100,8 @@ class DigitalSignatureService:
                 },
                 "thumbprint": thumbprint,
                 "serial_number": str(self._certificate.serial_number),
-                "not_valid_before": self._certificate.not_valid_before.isoformat(),
-                "not_valid_after": self._certificate.not_valid_after.isoformat(),
+                "not_valid_before": self._certificate.not_valid_before_utc.isoformat(),
+                "not_valid_after": self._certificate.not_valid_after_utc.isoformat(),
                 "public_key": base64.b64encode(
                     self._certificate.public_key().public_bytes(
                         encoding=serialization.Encoding.DER,
