@@ -41,3 +41,5 @@ backend/alembic/versions/*.pyc
 get-logs.ps1
 get_logs.py
 test_upload.txt
+# Local-only compose overrides (e.g. host port remaps)
+docker-compose.override.yml
