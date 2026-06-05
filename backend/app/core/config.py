@@ -104,6 +104,15 @@ class Settings(BaseSettings):
     FROM_EMAIL: Optional[str] = None
     FROM_NAME: Optional[str] = None
 
+    # Transactional email via SMTP (Mailcow etc.)
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_USE_TLS: bool = True   # STARTTLS on a plain connection (port 587)
+    SMTP_USE_SSL: bool = False  # implicit TLS (port 465)
+    SUPPORT_EMAIL: Optional[str] = None
+
     # Slack notifications (for DNS TXT challenges or alerts)
     SLACK_WEBHOOK_URL: Optional[str] = None
     SLACK_BOT_TOKEN: Optional[str] = None
