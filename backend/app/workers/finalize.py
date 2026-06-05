@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db_session
-from app.models.envelope import Envelope, EnvelopeStatus, Field, FieldValue, Recipient
+from app.models.envelope import Envelope, EnvelopeStatus, Field, FieldValue, Recipient, AuditEvent
 from app.services.storage import storage_service
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,12 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             # Get recipients
             recipients_query = select(Recipient).where(Recipient.envelope_id == envelope.id)
             recipients = (await db.execute(recipients_query)).scalars().all()
-            
+
+            # Get audit events explicitly. Accessing envelope.audit_events lazily
+            # raises MissingGreenlet under async SQLAlchemy, so fetch up front.
+            audit_query = select(AuditEvent).where(AuditEvent.envelope_id == envelope.id).order_by(AuditEvent.occurred_at)
+            audit_events = (await db.execute(audit_query)).scalars().all()
+
             # 1. Get the original document
             from app.models.document import Document
             document = await db.get(Document, envelope.document_id)
@@ -65,7 +70,7 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             # 3. Add certificate page
             logger.info(f"Adding certificate page for envelope {envelope_id}...")
             final_pdf_content = await pdf_flattener.add_certificate_page(
-                flattened_pdf_content, envelope, envelope.audit_events
+                flattened_pdf_content, envelope, audit_events
             )
 
             # 4. Apply digital signature
@@ -86,7 +91,9 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             signed_pdf_key = await storage_service.save_file(signed_pdf_content, f"signed_{envelope_id}.pdf")
             
             # 6. Generate evidence JSON
-            evidence_data = await _generate_evidence_json(envelope, field_values, recipients)
+            evidence_data = await _generate_evidence_json(
+                envelope, fields, field_values, recipients, audit_events, document
+            )
             evidence_json_content = evidence_data.encode('utf-8')
             evidence_json_key = await storage_service.save_file(evidence_json_content, f"evidence_{envelope_id}.json")
             
@@ -125,8 +132,13 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
         raise e
 
 
-async def _generate_evidence_json(envelope, field_values, recipients) -> str:
-    """Generate evidence JSON for the envelope"""
+async def _generate_evidence_json(envelope, fields, field_values, recipients, audit_events, document) -> str:
+    """Generate evidence JSON for the envelope.
+
+    All related collections (fields, audit_events, document) are passed in
+    explicitly; accessing them as lazy relationships on `envelope` raises
+    MissingGreenlet under async SQLAlchemy.
+    """
     import json
     
     evidence = {
@@ -158,7 +170,7 @@ async def _generate_evidence_json(envelope, field_values, recipients) -> str:
                 "signer_ip": next((fv.signer_ip for fv in field_values if fv.field_id == f.id), None),
                 "signer_user_agent": next((fv.signer_user_agent for fv in field_values if fv.field_id == f.id), None),
                 "evidence_hash": next((fv.evidence_hash for fv in field_values if fv.field_id == f.id), None),
-            } for f in envelope.fields
+            } for f in fields
         ],
         "audit_trail": [
             {
@@ -168,10 +180,10 @@ async def _generate_evidence_json(envelope, field_values, recipients) -> str:
                 "actor_id": str(ae.actor_id) if ae.actor_id else None,
                 "occurred_at": ae.occurred_at.isoformat(),
                 "metadata": ae.event_metadata,
-            } for ae in envelope.audit_events
+            } for ae in audit_events
         ],
-        "document_hash": envelope.document.file_hash if envelope.document else None,
-        "document_title": envelope.document.title if envelope.document else None,
+        "document_hash": document.file_hash if document else None,
+        "document_title": document.title if document else None,
     }
     
     return json.dumps(evidence, indent=2)

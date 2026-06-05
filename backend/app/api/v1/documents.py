@@ -20,7 +20,6 @@ from app.core.security.auth import get_current_user
 from app.core.logging_service import get_logger
 from app.core.document_converter import DocumentConverter
 from app.services import storage
-from app.workers.queue import enqueue_ingest
 from app.models.document import Document, DocumentVersion, DocumentStatus, DocumentType
 from app.models.user import User
 from app.schemas.document import (
@@ -522,12 +521,12 @@ async def upload_document(
         await db.commit()
         await db.refresh(document)
 
-        # Enqueue ingest job (scan + convert + metadata)
-        try:
-            enqueue_ingest(str(document.id), file_path, content_type, title)
-        except Exception as qe:
-            logger.warning(f"Failed to enqueue ingest job: {qe}")
-        
+        # NOTE: conversion to PDF and all metadata (type, hash, size, mime,
+        # status) are done inline above, so there is no separate ingest job.
+        # The old enqueue_ingest path re-converted the file and overwrote
+        # file_path/mime_type with the original — clobbering this record — and
+        # wrote page_count/pdf_storage_* fields that don't exist on the model.
+
         return DocumentResponse(
             id=str(document.id),
             title=document.title,
