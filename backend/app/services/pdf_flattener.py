@@ -55,11 +55,16 @@ class PDFFlattener:
                 if field.page_index >= len(pdf_doc):
                     logger.warning(f"Field page index {field.page_index} out of range")
                     continue
-                
+
                 page = pdf_doc[field.page_index]
-                
-                # Flatten the field based on its type
-                await self._flatten_field(page, field, field_value)
+
+                # Flatten the field. A single bad field (e.g. a corrupt
+                # signature image) must NOT abort the whole finalization and
+                # lose the signed document — log it and move on.
+                try:
+                    await self._flatten_field(page, field, field_value)
+                except Exception as e:
+                    logger.error(f"Failed to flatten field {field.id} ({field.type}); skipping: {e}")
             
             # Save the flattened PDF
             flattened_pdf_bytes = pdf_doc.write()
