@@ -148,8 +148,13 @@ class DocumentConverter:
                 logger.warning("LibreOffice not found, creating placeholder PDF")
                 return await DocumentConverter._create_placeholder_pdf(input_path, output_path, title, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
+            # Each headless soffice run needs its OWN user profile, otherwise two
+            # concurrent conversions fight over the default ~/.config profile and
+            # one fails with exit code 1. Isolate per-call and clean up after.
+            profile_dir = os.path.join(tempfile.gettempdir(), f"lo_{uuid.uuid4().hex}")
             cmd = [
-                'soffice', '--headless', '--nologo', '--nofirststartwizard',
+                'soffice', f'-env:UserInstallation=file://{profile_dir}',
+                '--headless', '--nologo', '--nofirststartwizard',
                 '--convert-to', 'pdf', '--outdir', outdir, input_path
             ]
             logger.info(f"Running command: {' '.join(cmd)}")
@@ -160,6 +165,7 @@ class DocumentConverter:
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await proc.communicate()
+            shutil.rmtree(profile_dir, ignore_errors=True)
             logger.info(f"LibreOffice stdout: {stdout.decode(errors='ignore')}")
             if stderr:
                 logger.warning(f"LibreOffice stderr: {stderr.decode(errors='ignore')}")
@@ -212,8 +218,11 @@ class DocumentConverter:
         """Generic LibreOffice-based conversion to PDF for Office docs."""
         outdir = os.path.dirname(output_path)
         os.makedirs(outdir, exist_ok=True)
+        # Isolated user profile per call so concurrent conversions don't collide.
+        profile_dir = os.path.join(tempfile.gettempdir(), f"lo_{uuid.uuid4().hex}")
         cmd = [
-            'soffice', '--headless', '--nologo', '--nofirststartwizard',
+            'soffice', f'-env:UserInstallation=file://{profile_dir}',
+            '--headless', '--nologo', '--nofirststartwizard',
             '--convert-to', 'pdf', '--outdir', outdir, input_path
         ]
         logger.info(f"Running command: {' '.join(cmd)}")
@@ -221,6 +230,7 @@ class DocumentConverter:
             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await proc.communicate()
+        shutil.rmtree(profile_dir, ignore_errors=True)
         if stdout:
             logger.info(f"LibreOffice stdout: {stdout.decode(errors='ignore')}")
         if stderr:

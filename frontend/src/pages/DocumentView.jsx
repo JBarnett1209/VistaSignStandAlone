@@ -75,7 +75,10 @@ export default function DocumentView() {
           </IconButton>
           <Typography variant="h6">{docMeta?.title || 'Document'}</Typography>
         </Box>
-        <Button variant="outlined" component={Link} to={`/documents`}>Back to list</Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="contained" component={Link} to={`/documents/${id}/edit`}>Prepare for Signing</Button>
+          <Button variant="outlined" component={Link} to={`/documents`}>Back to list</Button>
+        </Box>
       </Box>
       <Paper sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
         {fileUrl ? (

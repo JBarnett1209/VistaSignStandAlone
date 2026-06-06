@@ -342,16 +342,8 @@ export default function Documents() {
                       </IconButton>
                       <IconButton
                         size="small"
-                        title="Send for Signature"
-                        onClick={async () => {
-                          try {
-                            const env = await envelopesAPI.create({ document_id: doc.id, recipients: [] });
-                            await envelopesAPI.send(env.data.id);
-                          } catch (e) {
-                            console.error(e);
-                            setError('Failed to send envelope');
-                          }
-                        }}
+                        title="Prepare for Signing (place fields & recipients)"
+                        onClick={() => window.location.assign(`/documents/${doc.id}/edit`)}
                         sx={{ flexShrink: 0 }}
                       >
                         <EditIcon />
