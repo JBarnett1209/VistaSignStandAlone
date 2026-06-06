@@ -196,8 +196,13 @@ app.include_router(evidence.router, prefix="/api/v1/evidence", tags=["Evidence"]
 async def mint_csrf():
     from app.core.cookies import set_csrf_cookie
     response = JSONResponse({"csrf": ""})
-    token = set_csrf_cookie(response)
-    response.body = f'{{"csrf": "{token}"}}'.encode()
+    token = set_csrf_cookie(response)  # sets the vst_csrf Set-Cookie, returns token
+    # Replace the body with the real token AND fix Content-Length to match.
+    # Previously only response.body was set, leaving a stale Content-Length, so
+    # clients waited forever for bytes that never came (CSRF mint hung).
+    body = f'{{"csrf": "{token}"}}'.encode()
+    response.body = body
+    response.headers["content-length"] = str(len(body))
     return response
 
 
