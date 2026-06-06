@@ -1,16 +1,47 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Button, Alert, CircularProgress, Dialog, DialogTitle,
-  DialogContent, DialogActions, TextField, AppBar, Toolbar, Chip,
+  DialogContent, DialogActions, TextField, AppBar, Toolbar, Chip, Tabs, Tab,
 } from '@mui/material';
 import { Document, Page, pdfjs } from 'react-pdf';
-import SignatureCapture from '../components/SignatureCapture';
 import api, { publicAPI } from '../services/api';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const PAGE_WIDTH = 720; // rendered page width in px
+
+// Cursive styles offered in the "Select style" tab (and used to render the
+// stamped signature image so it matches the preview).
+const SIG_STYLES = [
+  { label: 'Style 1', font: `"Dancing Script", "Brush Script MT", cursive` },
+  { label: 'Style 2', font: `"Segoe Script", "Brush Script MT", cursive` },
+  { label: 'Style 3', font: `"Comic Sans MS", "Bradley Hand", cursive` },
+];
+
+const deriveInitials = (name) =>
+  (name || '').trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 4);
+
+// Render typed text to a transparent PNG data URL so it stamps like an image.
+function textToImage(text, font) {
+  const width = 600, height = 160;
+  const c = document.createElement('canvas');
+  c.width = width; c.height = height;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#15173a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Shrink font until the text fits the canvas width.
+  let size = 72;
+  do {
+    ctx.font = `italic ${size}px ${font}`;
+    if (ctx.measureText(text).width <= width - 40 || size <= 24) break;
+    size -= 4;
+  } while (size > 24);
+  ctx.fillText(text || '', width / 2, height / 2);
+  return c.toDataURL('image/png');
+}
 
 export default function PublicSigning() {
   const { token } = useParams();
@@ -27,9 +58,24 @@ export default function PublicSigning() {
   const [error, setError] = useState(null);
   const [alreadySigned, setAlreadySigned] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sigField, setSigField] = useState(null); // field being signed
   const [textField, setTextField] = useState(null); // field being typed
   const [textDraft, setTextDraft] = useState('');
+  const [activeFieldId, setActiveFieldId] = useState(null);
+
+  // Adopted signature (DocuSign-style: adopt once, stamp many).
+  const [adoptedSig, setAdoptedSig] = useState(null);
+  const [adoptedInitials, setAdoptedInitials] = useState(null);
+  const [adoptOpen, setAdoptOpen] = useState(false);
+  const [pendingField, setPendingField] = useState(null); // field to fill after adopting
+  const [adoptName, setAdoptName] = useState('');
+  const [adoptInitials, setAdoptInitials] = useState('');
+  const [adoptTab, setAdoptTab] = useState(0); // 0 = style, 1 = draw
+  const [styleIdx, setStyleIdx] = useState(0);
+  const [drawnSig, setDrawnSig] = useState('');
+
+  const fieldRefs = useRef({}); // fieldId -> DOM node (for jump-to-field)
+  const drawCanvasRef = useRef(null);
+  const drawing = useRef(false);
 
   useEffect(() => {
     const load = async () => {
@@ -43,6 +89,9 @@ export default function PublicSigning() {
         const seeded = {};
         (data.fields || []).forEach((f) => { if (f.value != null) seeded[f.id] = f.value; });
         setFieldValues(seeded);
+        const nm = data.recipient?.full_name || data.recipient?.name || '';
+        setAdoptName(nm);
+        setAdoptInitials(deriveInitials(nm));
         if (data.document?.file_url) {
           const resp = await api.get(data.document.file_url, { responseType: 'arraybuffer' });
           const blob = new Blob([resp.data], { type: 'application/pdf' });
@@ -70,10 +119,22 @@ export default function PublicSigning() {
     }
   }, [token]);
 
+  const stampSignature = useCallback((field, sigImg, initialsImg) => {
+    const img = field.type === 'initials' ? initialsImg : sigImg;
+    if (img) saveField(field.id, img);
+  }, [saveField]);
+
   const onFieldClick = useCallback((field) => {
     const t = field.type;
     if (t === 'signature' || t === 'initials') {
-      setSigField(field);
+      if (adoptedSig) {
+        stampSignature(field, adoptedSig, adoptedInitials);
+      } else {
+        setPendingField(field);
+        setDrawnSig('');
+        setAdoptTab(0);
+        setAdoptOpen(true);
+      }
     } else if (t === 'checkbox') {
       saveField(field.id, fieldValues[field.id] ? '' : 'true');
     } else if (t === 'date_signed') {
@@ -82,7 +143,66 @@ export default function PublicSigning() {
       setTextDraft(fieldValues[field.id] || '');
       setTextField(field);
     }
-  }, [fieldValues, saveField]);
+  }, [fieldValues, saveField, adoptedSig, adoptedInitials, stampSignature]);
+
+  // --- Adopt dialog: draw canvas handlers ---
+  const drawStart = (e) => {
+    drawing.current = true;
+    const c = drawCanvasRef.current; const r = c.getBoundingClientRect();
+    const ctx = c.getContext('2d');
+    ctx.strokeStyle = '#15173a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(e.clientX - r.left, e.clientY - r.top);
+  };
+  const drawMove = (e) => {
+    if (!drawing.current) return;
+    const c = drawCanvasRef.current; const r = c.getBoundingClientRect();
+    const ctx = c.getContext('2d');
+    ctx.lineTo(e.clientX - r.left, e.clientY - r.top); ctx.stroke();
+  };
+  const drawEnd = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    setDrawnSig(drawCanvasRef.current.toDataURL('image/png'));
+  };
+  const clearDraw = () => {
+    const c = drawCanvasRef.current; if (!c) return;
+    c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    setDrawnSig('');
+  };
+
+  const adoptAndSign = useCallback(() => {
+    const initialsImg = textToImage(adoptInitials || deriveInitials(adoptName), SIG_STYLES[styleIdx].font);
+    const sigImg = adoptTab === 1 && drawnSig
+      ? drawnSig
+      : textToImage(adoptName, SIG_STYLES[styleIdx].font);
+    setAdoptedSig(sigImg);
+    setAdoptedInitials(initialsImg);
+    if (pendingField) stampSignature(pendingField, sigImg, initialsImg);
+    setAdoptOpen(false);
+    setPendingField(null);
+  }, [adoptName, adoptInitials, styleIdx, adoptTab, drawnSig, pendingField, stampSignature]);
+
+  // Document-ordered fields, for jump-to-next.
+  const orderedFields = useMemo(() => {
+    return [...fields].sort((a, b) => {
+      const pa = a.page_index ?? 0, pb = b.page_index ?? 0;
+      if (pa !== pb) return pa - pb;
+      return ((a.rect_pts?.y) || 0) - ((b.rect_pts?.y) || 0);
+    });
+  }, [fields]);
+
+  const nextField = useMemo(() => {
+    return orderedFields.find((f) => f.required && !fieldValues[f.id])
+      || orderedFields.find((f) => !fieldValues[f.id])
+      || null;
+  }, [orderedFields, fieldValues]);
+
+  const jumpToNext = useCallback(() => {
+    if (!nextField) return;
+    const el = fieldRefs.current[nextField.id];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setActiveFieldId(nextField.id);
+  }, [nextField]);
 
   const requiredRemaining = useMemo(
     () => fields.filter((f) => f.required && !fieldValues[f.id]).length,
@@ -123,7 +243,7 @@ export default function PublicSigning() {
   const fieldsByPage = (pageNumber) => fields.filter((f) => (f.page_index ?? 0) + 1 === pageNumber);
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 10 }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 12 }}>
       <AppBar position="sticky" color="default" elevation={1}>
         <Toolbar sx={{ gap: 2 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>{envelope.subject}</Typography>
@@ -163,10 +283,12 @@ export default function PublicSigning() {
                     const r = f.rect_pts || {};
                     const filled = !!fieldValues[f.id];
                     const isSig = f.type === 'signature' || f.type === 'initials';
+                    const isActive = f.id === activeFieldId;
                     return (
                       <Box
                         key={f.id}
-                        onClick={() => onFieldClick(f)}
+                        ref={(el) => { if (el) fieldRefs.current[f.id] = el; }}
+                        onClick={() => { setActiveFieldId(f.id); onFieldClick(f); }}
                         sx={{
                           position: 'absolute',
                           left: (r.x || 0) * scale,
@@ -175,7 +297,7 @@ export default function PublicSigning() {
                           height: (r.h || 32) * scale,
                           border: '2px solid',
                           borderColor: filled ? 'success.main' : (f.required ? '#f59e0b' : '#7B5CFF'),
-                          bgcolor: filled ? 'rgba(16,185,129,0.08)' : 'rgba(123,92,255,0.12)',
+                          bgcolor: filled ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.18)',
                           borderRadius: 1,
                           cursor: 'pointer',
                           display: 'flex',
@@ -183,8 +305,12 @@ export default function PublicSigning() {
                           justifyContent: 'center',
                           overflow: 'hidden',
                           fontSize: 12,
-                          color: '#374151',
-                          '&:hover': { bgcolor: 'rgba(123,92,255,0.22)' },
+                          fontWeight: 600,
+                          color: '#7c4a03',
+                          outline: isActive ? '3px solid #7B5CFF' : 'none',
+                          outlineOffset: 2,
+                          transition: 'outline 0.15s',
+                          '&:hover': { bgcolor: 'rgba(245,158,11,0.3)' },
                         }}
                       >
                         {isSig && filled ? (
@@ -194,7 +320,7 @@ export default function PublicSigning() {
                             {f.type === 'checkbox' ? '✓' : String(fieldValues[f.id])}
                           </span>
                         ) : (
-                          <span>{(f.type || 'field').replace('_', ' ')}{f.required ? ' *' : ''}</span>
+                          <span>{isSig ? (f.type === 'initials' ? 'Initial' : 'Sign') : (f.type || 'field').replace('_', ' ')}{f.required ? '' : ''}</span>
                         )}
                       </Box>
                     );
@@ -208,13 +334,75 @@ export default function PublicSigning() {
         )}
       </Box>
 
-      {/* Signature capture */}
-      <Dialog open={!!sigField} onClose={() => setSigField(null)} maxWidth="md" fullWidth>
-        <DialogTitle>{sigField?.type === 'initials' ? 'Add Initials' : 'Add Your Signature'}</DialogTitle>
-        <DialogContent>
-          <SignatureCapture onCapture={(dataUrl) => { if (sigField) saveField(sigField.id, dataUrl); setSigField(null); }} />
+      {/* Floating jump-to-next-field control (DocuSign-style "Start"/"Next") */}
+      <Box sx={{ position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)', zIndex: 1200 }}>
+        {nextField ? (
+          <Button variant="contained" size="large" onClick={jumpToNext}
+            sx={{ borderRadius: 999, px: 4, boxShadow: 4, bgcolor: '#f59e0b', '&:hover': { bgcolor: '#d97706' } }}>
+            {requiredRemaining === fields.filter((f) => f.required).length ? 'Start' : 'Next'} →
+          </Button>
+        ) : (
+          <Button variant="contained" size="large" onClick={handleComplete} disabled={requiredRemaining > 0 || saving}
+            sx={{ borderRadius: 999, px: 4, boxShadow: 4 }}>
+            Finish
+          </Button>
+        )}
+      </Box>
+
+      {/* Adopt signature dialog */}
+      <Dialog open={adoptOpen} onClose={() => setAdoptOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Adopt your signature</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField label="Full name" fullWidth value={adoptName}
+              onChange={(e) => { setAdoptName(e.target.value); setAdoptInitials(deriveInitials(e.target.value)); }} />
+            <TextField label="Initials" sx={{ width: 120 }} value={adoptInitials}
+              onChange={(e) => setAdoptInitials(e.target.value.toUpperCase())} />
+          </Box>
+
+          <Tabs value={adoptTab} onChange={(_, v) => setAdoptTab(v)} sx={{ mb: 2 }} variant="fullWidth">
+            <Tab label="Select style" />
+            <Tab label="Draw" />
+          </Tabs>
+
+          {adoptTab === 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {SIG_STYLES.map((s, idx) => (
+                <Box key={s.label} onClick={() => setStyleIdx(idx)}
+                  sx={{ border: '2px solid', borderColor: idx === styleIdx ? '#7B5CFF' : 'divider',
+                        borderRadius: 1, p: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'space-between', bgcolor: idx === styleIdx ? 'rgba(123,92,255,0.08)' : 'transparent' }}>
+                  <Typography sx={{ fontFamily: s.font, fontStyle: 'italic', fontSize: 34, color: '#15173a', lineHeight: 1 }}>
+                    {adoptName || 'Your Name'}
+                  </Typography>
+                  <Typography sx={{ fontFamily: s.font, fontStyle: 'italic', fontSize: 26, color: '#15173a', opacity: 0.8 }}>
+                    {adoptInitials || 'YN'}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>Draw your signature below:</Typography>
+              <Box sx={{ border: '2px dashed', borderColor: 'divider', borderRadius: 1, display: 'flex', justifyContent: 'center', bgcolor: '#fff' }}>
+                <canvas ref={drawCanvasRef} width={500} height={180}
+                  onMouseDown={drawStart} onMouseMove={drawMove} onMouseUp={drawEnd} onMouseLeave={drawEnd}
+                  style={{ cursor: 'crosshair', borderRadius: 4 }} />
+              </Box>
+              <Button size="small" onClick={clearDraw} sx={{ mt: 1 }}>Clear</Button>
+            </Box>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+            By clicking Adopt and Sign, I agree this is my legal signature and may be used on this document.
+          </Typography>
         </DialogContent>
-        <DialogActions><Button onClick={() => setSigField(null)}>Cancel</Button></DialogActions>
+        <DialogActions>
+          <Button onClick={() => { setAdoptOpen(false); setPendingField(null); }}>Cancel</Button>
+          <Button variant="contained" onClick={adoptAndSign}
+            disabled={!adoptName.trim() || (adoptTab === 1 && !drawnSig)}>
+            Adopt and Sign
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Text entry */}
