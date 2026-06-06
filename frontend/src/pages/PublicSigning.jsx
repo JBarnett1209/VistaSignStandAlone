@@ -243,7 +243,7 @@ export default function PublicSigning() {
   const fieldsByPage = (pageNumber) => fields.filter((f) => (f.page_index ?? 0) + 1 === pageNumber);
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 12 }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', width: '100%', pb: 12 }}>
       <AppBar position="sticky" color="default" elevation={1}>
         <Toolbar sx={{ gap: 2 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>{envelope.subject}</Typography>
