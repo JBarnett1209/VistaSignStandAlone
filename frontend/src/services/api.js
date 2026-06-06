@@ -122,9 +122,9 @@ api.interceptors.response.use(
 
 // API service objects for backward compatibility
 export const documentsAPI = {
-  list: () => api.get('/api/v1/documents'),
+  list: () => api.get('/api/v1/documents/'),
   get: (id) => api.get(`/api/v1/documents/${id}`),
-  create: (data) => api.post('/api/v1/documents', data),
+  create: (data) => api.post('/api/v1/documents/', data),
   update: (id, data) => api.put(`/api/v1/documents/${id}`, data),
   delete: (id) => api.delete(`/api/v1/documents/${id}`),
   upload: (formData) => {
@@ -145,14 +145,14 @@ export const documentsAPI = {
 };
 
 export const signaturesAPI = {
-  list: () => api.get('/api/v1/signatures'),
+  list: () => api.get('/api/v1/signatures/'),
   get: (id) => api.get(`/api/v1/signatures/${id}`),
-  create: (data) => api.post('/api/v1/signatures', data),
+  create: (data) => api.post('/api/v1/signatures/', data),
   update: (id, data) => api.put(`/api/v1/signatures/${id}`, data),
   delete: (id) => api.delete(`/api/v1/signatures/${id}`),
   templates: {
-    list: () => api.get('/api/v1/signatures/templates'),
-    create: (data) => api.post('/api/v1/signatures/templates', data),
+    list: () => api.get('/api/v1/signatures/templates/'),
+    create: (data) => api.post('/api/v1/signatures/templates/', data),
     update: (id, data) => api.put(`/api/v1/signatures/templates/${id}`, data),
     delete: (id) => api.delete(`/api/v1/signatures/templates/${id}`)
   },
@@ -168,12 +168,13 @@ export const signaturesAPI = {
 };
 
 export const workflowsAPI = {
-  list: () => api.get('/api/v1/workflows'),
+  list: () => api.get('/api/v1/workflows/'),
   get: (id) => api.get(`/api/v1/workflows/${id}`),
-  create: (data) => api.post('/api/v1/workflows', data),
+  create: (data) => api.post('/api/v1/workflows/', data),
   update: (id, data) => api.put(`/api/v1/workflows/${id}`, data),
   delete: (id) => api.delete(`/api/v1/workflows/${id}`),
   send: (id) => api.post(`/api/v1/workflows/${id}/send`),
+  remind: (id) => api.post(`/api/v1/workflows/${id}/remind`),
   participants: {
     list: (workflowId) => api.get(`/api/v1/workflows/${workflowId}/participants`),
     add: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
@@ -197,9 +198,9 @@ export const evidenceAPI = {
 };
 
 export const invitesAPI = {
-  list: () => api.get('/api/v1/invites'),
+  list: () => api.get('/api/v1/invites/'),
   get: (id) => api.get(`/api/v1/invites/${id}`),
-  create: (data) => api.post('/api/v1/invites', data),
+  create: (data) => api.post('/api/v1/invites/', data),
   update: (id, data) => api.put(`/api/v1/invites/${id}`, data),
   delete: (id) => api.delete(`/api/v1/invites/${id}`),
   resend: (id) => api.post(`/api/v1/invites/${id}/resend`),
@@ -207,9 +208,9 @@ export const invitesAPI = {
 };
 
 export const usersAPI = {
-  list: () => api.get('/api/v1/users'),
+  list: () => api.get('/api/v1/users/'),
   get: (id) => api.get(`/api/v1/users/${id}`),
-  create: (data) => api.post('/api/v1/users', data),
+  create: (data) => api.post('/api/v1/users/', data),
   update: (id, data) => api.put(`/api/v1/users/${id}`, data),
   delete: (id) => api.delete(`/api/v1/users/${id}`),
   deactivate: (id) => api.post(`/api/v1/users/${id}/deactivate`),
