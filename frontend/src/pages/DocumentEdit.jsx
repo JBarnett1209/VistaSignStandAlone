@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Box, Typography, Paper, IconButton, Button, CircularProgress,
@@ -24,6 +24,23 @@ const PALETTE = [
   { label: 'Checkbox', type: 'checkbox', w: 24, h: 24 },
 ];
 
+// Normalize a stored field to the editor's flat shape, accepting fields that
+// were saved with rect/rect_pts or page_index (e.g. from other tools).
+function normalizeField(f) {
+  const rect = f.rect_pts || f.rect || {};
+  return {
+    id: f.id || `f_${Math.random().toString(36).slice(2)}`,
+    page: f.page ?? ((f.page_index ?? 0) + 1),
+    type: f.type || 'text',
+    x: f.x ?? rect.x ?? 0,
+    y: f.y ?? rect.y ?? 0,
+    w: f.w ?? rect.w ?? rect.width ?? 144,
+    h: f.h ?? rect.h ?? rect.height ?? 32,
+    signingOrder: f.signingOrder ?? f.recipient_order ?? 1,
+    required: f.required ?? false,
+  };
+}
+
 export default function DocumentEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,6 +53,10 @@ export default function DocumentEdit() {
   const [signingOrder, setSigningOrder] = useState(1);
   const [loading, setLoading] = useState(true);
   const [recipientsOpen, setRecipientsOpen] = useState(false);
+  const fieldsRef = useRef([]);
+  const dragRef = useRef(null);
+  const pageScalesRef = useRef({});
+  useEffect(() => { fieldsRef.current = fields; }, [fields]);
 
   useEffect(() => {
     const run = async () => {
@@ -43,7 +64,7 @@ export default function DocumentEdit() {
         setLoading(true);
         const meta = await documentsAPI.get(id);
         setDocMeta(meta.data);
-        setFields(meta.data.fields || []);
+        setFields((meta.data.fields || []).map(normalizeField));
         const resp = await documentsAPI.convertToPdf(id);
         setPdfUrl(URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' })));
       } catch (e) {
@@ -86,6 +107,42 @@ export default function DocumentEdit() {
     ev.stopPropagation();
     persist(fields.filter((f) => f.id !== fieldId));
   }, [fields, persist]);
+
+  useEffect(() => { pageScalesRef.current = pageScales; }, [pageScales]);
+
+  // Drag a placed field to reposition it.
+  const startDrag = useCallback((e, field) => {
+    if (e.target.closest('button')) return; // let the delete button work
+    e.stopPropagation();
+    e.preventDefault();
+    dragRef.current = { id: field.id, page: field.page, startX: e.clientX, startY: e.clientY, origX: field.x, origY: field.y, moved: false };
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const scale = pageScalesRef.current[d.page] || 1;
+      const nx = Math.max(0, d.origX + (e.clientX - d.startX) / scale);
+      const ny = Math.max(0, d.origY + (e.clientY - d.startY) / scale);
+      d.moved = true;
+      setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)));
+    };
+    const onUp = () => {
+      const d = dragRef.current;
+      if (!d) return;
+      dragRef.current = null;
+      if (d.moved) {
+        documentsAPI.update(id, { fields: fieldsRef.current }).catch((err) => console.error('Failed to save fields', err));
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [id]);
 
   if (loading) {
     return <Box sx={{ p: 3, display: 'flex', gap: 2 }}><CircularProgress /><Typography>Loading...</Typography></Box>;
@@ -139,12 +196,15 @@ export default function DocumentEdit() {
                     onLoadSuccess={(page) => setPageScales((prev) => ({ ...prev, [pageNumber]: PAGE_WIDTH / page.originalWidth }))} />
                   {fields.filter((f) => (f.page || 1) === pageNumber).map((f) => (
                     <Box key={f.id}
+                      onMouseDown={(e) => startDrag(e, f)}
+                      onClick={(e) => e.stopPropagation()}
                       sx={{
                         position: 'absolute', left: (f.x || 0) * scale, top: (f.y || 0) * scale,
                         width: (f.w || 144) * scale, height: (f.h || 32) * scale,
                         border: '2px solid #7B5CFF', bgcolor: 'rgba(123,92,255,0.15)', borderRadius: 1,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, color: '#4c1d95', overflow: 'visible',
+                        fontSize: 11, color: '#4c1d95', overflow: 'visible', cursor: 'move',
+                        userSelect: 'none',
                       }}>
                       <span style={{ pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                         {(f.type || '').replace('_', ' ')} · R{f.signingOrder || 1}
