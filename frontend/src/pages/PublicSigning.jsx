@@ -369,9 +369,12 @@ export default function PublicSigning() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {SIG_STYLES.map((s, idx) => (
                 <Box key={s.label} onClick={() => setStyleIdx(idx)}
-                  sx={{ border: '2px solid', borderColor: idx === styleIdx ? '#7B5CFF' : 'divider',
+                  sx={{ border: '2px solid', borderColor: idx === styleIdx ? '#7B5CFF' : '#d1d5db',
                         borderRadius: 1, p: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                        justifyContent: 'space-between', bgcolor: idx === styleIdx ? 'rgba(123,92,255,0.08)' : 'transparent' }}>
+                        justifyContent: 'space-between',
+                        // White "paper" card so the dark signature ink is readable and matches the stamp.
+                        bgcolor: '#ffffff',
+                        boxShadow: idx === styleIdx ? '0 0 0 3px rgba(123,92,255,0.35)' : 'none' }}>
                   <Typography sx={{ fontFamily: s.font, fontStyle: 'italic', fontSize: 34, color: '#15173a', lineHeight: 1 }}>
                     {adoptName || 'Your Name'}
                   </Typography>
