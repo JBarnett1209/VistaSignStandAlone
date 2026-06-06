@@ -41,8 +41,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-vistasign}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Bound to localhost only — never expose the database to the LAN/internet.
+    # Containers reach it over the internal 'web' network as host 'db'.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,8 +58,9 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
+    # Bound to localhost only — reached internally as host 'redis'.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
