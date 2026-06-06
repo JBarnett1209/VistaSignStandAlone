@@ -342,7 +342,7 @@ export default function Documents() {
                       </IconButton>
                       <IconButton
                         size="small"
-                        title="Prepare for Signing (place fields & recipients)"
+                        title="Edit — place signature fields"
                         onClick={() => window.location.assign(`/documents/${doc.id}/edit`)}
                         sx={{ flexShrink: 0 }}
                       >
