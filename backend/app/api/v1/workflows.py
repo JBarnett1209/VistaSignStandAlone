@@ -513,6 +513,42 @@ async def send_workflow(
             detail="Failed to send workflow"
         )
 
+
+@router.post("/{workflow_id}/remind")
+async def remind_pending(
+    workflow_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Re-email the signing link to recipients who haven't signed yet."""
+    workflow = (await db.execute(
+        select(Workflow).where(and_(
+            Workflow.id == workflow_id,
+            Workflow.created_by == uuid.UUID(current_user["user_id"]),
+        ))
+    )).scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+    if not workflow.envelope_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Workflow has not been sent")
+
+    from app.models.envelope import Envelope, Recipient, RecipientStatus
+    from app.services.envelope_dispatch import dispatch_envelope
+
+    envelope = await db.get(Envelope, workflow.envelope_id)
+    recipients = (await db.execute(
+        select(Recipient).where(Recipient.envelope_id == workflow.envelope_id)
+    )).scalars().all()
+    pending = [r for r in recipients
+               if r.status not in (RecipientStatus.COMPLETED, RecipientStatus.DECLINED)]
+    if not pending:
+        return {"message": "All recipients have already signed", "reminded": 0}
+
+    document = await db.get(Document, envelope.document_id)
+    await dispatch_envelope(db, envelope, pending, document)
+    await db.commit()
+    return {"message": f"Reminder sent to {len(pending)} recipient(s)", "reminded": len(pending)}
+
 @router.get("/{workflow_id}/sign/{participant_id}")
 async def get_workflow_signing_page(
     workflow_id: str,

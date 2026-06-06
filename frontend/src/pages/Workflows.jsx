@@ -9,7 +9,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Send as SendIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  Visibility as ViewIcon,
+  NotificationsActive as RemindIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI, evidenceAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -22,6 +24,8 @@ export default function Workflows() {
   const [workflowEditorOpen, setWorkflowEditorOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [statusDialog, setStatusDialog] = useState({ open: false, workflow: null });
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     loadWorkflows();
@@ -75,6 +79,36 @@ export default function Workflows() {
     } catch (err) {
       setError('Failed to re-send workflow emails');
       console.error('Error re-sending workflow:', err);
+    }
+  };
+
+  const recipientStatusColor = (status) => {
+    switch ((status || '').toLowerCase()) {
+      case 'completed': return 'success';
+      case 'declined': return 'error';
+      case 'viewed': return 'info';
+      default: return 'default'; // pending
+    }
+  };
+
+  const signedSummary = (workflow) => {
+    const ps = workflow.participants || [];
+    const done = ps.filter((p) => (p.status || '').toLowerCase() === 'completed').length;
+    return { done, total: ps.length };
+  };
+
+  const pendingCount = (workflow) =>
+    (workflow.participants || []).filter(
+      (p) => !['completed', 'declined'].includes((p.status || '').toLowerCase())
+    ).length;
+
+  const handleRemind = async (workflow) => {
+    try {
+      const resp = await workflowsAPI.remind(workflow.id);
+      setNotice(resp.data?.message || 'Reminder sent');
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to send reminder');
     }
   };
 
@@ -170,6 +204,11 @@ export default function Workflows() {
           {error}
         </Alert>
       )}
+      {notice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice(null)}>
+          {notice}
+        </Alert>
+      )}
       
       <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
         <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed', minWidth: 0 }}>
@@ -226,9 +265,16 @@ export default function Workflows() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">
-                      {workflow.participants?.length || 0} participants
-                    </Typography>
+                    {(() => {
+                      const { done, total } = signedSummary(workflow);
+                      return (
+                        <Typography variant="body2">
+                          {workflow.status === 'draft'
+                            ? `${total} participant${total === 1 ? '' : 's'}`
+                            : `${done}/${total} signed`}
+                        </Typography>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -237,9 +283,28 @@ export default function Workflows() {
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      {workflow.status !== 'draft' && (
+                        <IconButton
+                          size="small"
+                          title="View Signing Status"
+                          onClick={() => setStatusDialog({ open: true, workflow })}
+                        >
+                          <ViewIcon />
+                        </IconButton>
+                      )}
+                      {workflow.status === 'active' && pendingCount(workflow) > 0 && (
+                        <IconButton
+                          size="small"
+                          title="Remind Pending Signers"
+                          color="warning"
+                          onClick={() => handleRemind(workflow)}
+                        >
+                          <RemindIcon />
+                        </IconButton>
+                      )}
                       {workflow.status === 'draft' && (
-                        <IconButton 
-                          size="small" 
+                        <IconButton
+                          size="small"
                           title="Send for Signing"
                           onClick={() => handleSendWorkflow(workflow.id)}
                         >
@@ -300,6 +365,60 @@ export default function Workflows() {
         initialWorkflow={editingWorkflow}
       />
 
+
+      {/* Signing status / tracking dialog */}
+      <Dialog open={statusDialog.open} onClose={() => setStatusDialog({ open: false, workflow: null })} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {statusDialog.workflow?.name}
+          {statusDialog.workflow && (
+            <Chip size="small" label={statusDialog.workflow.status} color={getStatusColor(statusDialog.workflow.status)} />
+          )}
+        </DialogTitle>
+        <DialogContent dividers>
+          {statusDialog.workflow && (() => {
+            const { done, total } = signedSummary(statusDialog.workflow);
+            return <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{done} of {total} recipient(s) have signed.</Typography>;
+          })()}
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Recipient</TableCell>
+                <TableCell>Order</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Signed</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(statusDialog.workflow?.participants || [])
+                .slice()
+                .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
+                .map((p) => (
+                  <TableRow key={p.id || p.email}>
+                    <TableCell>{p.email}</TableCell>
+                    <TableCell>{p.signingOrder}</TableCell>
+                    <TableCell>
+                      <Chip size="small" label={p.status || 'pending'} color={recipientStatusColor(p.status)} />
+                    </TableCell>
+                    <TableCell>{p.signed_at ? formatDate(p.signed_at) : '—'}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </DialogContent>
+        <DialogActions>
+          {statusDialog.workflow?.status === 'active' && pendingCount(statusDialog.workflow) > 0 && (
+            <Button startIcon={<RemindIcon />} onClick={() => handleRemind(statusDialog.workflow)}>
+              Remind pending
+            </Button>
+          )}
+          {statusDialog.workflow?.status === 'completed' && statusDialog.workflow?.envelope_id && (
+            <Button startIcon={<DownloadIcon />} variant="contained" onClick={() => handleDownloadSigned(statusDialog.workflow)}>
+              Download Signed PDF
+            </Button>
+          )}
+          <Button onClick={() => setStatusDialog({ open: false, workflow: null })}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, title: '', message: '', onConfirm: null })}>
