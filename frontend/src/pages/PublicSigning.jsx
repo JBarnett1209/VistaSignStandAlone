@@ -22,9 +22,15 @@ const SIG_STYLES = [
 const deriveInitials = (name) =>
   (name || '').trim().split(/\s+/).filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 4);
 
-// Render typed text to a transparent PNG data URL so it stamps like an image.
+// Render typed text to a transparent PNG data URL, cropped tightly to the text
+// so when the flattener stretches it into the field box the signature fills it.
 function textToImage(text, font) {
-  const width = 600, height = 160;
+  text = (text || '').trim() || ' ';
+  const fontSize = 96;
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  measureCtx.font = `italic ${fontSize}px ${font}`;
+  const width = Math.max(40, Math.ceil(measureCtx.measureText(text).width) + 24);
+  const height = Math.ceil(fontSize * 1.3);
   const c = document.createElement('canvas');
   c.width = width; c.height = height;
   const ctx = c.getContext('2d');
@@ -32,14 +38,8 @@ function textToImage(text, font) {
   ctx.fillStyle = '#15173a';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // Shrink font until the text fits the canvas width.
-  let size = 72;
-  do {
-    ctx.font = `italic ${size}px ${font}`;
-    if (ctx.measureText(text).width <= width - 40 || size <= 24) break;
-    size -= 4;
-  } while (size > 24);
-  ctx.fillText(text || '', width / 2, height / 2);
+  ctx.font = `italic ${fontSize}px ${font}`;
+  ctx.fillText(text, width / 2, height / 2);
   return c.toDataURL('image/png');
 }
 

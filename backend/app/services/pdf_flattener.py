@@ -118,70 +118,61 @@ class PDFFlattener:
             logger.error(f"Failed to flatten field {field.id}: {e}")
             raise
     
+    def _fill_image(self, page, rect, value):
+        """Embed a base64 data-URL image, stretched to fill the whole field rect."""
+        import fitz
+        import base64
+        header, data = value.split(',', 1)
+        img = fitz.Pixmap(base64.b64decode(data))
+        # keep_proportion=False -> the image fills the entire placed field box
+        # (so a signature is as large as the field the operator drew).
+        page.insert_image(rect, pixmap=img, keep_proportion=False)
+
+    def _fill_text(self, page, rect, text, height_frac=0.72, fontname="helv"):
+        """Draw text sized to fill the field height, shrunk to fit the width,
+        vertically centered — so content scales with the placed field."""
+        import fitz
+        text = (text or "").strip()
+        if not text:
+            return
+        pad = max(1.0, rect.height * 0.12)
+        size = max(5.0, rect.height * height_frac)
+        avail_w = rect.width - 2 * pad
+        # Shrink until it fits the field width.
+        while size > 5 and fitz.get_text_length(text, fontname=fontname, fontsize=size) > avail_w:
+            size -= 0.5
+        baseline_y = rect.y0 + rect.height / 2 + size * 0.35  # vertical center
+        page.insert_text(
+            fitz.Point(rect.x0 + pad, baseline_y),
+            text, fontsize=size, fontname=fontname, color=(0, 0, 0),
+        )
+
     async def _flatten_signature(self, page, rect, field_value: FieldValue):
-        """Flatten signature field"""
+        """Flatten signature field — fill the field box."""
         try:
-            import fitz
-            
-            # If signature is an image (base64), embed it
-            if field_value.value.startswith('data:image/'):
-                # Extract base64 image data
-                import base64
-                header, data = field_value.value.split(',', 1)
-                image_data = base64.b64decode(data)
-                
-                # Create image from bytes
-                img = fitz.Pixmap(image_data)
-                
-                # Insert image into PDF
-                page.insert_image(rect, pixmap=img)
-                
+            if field_value.value and field_value.value.startswith('data:image/'):
+                self._fill_image(page, rect, field_value.value)
             else:
-                # Text signature - draw as text. insert_text takes a single
-                # Point (x, y), not separate coords, and has no 'align' kwarg.
-                page.insert_text(
-                    fitz.Point(rect.x0 + 2, rect.y1 - 6),
-                    field_value.value,
-                    fontsize=12,
-                    color=(0, 0, 0),
-                )
-                
+                self._fill_text(page, rect, field_value.value, height_frac=0.8)
         except Exception as e:
             logger.error(f"Failed to flatten signature: {e}")
             raise
-    
+
     async def _flatten_initials(self, page, rect, field_value: FieldValue):
-        """Flatten initials field"""
+        """Flatten initials field — fill the field box."""
         try:
-            import fitz
-            
-            page.insert_text(
-                fitz.Point(rect.x0 + 2, rect.y1 - 6),
-                field_value.value,
-                fontsize=14,
-                color=(0, 0, 0),
-            )
-            
+            if field_value.value and field_value.value.startswith('data:image/'):
+                self._fill_image(page, rect, field_value.value)
+            else:
+                self._fill_text(page, rect, field_value.value, height_frac=0.8)
         except Exception as e:
             logger.error(f"Failed to flatten initials: {e}")
             raise
-    
+
     async def _flatten_text(self, page, rect, field_value: FieldValue):
-        """Flatten text field"""
+        """Flatten text field — fill the field box."""
         try:
-            import fitz
-
-            # Default font size. (Avoid field_value.field here: that lazy
-            # relationship would raise MissingGreenlet under async SQLAlchemy.)
-            font_size = 10
-
-            page.insert_text(
-                fitz.Point(rect.x0 + 2, rect.y1 - 2),
-                field_value.value,
-                fontsize=font_size,
-                color=(0, 0, 0)
-            )
-            
+            self._fill_text(page, rect, field_value.value)
         except Exception as e:
             logger.error(f"Failed to flatten text: {e}")
             raise
