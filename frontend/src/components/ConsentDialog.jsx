@@ -82,7 +82,7 @@ const ConsentDialog = ({
 
         {/* Document Information */}
         {documentInfo && (
-          <Box sx={{ mb: 3, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
+          <Box sx={{ mb: 3, p: 2, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 1 }}>
             <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <DocumentIcon sx={{ color: '#7B5CFF' }} />
               Document Information

@@ -216,13 +216,14 @@ export default function DocumentUpload({ onUploadSuccess, onClose }) {
         sx={{
           p: 4,
           textAlign: 'center',
-          border: dragActive ? '2px dashed #6B46C1' : '2px dashed #ccc',
-          backgroundColor: dragActive ? '#f3f0ff' : '#fafafa',
+          border: dragActive ? '2px dashed #7B5CFF' : '2px dashed',
+          borderColor: dragActive ? '#7B5CFF' : 'divider',
+          backgroundColor: dragActive ? 'rgba(123,92,255,0.12)' : 'rgba(255,255,255,0.03)',
           transition: 'all 0.3s ease',
           cursor: 'pointer',
           '&:hover': {
-            backgroundColor: '#f3f0ff',
-            borderColor: '#6B46C1'
+            backgroundColor: 'rgba(123,92,255,0.10)',
+            borderColor: '#7B5CFF'
           }
         }}
         onDragEnter={handleDrag}

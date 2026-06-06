@@ -37,7 +37,7 @@ export default function SigningDeclined() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#f5f5f5',
+      backgroundColor: '#0f0f11',
       p: 2
     }}>
       <Card sx={{

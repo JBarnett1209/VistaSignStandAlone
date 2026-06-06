@@ -43,7 +43,7 @@ export default function SigningComplete() {
   return (
     <Box sx={{ 
       minHeight: '100vh', 
-      backgroundColor: '#f5f5f5',
+      backgroundColor: '#0f0f11',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',

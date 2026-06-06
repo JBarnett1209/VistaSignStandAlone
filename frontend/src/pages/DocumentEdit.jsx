@@ -151,7 +151,7 @@ export default function DocumentEdit() {
   const orders = [...new Set(fields.map((f) => f.signingOrder || 1))].sort((a, b) => a - b);
 
   return (
-    <Box sx={{ bgcolor: '#f3f4f6', minHeight: '100vh' }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
       <Paper square sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 2, position: 'sticky', top: 0, zIndex: 10 }}>
         <IconButton component={Link} to={`/documents/${id}/view`}><BackIcon /></IconButton>
         <Typography variant="h6" sx={{ flexShrink: 0 }}>{docMeta?.title || 'Prepare Document'}</Typography>

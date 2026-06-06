@@ -233,7 +233,7 @@ export default function CertificateValidation() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <pre style={{ 
-                    backgroundColor: '#f5f5f5', 
+                    backgroundColor: 'rgba(255,255,255,0.04)', 
                     padding: '16px', 
                     borderRadius: '4px',
                     overflow: 'auto',
@@ -276,7 +276,7 @@ export default function CertificateValidation() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <pre style={{ 
-                    backgroundColor: '#f5f5f5', 
+                    backgroundColor: 'rgba(255,255,255,0.04)', 
                     padding: '16px', 
                     borderRadius: '4px',
                     overflow: 'auto',

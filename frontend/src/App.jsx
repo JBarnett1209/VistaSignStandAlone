@@ -30,9 +30,17 @@ import AdminSignatures from './pages/AdminSignatures';
 import CertificateValidation from './pages/CertificateValidation';
 
 // Create theme (UnitVista color feel)
+// Dark-grey background "levels" (purple kept as the accent).
+const BG = {
+  level0: '#0f0f11', // app background
+  level1: '#161619', // sidebar / app bar
+  level2: '#1c1c20', // cards / surfaces
+  level3: '#26262b', // borders / hover
+};
+
 const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
       main: '#7B5CFF', // UnitVista purple
       contrastText: '#ffffff',
@@ -42,21 +50,22 @@ const theme = createTheme({
       contrastText: '#ffffff',
     },
     background: {
-      default: '#F8F7FF', // softer lavender tint
-      paper: '#ffffff',
+      default: BG.level0,
+      paper: BG.level2,
     },
     text: {
-      primary: '#111827',
-      secondary: '#6B7280',
+      primary: '#ECECEE',
+      secondary: '#9CA3AF',
     },
+    divider: BG.level3,
   },
   components: {
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          backgroundColor: '#ffffff', // light sidebar
-          color: '#111827',
-          borderRight: '1px solid #E5E7EB',
+          backgroundColor: BG.level1,
+          color: '#ECECEE',
+          borderRight: `1px solid ${BG.level3}`,
         },
       },
     },
@@ -78,28 +87,38 @@ const theme = createTheme({
         }
       }
     },
+    MuiTableCell: {
+      styleOverrides: {
+        root: { borderColor: BG.level3 },
+        head: { backgroundColor: BG.level1 },
+      },
+    },
     MuiListItemButton: {
       styleOverrides: {
         root: {
           borderRadius: 8,
           margin: '4px 8px',
           '&.Mui-selected': {
-            backgroundColor: 'rgba(123, 92, 255, 0.12)',
-            color: '#7B5CFF',
-            '& .MuiListItemIcon-root': { color: '#7B5CFF' },
+            backgroundColor: 'rgba(123, 92, 255, 0.18)',
+            color: '#C4B5FD',
+            '& .MuiListItemIcon-root': { color: '#C4B5FD' },
+            '&:hover': { backgroundColor: 'rgba(123, 92, 255, 0.24)' },
           },
           '&:hover': {
-            backgroundColor: 'rgba(123, 92, 255, 0.08)',
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
           },
         },
       },
     },
     MuiAppBar: {
+      defaultProps: { elevation: 0 },
       styleOverrides: {
         root: {
-          background: 'linear-gradient(90deg, #6D28D9 0%, #7B5CFF 50%, #9333EA 100%)',
-          color: '#FFFFFF',
-          boxShadow: '0 2px 10px rgba(123, 92, 255, 0.25)',
+          backgroundColor: BG.level1,
+          backgroundImage: 'none',
+          color: '#ECECEE',
+          borderBottom: `1px solid ${BG.level3}`,
+          boxShadow: 'none',
         },
       },
     },
@@ -117,10 +136,13 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           width: '100%',
-          borderRadius: 12
-        }
-      }
-    }
+          borderRadius: 12,
+          backgroundImage: 'none',
+          backgroundColor: BG.level2,
+          border: `1px solid ${BG.level3}`,
+        },
+      },
+    },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
