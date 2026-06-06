@@ -63,6 +63,7 @@ export default function DocumentEdit() {
   const [fields, setFields] = useState([]);
   const [tool, setTool] = useState('signature');
   const [signingOrder, setSigningOrder] = useState(1);
+  const [recipientCount, setRecipientCount] = useState(3);
   const [selectedFieldId, setSelectedFieldId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recipientsOpen, setRecipientsOpen] = useState(false);
@@ -71,6 +72,11 @@ export default function DocumentEdit() {
   const pageScalesRef = useRef({});
   const pageRefs = useRef({}); // pageNumber -> DOM node, for cross-page hit-testing
   useEffect(() => { fieldsRef.current = fields; }, [fields]);
+  // No fixed cap on recipients — grow the count to cover any already assigned.
+  useEffect(() => {
+    const maxOrder = fields.reduce((m, f) => Math.max(m, f.signingOrder || 1), 1);
+    setRecipientCount((c) => Math.max(c, maxOrder));
+  }, [fields]);
 
   useEffect(() => {
     const run = async () => {
@@ -251,9 +257,15 @@ export default function DocumentEdit() {
           <FormControl size="small" fullWidth>
             <InputLabel>Assign new fields to</InputLabel>
             <Select label="Assign new fields to" value={signingOrder} onChange={(e) => setSigningOrder(e.target.value)}>
-              {[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>Recipient {n}</MenuItem>)}
+              {Array.from({ length: recipientCount }, (_, i) => i + 1).map((n) => (
+                <MenuItem key={n} value={n}>Recipient {n}</MenuItem>
+              ))}
             </Select>
           </FormControl>
+          <Button size="small" sx={{ mt: 1 }}
+            onClick={() => { const n = recipientCount + 1; setRecipientCount(n); setSigningOrder(n); }}>
+            + Add recipient
+          </Button>
 
           {orders.length > 0 && (
             <Box sx={{ mt: 2 }}>
@@ -345,7 +357,9 @@ export default function DocumentEdit() {
                 <InputLabel>Recipient</InputLabel>
                 <Select label="Recipient" value={selectedField.signingOrder || 1}
                   onChange={(e) => updateField(selectedField.id, { signingOrder: e.target.value })}>
-                  {[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>Recipient {n}</MenuItem>)}
+                  {Array.from({ length: recipientCount }, (_, i) => i + 1).map((n) => (
+                    <MenuItem key={n} value={n}>Recipient {n}</MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 

@@ -87,7 +87,10 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # No --reload in production: the file watcher restarts the app on every code
+    # change (and during deploys), which surfaces as intermittent 502s on in-flight
+    # requests. Deploys apply code via an explicit `docker compose up -d` restart.
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
     # No labels needed for Nginx
     networks:
       - web
