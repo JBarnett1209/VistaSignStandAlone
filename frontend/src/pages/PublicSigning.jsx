@@ -314,7 +314,7 @@ export default function PublicSigning() {
                         }}
                       >
                         {isSig && filled ? (
-                          <img src={fieldValues[f.id]} alt="signature" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                          <img src={fieldValues[f.id]} alt="signature" style={{ width: '100%', height: '100%', objectFit: 'fill' }} />
                         ) : filled ? (
                           <span style={{ padding: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {f.type === 'checkbox' ? '✓' : String(fieldValues[f.id])}
