@@ -11,8 +11,9 @@ import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
 from email.utils import formataddr
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from app.core.config import settings
 
@@ -27,8 +28,18 @@ def _html_to_text(html_body: str) -> str:
     )
 
 
-def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[str] = None) -> bool:
-    """Send an email via SMTP. Returns True on success, False otherwise."""
+def send_email(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    text_body: Optional[str] = None,
+    attachments: Optional[List[Tuple[str, bytes, str]]] = None,
+) -> bool:
+    """Send an email via SMTP. Returns True on success, False otherwise.
+
+    attachments: optional list of (filename, content_bytes, mime_subtype),
+    e.g. ("Completed.pdf", b"...", "pdf").
+    """
     if not settings.SMTP_HOST:
         logger.error("SMTP_HOST not configured; cannot send email")
         return False
@@ -37,14 +48,25 @@ def send_email(to_email: str, subject: str, html_body: str, text_body: Optional[
     from_name = settings.FROM_NAME or "VistaSign"
     plain_body = text_body if text_body is not None else _html_to_text(html_body)
 
-    msg = MIMEMultipart("alternative")
+    alternative = MIMEMultipart("alternative")
+    alternative.attach(MIMEText(plain_body, "plain", "utf-8"))
+    alternative.attach(MIMEText(html_body, "html", "utf-8"))
+
+    if attachments:
+        msg = MIMEMultipart("mixed")
+        msg.attach(alternative)
+        for filename, content, subtype in attachments:
+            part = MIMEApplication(content, _subtype=subtype or "octet-stream")
+            part.add_header("Content-Disposition", "attachment", filename=filename)
+            msg.attach(part)
+    else:
+        msg = alternative
+
     msg["Subject"] = subject
     msg["From"] = formataddr((from_name, from_email))
     msg["To"] = to_email
     if settings.SUPPORT_EMAIL:
         msg["Reply-To"] = settings.SUPPORT_EMAIL
-    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     host, port = settings.SMTP_HOST, settings.SMTP_PORT or 587
     logger.info(f"Sending email to {to_email} via SMTP {host}:{port}")

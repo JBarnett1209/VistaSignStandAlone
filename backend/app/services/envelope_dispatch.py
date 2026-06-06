@@ -164,6 +164,25 @@ async def dispatch_envelope(
     return links
 
 
+def send_completed_copy(email: str, doc_title: str, pdf_bytes: bytes) -> None:
+    """Email the finished, signed PDF to a party once all recipients have signed."""
+    subject = f"Completed: {doc_title}"
+    filename = f"{doc_title}.pdf" if not doc_title.lower().endswith('.pdf') else doc_title
+    html = f"""
+    <html><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+      <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #7E3AF2;">All parties have signed</h2>
+        <p>Hello,</p>
+        <p>Everyone has completed signing <strong>{doc_title}</strong>. The finished,
+           signed copy is attached to this email for your records.</p>
+        <p style="color: #666; font-size: 14px;">This completed document includes a
+           signature certificate page with the audit trail.</p>
+      </div>
+    </body></html>
+    """
+    send_email(email, subject, html, attachments=[(filename, pdf_bytes, "pdf")])
+
+
 def _send_signing_email(email: str, doc_title: str, message, url: str) -> None:
     subject = f"Document Signing Request: {doc_title}"
     desc = f'<p>{message}</p>' if message else ''

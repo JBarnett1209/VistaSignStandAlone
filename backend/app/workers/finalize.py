@@ -107,7 +107,27 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             envelope.completed_at = datetime.now(timezone.utc)
             
             await db.commit()
-            
+
+            # 8. Email the finished, signed copy to everyone (all signers + owner),
+            # DocuSign-style. Email failures must not fail the finalization.
+            try:
+                from app.services.envelope_dispatch import send_completed_copy
+                from app.models.user import User
+                doc_title = (document.title if document else None) or "Signed Document"
+                emails = {r.email for r in recipients if r.email}
+                if envelope.created_by:
+                    owner = await db.get(User, envelope.created_by)
+                    if owner and owner.email:
+                        emails.add(owner.email)
+                for addr in emails:
+                    try:
+                        send_completed_copy(addr, doc_title, signed_pdf_content)
+                        logger.info(f"Sent completed copy to {addr} for envelope {envelope_id}")
+                    except Exception as mail_err:
+                        logger.error(f"Failed to email completed copy to {addr}: {mail_err}")
+            except Exception as broadcast_err:
+                logger.error(f"Completed-copy broadcast failed for {envelope_id}: {broadcast_err}")
+
             logger.info(f"Successfully finalized envelope {envelope_id}")
             return {
                 "status": "completed",

@@ -160,10 +160,10 @@ export default function WorkflowEditor({
       }
 
       // Validate participants
-      const validParticipants = participants.filter(p => p.email.trim() && p.signingOrder);
-      
+      const validParticipants = participants.filter(p => p.email.trim());
+
       if (validParticipants.length === 0) {
-        setError('Please add at least one participant with a valid email and signing order');
+        setError('Please add at least one participant with a valid email');
         return;
       }
 
@@ -217,11 +217,15 @@ export default function WorkflowEditor({
         }
       }
       
-      // Add new participants
+      // Add new participants. Parallel routing: everyone gets their link at once.
+      // A participant's row position is its recipient slot (Recipient 1, 2, ...),
+      // matching the "Assign to Recipient N" choices made in the field editor.
+      let slot = 0;
       for (const participant of validParticipants) {
+        slot += 1;
         await workflowsAPI.participants.add(workflow.data.id, {
           email: participant.email.trim(),
-          signingOrder: participant.signingOrder,
+          signingOrder: slot,
           role: 'signer'
         });
       }
@@ -312,21 +316,11 @@ export default function WorkflowEditor({
               Add Participants
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Add email addresses and assign them to signing orders. Each person will receive an email with a link to sign their assigned fields.
+              Add a participant for each recipient. Everyone gets their signing link
+              immediately and can sign in any order — fields assigned to "Recipient 1"
+              go to the first participant here, "Recipient 2" to the second, and so on.
+              When all parties have signed, the completed copy is emailed to everyone.
             </Typography>
-            
-            {availableSigningOrders.length > 0 && (
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Available signing orders:
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  {availableSigningOrders.map(order => (
-                    <Chip key={order} label={`Order ${order}`} size="small" color="primary" variant="outlined" />
-                  ))}
-                </Box>
-              </Box>
-            )}
 
             {participants.map((participant, index) => (
               <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
@@ -357,20 +351,8 @@ export default function WorkflowEditor({
                   )}
                 />
                 
-                <FormControl sx={{ minWidth: 150 }}>
-                  <InputLabel>Signing Order</InputLabel>
-                  <Select
-                    value={participant.signingOrder}
-                    onChange={(e) => updateParticipant(index, 'signingOrder', e.target.value)}
-                    label="Signing Order"
-                  >
-                    {availableSigningOrders.map(order => (
-                      <MenuItem key={order} value={order}>
-                        Order {order}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <Chip label={`Recipient ${index + 1}`} color="primary" variant="outlined"
+                  sx={{ minWidth: 110, flexShrink: 0 }} />
 
                 <IconButton
                   onClick={() => removeParticipantRow(index)}
