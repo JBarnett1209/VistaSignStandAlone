@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Box, Typography, Paper, IconButton, Button, CircularProgress,
-  ToggleButton, ToggleButtonGroup, MenuItem, Select, FormControl, InputLabel, Chip,
+  MenuItem, Select, FormControl, InputLabel, Chip, Divider, TextField,
+  FormControlLabel, Checkbox,
 } from '@mui/material';
-import { ArrowBack as BackIcon, Close as CloseIcon } from '@mui/icons-material';
+import { ArrowBack as BackIcon, Close as CloseIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { documentsAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -23,6 +24,17 @@ const PALETTE = [
   { label: 'Text', type: 'text', w: 150, h: 28 },
   { label: 'Checkbox', type: 'checkbox', w: 24, h: 24 },
 ];
+
+// Per-recipient (signing order) colors so fields are visually grouped, DocuSign-style.
+const RECIPIENT_COLORS = [
+  { border: '#7B5CFF', bg: 'rgba(123, 92, 255, 0.16)' },
+  { border: '#14B8A6', bg: 'rgba(20, 184, 166, 0.16)' },
+  { border: '#F59E0B', bg: 'rgba(245, 158, 11, 0.16)' },
+  { border: '#EC4899', bg: 'rgba(236, 72, 153, 0.16)' },
+  { border: '#3B82F6', bg: 'rgba(59, 130, 246, 0.16)' },
+];
+const colorFor = (order) => RECIPIENT_COLORS[((order || 1) - 1) % RECIPIENT_COLORS.length];
+const typeLabel = (t) => (t || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
 
 // Normalize a stored field to the editor's flat shape, accepting fields that
 // were saved with rect/rect_pts or page_index (e.g. from other tools).
@@ -51,6 +63,7 @@ export default function DocumentEdit() {
   const [fields, setFields] = useState([]);
   const [tool, setTool] = useState('signature');
   const [signingOrder, setSigningOrder] = useState(1);
+  const [selectedFieldId, setSelectedFieldId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [recipientsOpen, setRecipientsOpen] = useState(false);
   const fieldsRef = useRef([]);
@@ -82,6 +95,11 @@ export default function DocumentEdit() {
     catch (e) { console.error('Failed to save fields', e); }
   }, [id]);
 
+  // Update a single field and persist.
+  const updateField = useCallback((fieldId, patch) => {
+    persist(fieldsRef.current.map((f) => (f.id === fieldId ? { ...f, ...patch } : f)));
+  }, [persist]);
+
   const handlePageClick = useCallback((e, pageNumber) => {
     const def = PALETTE.find((p) => p.type === tool);
     if (!def) return;
@@ -101,21 +119,29 @@ export default function DocumentEdit() {
       required: true,
     };
     persist([...fields, field]);
+    setSelectedFieldId(field.id);
   }, [tool, pageScales, signingOrder, fields, persist]);
 
   const removeField = useCallback((fieldId, ev) => {
-    ev.stopPropagation();
+    if (ev) ev.stopPropagation();
+    if (selectedFieldId === fieldId) setSelectedFieldId(null);
     persist(fields.filter((f) => f.id !== fieldId));
-  }, [fields, persist]);
+  }, [fields, persist, selectedFieldId]);
 
   useEffect(() => { pageScalesRef.current = pageScales; }, [pageScales]);
 
-  // Drag a placed field to reposition it.
-  const startDrag = useCallback((e, field) => {
+  // Begin a move or resize gesture on a placed field.
+  const startGesture = useCallback((e, field, mode) => {
     if (e.target.closest('button')) return; // let the delete button work
     e.stopPropagation();
     e.preventDefault();
-    dragRef.current = { id: field.id, page: field.page, startX: e.clientX, startY: e.clientY, origX: field.x, origY: field.y, moved: false };
+    setSelectedFieldId(field.id);
+    dragRef.current = {
+      id: field.id, page: field.page, mode,
+      startX: e.clientX, startY: e.clientY,
+      origX: field.x, origY: field.y, origW: field.w, origH: field.h,
+      moved: false,
+    };
   }, []);
 
   useEffect(() => {
@@ -123,10 +149,18 @@ export default function DocumentEdit() {
       const d = dragRef.current;
       if (!d) return;
       const scale = pageScalesRef.current[d.page] || 1;
-      const nx = Math.max(0, d.origX + (e.clientX - d.startX) / scale);
-      const ny = Math.max(0, d.origY + (e.clientY - d.startY) / scale);
+      const dx = (e.clientX - d.startX) / scale;
+      const dy = (e.clientY - d.startY) / scale;
       d.moved = true;
-      setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)));
+      if (d.mode === 'resize') {
+        const nw = Math.max(16, d.origW + dx);
+        const nh = Math.max(12, d.origH + dy);
+        setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, w: nw, h: nh } : f)));
+      } else {
+        const nx = Math.max(0, d.origX + dx);
+        const ny = Math.max(0, d.origY + dy);
+        setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)));
+      }
     };
     const onUp = () => {
       const d = dragRef.current;
@@ -149,78 +183,178 @@ export default function DocumentEdit() {
   }
 
   const orders = [...new Set(fields.map((f) => f.signingOrder || 1))].sort((a, b) => a - b);
+  const selectedField = fields.find((f) => f.id === selectedFieldId) || null;
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh' }}>
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Top bar */}
       <Paper square sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 2, position: 'sticky', top: 0, zIndex: 10 }}>
         <IconButton component={Link} to={`/documents/${id}/view`}><BackIcon /></IconButton>
-        <Typography variant="h6" sx={{ flexShrink: 0 }}>{docMeta?.title || 'Prepare Document'}</Typography>
-
-        <ToggleButtonGroup size="small" exclusive value={tool} onChange={(_, v) => v && setTool(v)} sx={{ flexWrap: 'wrap' }}>
-          {PALETTE.map((p) => (
-            <ToggleButton key={p.type} value={p.type}>{p.label}</ToggleButton>
-          ))}
-        </ToggleButtonGroup>
-
-        <FormControl size="small" sx={{ minWidth: 130 }}>
-          <InputLabel>Assign to</InputLabel>
-          <Select label="Assign to" value={signingOrder} onChange={(e) => setSigningOrder(e.target.value)}>
-            {[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>Recipient {n}</MenuItem>)}
-          </Select>
-        </FormControl>
-
+        <Typography variant="h6" noWrap sx={{ flexShrink: 0, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {docMeta?.title || 'Prepare Document'}
+        </Typography>
         <Box sx={{ flexGrow: 1 }} />
         <Typography variant="body2" color="text.secondary">{fields.length} field(s)</Typography>
-        <Button variant="contained" disabled={fields.length === 0}
-          onClick={() => setRecipientsOpen(true)}>Continue to Recipients</Button>
+        <Button variant="contained" disabled={fields.length === 0} onClick={() => setRecipientsOpen(true)}>
+          Continue to Recipients
+        </Button>
       </Paper>
 
-      <Box sx={{ px: 2, py: 1, display: 'flex', gap: 1, alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          Click a field type, then click on the document to place it. Signing orders used:
-        </Typography>
-        {orders.map((o) => <Chip key={o} size="small" label={`Recipient ${o}`} color="primary" variant="outlined" />)}
-      </Box>
+      {/* 3-column workspace: palette | canvas | properties */}
+      <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Left palette */}
+        <Paper square elevation={0} sx={{ width: 220, flexShrink: 0, borderRight: '1px solid', borderColor: 'divider', p: 2, overflowY: 'auto' }}>
+          <Typography variant="overline" color="text.secondary">Fields</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+            {PALETTE.map((p) => (
+              <Button
+                key={p.type}
+                fullWidth
+                variant={tool === p.type ? 'contained' : 'outlined'}
+                onClick={() => setTool(p.type)}
+                sx={{ justifyContent: 'flex-start' }}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </Box>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
-        {pdfUrl && (
-          <Document file={pdfUrl} onLoadSuccess={({ numPages }) => setNumPages(numPages)} loading={<CircularProgress />}>
-            {Array.from(new Array(numPages), (_, i) => {
-              const pageNumber = i + 1;
-              const scale = pageScales[pageNumber] || 1;
-              return (
-                <Box key={pageNumber}
-                  onClick={(e) => handlePageClick(e, pageNumber)}
-                  sx={{ position: 'relative', boxShadow: 3, bgcolor: 'white', cursor: 'crosshair' }}>
-                  <Page pageNumber={pageNumber} width={PAGE_WIDTH} renderAnnotationLayer={false} renderTextLayer={false}
-                    onLoadSuccess={(page) => setPageScales((prev) => ({ ...prev, [pageNumber]: PAGE_WIDTH / page.originalWidth }))} />
-                  {fields.filter((f) => (f.page || 1) === pageNumber).map((f) => (
-                    <Box key={f.id}
-                      onMouseDown={(e) => startDrag(e, f)}
-                      onClick={(e) => e.stopPropagation()}
-                      sx={{
-                        position: 'absolute', left: (f.x || 0) * scale, top: (f.y || 0) * scale,
-                        width: (f.w || 144) * scale, height: (f.h || 32) * scale,
-                        border: '2px solid #7B5CFF', bgcolor: 'rgba(123,92,255,0.15)', borderRadius: 1,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, color: '#4c1d95', overflow: 'visible', cursor: 'move',
-                        userSelect: 'none',
-                      }}>
-                      <span style={{ pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-                        {(f.type || '').replace('_', ' ')} · R{f.signingOrder || 1}
-                      </span>
-                      <IconButton size="small" onClick={(ev) => removeField(f.id, ev)}
-                        sx={{ position: 'absolute', top: -12, right: -12, bgcolor: 'white', boxShadow: 1,
-                              width: 20, height: 20, '&:hover': { bgcolor: '#fee2e2' } }}>
-                        <CloseIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
-                    </Box>
-                  ))}
-                </Box>
-              );
-            })}
-          </Document>
-        )}
+          <Divider sx={{ my: 2 }} />
+
+          <FormControl size="small" fullWidth>
+            <InputLabel>Assign new fields to</InputLabel>
+            <Select label="Assign new fields to" value={signingOrder} onChange={(e) => setSigningOrder(e.target.value)}>
+              {[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>Recipient {n}</MenuItem>)}
+            </Select>
+          </FormControl>
+
+          {orders.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary">Recipients used</Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                {orders.map((o) => (
+                  <Chip key={o} size="small" label={`Recipient ${o}`}
+                    sx={{ borderColor: colorFor(o).border, color: colorFor(o).border, bgcolor: colorFor(o).bg }}
+                    variant="outlined" />
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+            Pick a field type, then click on the page to place it. Drag to move; drag the corner to resize.
+          </Typography>
+        </Paper>
+
+        {/* Center canvas (all pages) */}
+        <Box sx={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
+          {pdfUrl && (
+            <Document file={pdfUrl} onLoadSuccess={({ numPages }) => setNumPages(numPages)} loading={<CircularProgress />}>
+              {Array.from(new Array(numPages), (_, i) => {
+                const pageNumber = i + 1;
+                const scale = pageScales[pageNumber] || 1;
+                return (
+                  <Box key={pageNumber}
+                    onClick={(e) => handlePageClick(e, pageNumber)}
+                    sx={{ position: 'relative', boxShadow: 3, bgcolor: 'white', cursor: 'crosshair' }}>
+                    <Page pageNumber={pageNumber} width={PAGE_WIDTH} renderAnnotationLayer={false} renderTextLayer={false}
+                      onLoadSuccess={(page) => setPageScales((prev) => ({ ...prev, [pageNumber]: PAGE_WIDTH / page.originalWidth }))} />
+                    {fields.filter((f) => (f.page || 1) === pageNumber).map((f) => {
+                      const c = colorFor(f.signingOrder);
+                      const isSel = f.id === selectedFieldId;
+                      return (
+                        <Box key={f.id}
+                          onMouseDown={(e) => startGesture(e, f, 'move')}
+                          onClick={(e) => { e.stopPropagation(); setSelectedFieldId(f.id); }}
+                          sx={{
+                            position: 'absolute', left: (f.x || 0) * scale, top: (f.y || 0) * scale,
+                            width: (f.w || 144) * scale, height: (f.h || 32) * scale,
+                            border: `2px solid ${c.border}`, bgcolor: c.bg, borderRadius: 1,
+                            outline: isSel ? `2px solid ${c.border}` : 'none', outlineOffset: 2,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, color: c.border, overflow: 'visible', cursor: 'move',
+                            userSelect: 'none', boxShadow: isSel ? 3 : 0,
+                          }}>
+                          <span style={{ pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                            {typeLabel(f.type)} · R{f.signingOrder || 1}
+                          </span>
+                          {/* delete */}
+                          <IconButton size="small" onClick={(ev) => removeField(f.id, ev)}
+                            sx={{ position: 'absolute', top: -12, right: -12, bgcolor: 'white', boxShadow: 1,
+                                  width: 20, height: 20, '&:hover': { bgcolor: '#fee2e2' } }}>
+                            <CloseIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                          {/* resize handle (bottom-right) */}
+                          <Box
+                            onMouseDown={(e) => startGesture(e, f, 'resize')}
+                            sx={{ position: 'absolute', right: -5, bottom: -5, width: 12, height: 12,
+                                  bgcolor: c.border, borderRadius: '2px', cursor: 'nwse-resize',
+                                  border: '1px solid white' }} />
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                );
+              })}
+            </Document>
+          )}
+        </Box>
+
+        {/* Right properties panel */}
+        <Paper square elevation={0} sx={{ width: 280, flexShrink: 0, borderLeft: '1px solid', borderColor: 'divider', p: 2, overflowY: 'auto' }}>
+          <Typography variant="overline" color="text.secondary">Field properties</Typography>
+          {selectedField ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 1 }}>
+              <FormControl size="small" fullWidth>
+                <InputLabel>Type</InputLabel>
+                <Select label="Type" value={selectedField.type}
+                  onChange={(e) => updateField(selectedField.id, { type: e.target.value })}>
+                  {PALETTE.map((p) => <MenuItem key={p.type} value={p.type}>{p.label}</MenuItem>)}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" fullWidth>
+                <InputLabel>Recipient</InputLabel>
+                <Select label="Recipient" value={selectedField.signingOrder || 1}
+                  onChange={(e) => updateField(selectedField.id, { signingOrder: e.target.value })}>
+                  {[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>Recipient {n}</MenuItem>)}
+                </Select>
+              </FormControl>
+
+              <FormControlLabel
+                control={<Checkbox checked={!!selectedField.required}
+                  onChange={(e) => updateField(selectedField.id, { required: e.target.checked })} />}
+                label="Required"
+              />
+
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField size="small" label="Page" type="number" value={selectedField.page || 1}
+                  onChange={(e) => updateField(selectedField.id, { page: Math.max(1, Math.min(numPages || 1, Number(e.target.value) || 1)) })} />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField size="small" label="X" type="number" value={Math.round(selectedField.x)}
+                  onChange={(e) => updateField(selectedField.id, { x: Math.max(0, Number(e.target.value) || 0) })} />
+                <TextField size="small" label="Y" type="number" value={Math.round(selectedField.y)}
+                  onChange={(e) => updateField(selectedField.id, { y: Math.max(0, Number(e.target.value) || 0) })} />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <TextField size="small" label="Width" type="number" value={Math.round(selectedField.w)}
+                  onChange={(e) => updateField(selectedField.id, { w: Math.max(16, Number(e.target.value) || 16) })} />
+                <TextField size="small" label="Height" type="number" value={Math.round(selectedField.h)}
+                  onChange={(e) => updateField(selectedField.id, { h: Math.max(12, Number(e.target.value) || 12) })} />
+              </Box>
+
+              <Button color="error" variant="outlined" startIcon={<DeleteIcon />}
+                onClick={() => removeField(selectedField.id)}>
+                Delete field
+              </Button>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Select a placed field to edit its type, recipient, and exact position.
+            </Typography>
+          )}
+        </Paper>
       </Box>
 
       <WorkflowEditor
