@@ -30,18 +30,22 @@ export default function Workflows() {
   useEffect(() => {
     loadWorkflows();
     loadDocuments();
+    // Live updates: silently refresh signing status every 5s so the list and the
+    // open status dialog reflect completions in near-real-time without a manual refresh.
+    const id = setInterval(() => loadWorkflows({ silent: true }), 5000);
+    return () => clearInterval(id);
   }, []);
 
-  const loadWorkflows = async () => {
+  const loadWorkflows = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await workflowsAPI.list();
       setWorkflows(response.data.workflows || []);
     } catch (err) {
-      setError('Failed to load workflows');
+      if (!silent) setError('Failed to load workflows');
       console.error('Error loading workflows:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -267,12 +271,14 @@ export default function Workflows() {
                   <TableCell>
                     {(() => {
                       const { done, total } = signedSummary(workflow);
+                      if (workflow.status === 'draft') {
+                        return <Typography variant="body2">{total} participant{total === 1 ? '' : 's'}</Typography>;
+                      }
+                      const allDone = total > 0 && done === total;
                       return (
-                        <Typography variant="body2">
-                          {workflow.status === 'draft'
-                            ? `${total} participant${total === 1 ? '' : 's'}`
-                            : `${done}/${total} signed`}
-                        </Typography>
+                        <Chip size="small" variant={allDone ? 'filled' : 'outlined'}
+                          color={allDone ? 'success' : 'warning'}
+                          label={`${done}/${total} signed`} />
                       );
                     })()}
                   </TableCell>
@@ -287,7 +293,7 @@ export default function Workflows() {
                         <IconButton
                           size="small"
                           title="View Signing Status"
-                          onClick={() => setStatusDialog({ open: true, workflow })}
+                          onClick={() => setStatusDialog({ open: true, workflowId: workflow.id })}
                         >
                           <ViewIcon />
                         </IconButton>
@@ -366,58 +372,66 @@ export default function Workflows() {
       />
 
 
-      {/* Signing status / tracking dialog */}
-      <Dialog open={statusDialog.open} onClose={() => setStatusDialog({ open: false, workflow: null })} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {statusDialog.workflow?.name}
-          {statusDialog.workflow && (
-            <Chip size="small" label={statusDialog.workflow.status} color={getStatusColor(statusDialog.workflow.status)} />
-          )}
-        </DialogTitle>
-        <DialogContent dividers>
-          {statusDialog.workflow && (() => {
-            const { done, total } = signedSummary(statusDialog.workflow);
-            return <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{done} of {total} recipient(s) have signed.</Typography>;
-          })()}
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Recipient</TableCell>
-                <TableCell>Order</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Signed</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {(statusDialog.workflow?.participants || [])
-                .slice()
-                .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
-                .map((p) => (
-                  <TableRow key={p.id || p.email}>
-                    <TableCell>{p.email}</TableCell>
-                    <TableCell>{p.signingOrder}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={p.status || 'pending'} color={recipientStatusColor(p.status)} />
-                    </TableCell>
-                    <TableCell>{p.signed_at ? formatDate(p.signed_at) : '—'}</TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </DialogContent>
-        <DialogActions>
-          {statusDialog.workflow?.status === 'active' && pendingCount(statusDialog.workflow) > 0 && (
-            <Button startIcon={<RemindIcon />} onClick={() => handleRemind(statusDialog.workflow)}>
-              Remind pending
-            </Button>
-          )}
-          {statusDialog.workflow?.status === 'completed' && statusDialog.workflow?.envelope_id && (
-            <Button startIcon={<DownloadIcon />} variant="contained" onClick={() => handleDownloadSigned(statusDialog.workflow)}>
-              Download Signed PDF
-            </Button>
-          )}
-          <Button onClick={() => setStatusDialog({ open: false, workflow: null })}>Close</Button>
-        </DialogActions>
+      {/* Signing status / tracking dialog — derives from the live workflows list
+          so it updates in real-time as recipients complete (5s polling). */}
+      <Dialog open={statusDialog.open} onClose={() => setStatusDialog({ open: false, workflowId: null })} maxWidth="sm" fullWidth>
+        {(() => {
+          const w = workflows.find((x) => String(x.id) === String(statusDialog.workflowId)) || null;
+          const { done, total } = w ? signedSummary(w) : { done: 0, total: 0 };
+          return (
+            <>
+              <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {w?.name}
+                {w && <Chip size="small" label={w.status} color={getStatusColor(w.status)} />}
+              </DialogTitle>
+              <DialogContent dividers>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">{done} of {total} recipient(s) have signed.</Typography>
+                  <Box sx={{ flexGrow: 1 }} />
+                  <Chip size="small" variant="outlined" color="success" label="● live" sx={{ opacity: 0.7 }} />
+                </Box>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Recipient</TableCell>
+                      <TableCell>Recipient #</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Signed</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(w?.participants || [])
+                      .slice()
+                      .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
+                      .map((p) => (
+                        <TableRow key={p.id || p.email}>
+                          <TableCell>{p.email}</TableCell>
+                          <TableCell>{p.signingOrder}</TableCell>
+                          <TableCell>
+                            <Chip size="small" label={p.status || 'pending'} color={recipientStatusColor(p.status)} />
+                          </TableCell>
+                          <TableCell>{p.signed_at ? formatDate(p.signed_at) : '—'}</TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </DialogContent>
+              <DialogActions>
+                {w?.status === 'active' && pendingCount(w) > 0 && (
+                  <Button startIcon={<RemindIcon />} onClick={() => handleRemind(w)}>
+                    Remind pending
+                  </Button>
+                )}
+                {w?.status === 'completed' && w?.envelope_id && (
+                  <Button startIcon={<DownloadIcon />} variant="contained" onClick={() => handleDownloadSigned(w)}>
+                    Download Signed PDF
+                  </Button>
+                )}
+                <Button onClick={() => setStatusDialog({ open: false, workflowId: null })}>Close</Button>
+              </DialogActions>
+            </>
+          );
+        })()}
       </Dialog>
 
       {/* Confirmation Dialog */}
