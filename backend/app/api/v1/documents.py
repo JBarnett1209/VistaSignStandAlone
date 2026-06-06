@@ -358,25 +358,39 @@ async def upload_document(
             title = file.filename if file and file.filename else "Untitled Document"
             logger.info(f"Title was empty, using filename: '{title}'")
         
-        # Validate file type
-        logger.info(f"File content type: {file.content_type}")
-        logger.info(f"Allowed file types: {settings.ALLOWED_FILE_TYPES}")
-        if file.content_type not in settings.ALLOWED_FILE_TYPES:
-            logger.warning(f"File type {file.content_type} not in allowed types")
-            # Temporarily allow all file types for debugging
-            # raise HTTPException(
-            #     status_code=status.HTTP_400_BAD_REQUEST,
-            #     detail=f"File type {file.content_type} not allowed"
-            # )
-        
-        # Validate file size
+        # Read content once (needed for size, validation and hashing).
         file_content = await file.read()
+        if not file_content:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
         if len(file_content) > settings.MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File size exceeds maximum allowed size"
+                detail="File size exceeds maximum allowed size",
             )
-        
+
+        # Validate file type: accept when the declared content-type OR the file
+        # extension is on the allowlist, then reject obviously-executable
+        # content regardless of what was claimed (lightweight upload hardening
+        # in lieu of a full AV scanner).
+        ALLOWED_EXTS = {
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".txt", ".csv", ".jpg", ".jpeg", ".png", ".gif", ".bmp",
+            ".tif", ".tiff", ".webp", ".rtf", ".odt", ".ods", ".odp",
+        }
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        if file.content_type not in settings.ALLOWED_FILE_TYPES and ext not in ALLOWED_EXTS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File type not allowed: {file.content_type or ext or 'unknown'}",
+            )
+        head = file_content[:8]
+        if (head[:2] == b"MZ" or head[:4] == b"\x7fELF" or head[:2] == b"#!"
+                or head[:4] == b"\xca\xfe\xba\xbe"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Executable files are not allowed",
+            )
+
         # Save original via storage layer
         file_extension = os.path.splitext(file.filename)[1]
         file_path, storage_key_original = storage.save_original(file_content, file_extension)
