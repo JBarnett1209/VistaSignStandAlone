@@ -213,9 +213,9 @@ export default function DocumentEdit() {
   const selectedField = fields.find((f) => f.id === selectedFieldId) || null;
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Top bar */}
-      <Paper square sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 2, position: 'sticky', top: 0, zIndex: 10 }}>
+    <Box sx={{ bgcolor: 'background.default', height: 'calc(100vh - 64px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Top bar (fixed; only the document column scrolls) */}
+      <Paper square sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 2, zIndex: 10, flexShrink: 0 }}>
         <IconButton component={Link} to={`/documents/${id}/view`}><BackIcon /></IconButton>
         <Typography variant="h6" noWrap sx={{ flexShrink: 0, maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {docMeta?.title || 'Prepare Document'}
