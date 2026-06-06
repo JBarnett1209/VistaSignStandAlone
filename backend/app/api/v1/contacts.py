@@ -2,11 +2,13 @@
 Contacts (address book) API — saved recipients for quick reuse.
 """
 
+import csv
+import io
 import uuid
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,6 +82,91 @@ async def create_contact(
     await db.commit()
     await db.refresh(contact)
     return _to_response(contact)
+
+
+def _find_header(lower_headers, *, equals=(), contains=()):
+    """Pick a CSV header by exact match first, then substring match."""
+    for h in lower_headers:
+        if h in equals:
+            return h
+    for h in lower_headers:
+        if any(c in h for c in contains):
+            return h
+    return None
+
+
+@router.post("/import")
+async def import_contacts(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bulk-import contacts from a CSV. Flexibly maps columns (handles common
+    Google/Outlook exports): finds an email column, a name (or first+last)
+    column, and an optional company/organization column."""
+    owner_id = uuid.UUID(current_user["user_id"])
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file")
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File too large (max 5MB)")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1", errors="replace")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not read CSV headers")
+
+    # Map lowercased header -> original header.
+    orig_by_lower = {(h or "").strip().lower(): h for h in reader.fieldnames}
+    lowers = list(orig_by_lower.keys())
+    email_h = _find_header(lowers, equals=("email", "e-mail", "email address"), contains=("email", "e-mail"))
+    name_h = _find_header(lowers, equals=("name", "full name", "display name", "contact name"))
+    first_h = _find_header(lowers, equals=("first name", "given name", "firstname"))
+    last_h = _find_header(lowers, equals=("last name", "family name", "surname", "lastname"))
+    company_h = _find_header(lowers, equals=("company", "organization", "organisation"),
+                             contains=("company", "organization", "organisation"))
+    if not email_h:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="No email column found in the CSV")
+
+    def cell(row, lower_h):
+        return (row.get(orig_by_lower[lower_h]) or "").strip() if lower_h else ""
+
+    existing = {e.lower() for (e,) in (await db.execute(
+        select(Contact.email).where(Contact.owner_id == owner_id)
+    )).all()}
+
+    imported = duplicates = skipped = 0
+    errors = []
+    to_add = []
+    for i, row in enumerate(reader, start=2):  # row 1 is the header
+        email = cell(row, email_h).lower()
+        if not email or "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+            skipped += 1
+            if email:
+                errors.append(f"Row {i}: invalid email '{email}'")
+            continue
+        if email in existing:
+            duplicates += 1
+            continue
+        existing.add(email)
+        name = cell(row, name_h)
+        if not name and (first_h or last_h):
+            name = f"{cell(row, first_h)} {cell(row, last_h)}".strip()
+        company = cell(row, company_h) or None
+        to_add.append(Contact(owner_id=owner_id, email=email,
+                              name=name or email.split("@")[0], company=company))
+        imported += 1
+
+    if to_add:
+        db.add_all(to_add)
+        await db.commit()
+
+    return {"imported": imported, "duplicates": duplicates, "skipped": skipped,
+            "errors": errors[:20]}
 
 
 @router.put("/{contact_id}", response_model=ContactResponse)

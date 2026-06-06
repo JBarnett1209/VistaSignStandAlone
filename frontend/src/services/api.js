@@ -203,6 +203,11 @@ export const contactsAPI = {
   create: (data) => api.post('/api/v1/contacts/', data),
   update: (id, data) => api.put(`/api/v1/contacts/${id}`, data),
   delete: (id) => api.delete(`/api/v1/contacts/${id}`),
+  importCsv: (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return api.post('/api/v1/contacts/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export const invitesAPI = {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, Paper, IconButton, Dialog, DialogTitle, DialogContent, DialogActions,
@@ -6,6 +6,7 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Search as SearchIcon,
+  UploadFile as UploadIcon,
 } from '@mui/icons-material';
 import { contactsAPI } from '../services/api';
 
@@ -17,6 +18,9 @@ export default function Contacts() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [dialog, setDialog] = useState({ open: false, contact: null, form: EMPTY });
+  const [notice, setNotice] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = useCallback(async (q) => {
     try {
@@ -60,14 +64,39 @@ export default function Contacts() {
     catch (e) { setError('Failed to delete contact'); }
   };
 
+  const onImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    try {
+      setImporting(true);
+      setError(null);
+      const { data } = await contactsAPI.importCsv(file);
+      setNotice(`Imported ${data.imported} contact(s) — ${data.duplicates} already existed, ${data.skipped} skipped.`);
+      await load(search);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to import contacts');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <Box className="content-section" sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">Contacts</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>Add Contact</Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button variant="outlined" startIcon={<UploadIcon />} disabled={importing}
+            onClick={() => fileInputRef.current?.click()}>
+            {importing ? 'Importing…' : 'Import CSV'}
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>Add Contact</Button>
+        </Box>
+        <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={onImportFile} />
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>{error}</Alert>}
+      {notice && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice(null)}>{notice}</Alert>}
 
       <TextField
         size="small" placeholder="Search by name or email" value={search}
