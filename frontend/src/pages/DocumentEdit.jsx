@@ -69,6 +69,7 @@ export default function DocumentEdit() {
   const fieldsRef = useRef([]);
   const dragRef = useRef(null);
   const pageScalesRef = useRef({});
+  const pageRefs = useRef({}); // pageNumber -> DOM node, for cross-page hit-testing
   useEffect(() => { fieldsRef.current = fields; }, [fields]);
 
   useEffect(() => {
@@ -136,31 +137,57 @@ export default function DocumentEdit() {
     e.stopPropagation();
     e.preventDefault();
     setSelectedFieldId(field.id);
+    const pageEl = pageRefs.current[field.page];
+    const rect = pageEl ? pageEl.getBoundingClientRect() : null;
+    const scale = pageScalesRef.current[field.page] || 1;
+    // Offset (in PDF points) from the cursor to the field's top-left, so the
+    // field tracks the cursor naturally even as it crosses page boundaries.
+    const grabOffX = rect ? (e.clientX - rect.left) / scale - field.x : 0;
+    const grabOffY = rect ? (e.clientY - rect.top) / scale - field.y : 0;
     dragRef.current = {
       id: field.id, page: field.page, mode,
       startX: e.clientX, startY: e.clientY,
-      origX: field.x, origY: field.y, origW: field.w, origH: field.h,
-      moved: false,
+      origW: field.w, origH: field.h, fieldW: field.w, fieldH: field.h,
+      grabOffX, grabOffY, moved: false,
     };
   }, []);
 
   useEffect(() => {
+    // Which rendered page is under this Y coordinate? (nearest one if in a gap)
+    const pickPage = (clientY) => {
+      let best = null; let bestDist = Infinity;
+      for (const [num, el] of Object.entries(pageRefs.current)) {
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        const dist = clientY < r.top ? r.top - clientY : clientY > r.bottom ? clientY - r.bottom : 0;
+        if (dist < bestDist) { bestDist = dist; best = { page: Number(num), rect: r }; }
+      }
+      return best;
+    };
     const onMove = (e) => {
       const d = dragRef.current;
       if (!d) return;
-      const scale = pageScalesRef.current[d.page] || 1;
-      const dx = (e.clientX - d.startX) / scale;
-      const dy = (e.clientY - d.startY) / scale;
       d.moved = true;
       if (d.mode === 'resize') {
-        const nw = Math.max(16, d.origW + dx);
-        const nh = Math.max(12, d.origH + dy);
+        const scale = pageScalesRef.current[d.page] || 1;
+        const nw = Math.max(16, d.origW + (e.clientX - d.startX) / scale);
+        const nh = Math.max(12, d.origH + (e.clientY - d.startY) / scale);
         setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, w: nw, h: nh } : f)));
-      } else {
-        const nx = Math.max(0, d.origX + dx);
-        const ny = Math.max(0, d.origY + dy);
-        setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)));
+        return;
       }
+      // Move: hit-test the page under the cursor so fields can cross pages, and
+      // clamp within that page so a field can never be dragged off-canvas.
+      const target = pickPage(e.clientY);
+      if (!target) return;
+      const scale = pageScalesRef.current[target.page] || 1;
+      const pageW = target.rect.width / scale;
+      const pageH = target.rect.height / scale;
+      const rawX = (e.clientX - target.rect.left) / scale - d.grabOffX;
+      const rawY = (e.clientY - target.rect.top) / scale - d.grabOffY;
+      const nx = Math.min(Math.max(0, rawX), Math.max(0, pageW - d.fieldW));
+      const ny = Math.min(Math.max(0, rawY), Math.max(0, pageH - d.fieldH));
+      d.page = target.page;
+      setFields((prev) => prev.map((f) => (f.id === d.id ? { ...f, page: target.page, x: nx, y: ny } : f)));
     };
     const onUp = () => {
       const d = dragRef.current;
@@ -255,6 +282,7 @@ export default function DocumentEdit() {
                 const scale = pageScales[pageNumber] || 1;
                 return (
                   <Box key={pageNumber}
+                    ref={(el) => { if (el) pageRefs.current[pageNumber] = el; }}
                     onClick={(e) => handlePageClick(e, pageNumber)}
                     sx={{ position: 'relative', boxShadow: 3, bgcolor: 'white', cursor: 'crosshair' }}>
                     <Page pageNumber={pageNumber} width={PAGE_WIDTH} renderAnnotationLayer={false} renderTextLayer={false}
