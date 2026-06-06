@@ -65,7 +65,11 @@ const theme = createTheme({
         paper: {
           backgroundColor: BG.level1,
           color: '#ECECEE',
+          // Full-height sidebar: a single divider on the right, no box outline
+          // or rounded corners (overrides the generic Paper styling).
+          border: 'none',
           borderRight: `1px solid ${BG.level3}`,
+          borderRadius: 0,
         },
       },
     },
@@ -139,7 +143,6 @@ const theme = createTheme({
           borderRadius: 12,
           backgroundImage: 'none',
           backgroundColor: BG.level2,
-          border: `1px solid ${BG.level3}`,
         },
       },
     },

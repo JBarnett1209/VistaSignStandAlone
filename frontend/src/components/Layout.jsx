@@ -111,7 +111,8 @@ export const Layout = () => {
             width: drawerWidth,
             boxSizing: 'border-box',
             backgroundColor: (theme) => theme.palette.background.paper,
-            borderRight: '1px solid #E5E7EB'
+            borderRight: '1px solid',
+            borderColor: 'divider'
           },
         }}
         variant="permanent"
@@ -123,7 +124,8 @@ export const Layout = () => {
           alignItems: 'center',
           justifyContent: 'center', 
           px: 1,
-          borderBottom: '1px solid #E5E7EB',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
           height: '90px'
         }}>
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" style={{ height: '70px', width: '100%', maxWidth: '240px' }}>
