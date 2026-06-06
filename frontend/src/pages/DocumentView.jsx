@@ -24,13 +24,7 @@ export default function DocumentView() {
         
         // Get the PDF through our authenticated API client
         const pdfResponse = await documentsAPI.convertToPdf(id);
-        console.log('PDF Response:', {
-          status: pdfResponse.status,
-          headers: pdfResponse.headers,
-          dataType: typeof pdfResponse.data,
-          dataLength: pdfResponse.data?.length || 'unknown'
-        });
-        
+
         // Create a blob URL from the PDF response
         // Ensure we're handling the response as binary data
         const blob = new Blob([pdfResponse.data], { type: 'application/pdf' });

@@ -93,13 +93,9 @@ export default function AdminSignatures() {
         }
       });
       
-      console.log('AdminSignatures: Loading signatures with params:', params);
-      
       const response = await signaturesAPI.admin.listAll(params);
       const data = response.data;
-      
-      console.log('AdminSignatures: Received response:', data);
-      
+
       setSignatures(data.signatures || []);
       setTotal(data.total || 0);
       setDeletedCount(data.deleted_count || 0);

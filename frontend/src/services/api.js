@@ -28,13 +28,6 @@ api.interceptors.request.use(
   (config) => {
     // Get token from auth manager
     const token = authManager.getAccessToken();
-    console.log('API Request Interceptor:', {
-      url: config.url,
-      method: config.method,
-      hasToken: !!token,
-      tokenPreview: token ? token.substring(0, 20) + '...' : 'none'
-    });
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
