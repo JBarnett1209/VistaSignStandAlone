@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -7,7 +7,8 @@ import {
   Button,
   Typography,
   Box,
-  Alert
+  Alert,
+  Link
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -99,6 +100,10 @@ export default function Login() {
           <Button type="submit" fullWidth sx={{ mt: 2, py: 1.25 }} disabled={loading}>
             {loading ? 'Signing In...' : 'Sign In'}
           </Button>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
+            Don&apos;t have an account?{' '}
+            <Link component={RouterLink} to="/register" underline="hover">Sign up</Link>
+          </Typography>
         </Box>
       </Paper>
     </Container>

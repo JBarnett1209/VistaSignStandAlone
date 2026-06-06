@@ -305,54 +305,36 @@ async def register(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """Register a new user with an invite code"""
-    # Validate invite code
-    result = await db.execute(select(Invite).where(Invite.code == payload.invite_code))
-    invite = result.scalar_one_or_none()
-    
-    if not invite:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid invite code")
-    
-    if invite.revoked:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been revoked")
-    
-    if invite.expires_at and invite.expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has expired")
-    
-    if invite.uses_count >= invite.max_uses:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invite has been fully used")
-    
-    # Check if user already exists
-    # Normalize email
+    """Register a new user (open self-service signup)."""
+    # Basic validation
     normalized_email = payload.email.strip().lower()
+    if not normalized_email or "@" not in normalized_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A valid email is required")
+    if not payload.password or len(payload.password) < 8:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Password must be at least 8 characters")
+
     existing_user = await db.execute(select(User).where(User.email == normalized_email))
     if existing_user.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
-    
-    # Create new user
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="An account with this email already exists")
+
+    # Create the new user. New signups are standard users.
     auth_handler = AuthHandler()
-    hashed_password = auth_handler.get_password_hash(payload.password)
-    
     user = User(
         email=normalized_email,
-        password_hash=hashed_password,
+        password_hash=auth_handler.get_password_hash(payload.password),
         first_name=payload.first_name,
         last_name=payload.last_name,
-        role=UserRole(invite.role),
+        role=UserRole.USER,
         status=UserStatus.ACTIVE,
-        is_verified=True,  # Invited users are pre-verified
-        is_active=True
+        is_verified=True,
+        is_active=True,
     )
-    
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
-    # Update invite usage
-    invite.uses_count += 1
-    db.add(invite)
-    await db.commit()
-    
+
     # Generate tokens
     access_token = auth_handler.create_access_token({"sub": str(user.id), "email": user.email})
     refresh_token = auth_handler.create_refresh_token({"sub": str(user.id), "email": user.email})
