@@ -15,6 +15,7 @@ from .subscription import Subscription, Payment, UsageTracking
 # (a worker, a script) left the User<->ApiToken mapper unresolvable.
 from .api_token import ApiToken
 from .log import ApplicationLog
+from .contact import Contact
 # Recipient, Field, FieldValue, AuditEvent, and SignLink are defined in envelope.py.
 # The standalone modules (recipient.py, field.py, field_value.py, audit_event.py,
 # sign_link.py) define the SAME tables and collide in SQLAlchemy's MetaData, so they

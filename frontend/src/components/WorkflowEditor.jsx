@@ -16,14 +16,15 @@ import {
   Alert,
   CircularProgress,
   Grid,
-  Chip
+  Chip,
+  Autocomplete
 } from '@mui/material';
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
   Close as CloseIcon
 } from '@mui/icons-material';
-import { workflowsAPI, documentsAPI } from '../services/api';
+import { workflowsAPI, documentsAPI, contactsAPI } from '../services/api';
 
 export default function WorkflowEditor({ 
   open, 
@@ -37,6 +38,7 @@ export default function WorkflowEditor({
   const [documents, setDocuments] = useState([]);
   const [availableSigningOrders, setAvailableSigningOrders] = useState([]);
   const [participants, setParticipants] = useState([{ email: '', signingOrder: 1 }]);
+  const [contacts, setContacts] = useState([]);
   
   const [workflowData, setWorkflowData] = useState({
     name: '',
@@ -47,6 +49,7 @@ export default function WorkflowEditor({
   useEffect(() => {
     if (open) {
       loadDocuments();
+      loadContacts();
       if (initialDocument) {
         setWorkflowData({
           name: `Workflow for ${initialDocument.title}`,
@@ -83,6 +86,15 @@ export default function WorkflowEditor({
       setDocuments(response.data.documents || []);
     } catch (err) {
       console.error('Error loading documents:', err);
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      const response = await contactsAPI.list();
+      setContacts(response.data.contacts || []);
+    } catch (err) {
+      console.error('Error loading contacts:', err);
     }
   };
 
@@ -318,14 +330,31 @@ export default function WorkflowEditor({
 
             {participants.map((participant, index) => (
               <Box key={index} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                <TextField
+                <Autocomplete
+                  freeSolo
                   fullWidth
-                  label="Email Address"
-                  type="email"
+                  options={contacts}
                   value={participant.email}
-                  onChange={(e) => updateParticipant(index, 'email', e.target.value)}
-                  placeholder="participant@example.com"
-                  required
+                  getOptionLabel={(o) => (typeof o === 'string' ? o : o.email)}
+                  filterOptions={(opts, state) => {
+                    const q = (state.inputValue || '').toLowerCase();
+                    return q
+                      ? opts.filter((o) => o.email.toLowerCase().includes(q) || (o.name || '').toLowerCase().includes(q))
+                      : opts;
+                  }}
+                  onChange={(e, val) => updateParticipant(index, 'email', typeof val === 'string' ? val : (val?.email || ''))}
+                  onInputChange={(e, val) => updateParticipant(index, 'email', val)}
+                  renderOption={(props, o) => (
+                    <li {...props} key={o.id}>
+                      <Box>
+                        <Typography variant="body2">{o.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{o.email}{o.company ? ` · ${o.company}` : ''}</Typography>
+                      </Box>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Email Address" placeholder="participant@example.com" required />
+                  )}
                 />
                 
                 <FormControl sx={{ minWidth: 150 }}>

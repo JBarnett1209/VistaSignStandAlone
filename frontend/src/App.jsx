@@ -17,6 +17,7 @@ import DocumentView from './pages/DocumentView';
 import DocumentEdit from './pages/DocumentEdit';
 import Signatures from './pages/Signatures';
 import Workflows from './pages/Workflows';
+import Contacts from './pages/Contacts';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import Pricing from './pages/Pricing';
@@ -159,6 +160,7 @@ function AppRoutes() {
           <Route path="documents/:id/edit" element={<DocumentEdit />} />
           <Route path="signatures" element={<Signatures />} />
           <Route path="workflows" element={<Workflows />} />
+          <Route path="contacts" element={<Contacts />} />
           <Route path="profile" element={<Profile />} />
           <Route path="settings" element={<Settings />} />
           <Route path="settings/invites" element={<Invites />} />

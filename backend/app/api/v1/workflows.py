@@ -348,9 +348,17 @@ async def add_workflow_participant(
         )
         
         db.add(participant)
+
+        # Auto-save the recipient to the owner's address book (DocuSign-style).
+        try:
+            from app.api.v1.contacts import upsert_contact
+            await upsert_contact(db, uuid.UUID(current_user["user_id"]), participant_data.email)
+        except Exception as e:
+            logger.warning(f"Failed to auto-save contact: {e}")
+
         await db.commit()
         await db.refresh(participant)
-        
+
         return WorkflowParticipantResponse(
             id=str(participant.id),
             workflow_id=str(participant.workflow_id),

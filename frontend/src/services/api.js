@@ -197,6 +197,14 @@ export const evidenceAPI = {
   auditTrail: (envelopeId) => api.get(`/api/v1/evidence/envelope/${envelopeId}/audit-trail`),
 };
 
+// Address book
+export const contactsAPI = {
+  list: (search) => api.get('/api/v1/contacts/', { params: search ? { search } : {} }),
+  create: (data) => api.post('/api/v1/contacts/', data),
+  update: (id, data) => api.put(`/api/v1/contacts/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/contacts/${id}`),
+};
+
 export const invitesAPI = {
   list: () => api.get('/api/v1/invites/'),
   get: (id) => api.get(`/api/v1/invites/${id}`),

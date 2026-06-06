@@ -19,7 +19,7 @@ from app.core.database import init_db, get_db
 from app.core.config import settings
 from app.api.v1 import auth, documents, signatures, workflows, users, public_signing, billing
 from app.api.v1 import envelopes as envelopes_api
-from app.api.v1 import invites, certificate_validation, logs, api_tokens, webhooks, evidence
+from app.api.v1 import invites, certificate_validation, logs, api_tokens, webhooks, evidence, contacts
 from app.core.security.auth import get_current_user
 from app.core.certs import ensure_signature_certs
 from app.core.admin_setup import ensure_initial_admin
@@ -190,6 +190,7 @@ app.include_router(api_tokens.router, prefix="/api/v1/api-tokens", tags=["API To
 app.include_router(envelopes_api.router, prefix="/api/v1/envelopes", tags=["Envelopes"])
 app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(evidence.router, prefix="/api/v1/evidence", tags=["Evidence"])
+app.include_router(contacts.router, prefix="/api/v1/contacts", tags=["Contacts"])
 
 # CSRF minting endpoint: sets a non-HttpOnly CSRF cookie and returns the value
 @app.get("/api/v1/auth/csrf", tags=["Authentication"])

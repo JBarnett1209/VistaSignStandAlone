@@ -24,8 +24,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import EditIcon from '@mui/icons-material/Edit';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-// import PeopleIcon from '@mui/icons-material/People';
-// PersonIcon removed (unused)
+import ContactsIcon from '@mui/icons-material/Contacts';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 const drawerWidth = 256;
@@ -49,6 +48,7 @@ export const Layout = () => {
     { text: 'Documents', icon: <DescriptionIcon />, path: '/documents' },
     { text: 'Signature Templates', icon: <EditIcon />, path: '/signatures' },
     { text: 'Workflows', icon: <AssignmentIcon />, path: '/workflows' },
+    { text: 'Contacts', icon: <ContactsIcon />, path: '/contacts' },
     { text: 'Settings', icon: <SettingsIcon />, path: '/settings' },
   ];
   
