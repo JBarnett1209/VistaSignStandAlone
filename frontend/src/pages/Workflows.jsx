@@ -11,7 +11,9 @@ import {
   Send as SendIcon,
   Download as DownloadIcon,
   Visibility as ViewIcon,
-  NotificationsActive as RemindIcon
+  NotificationsActive as RemindIcon,
+  Link as LinkIcon,
+  ContentCopy as CopyIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI, evidenceAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -27,6 +29,7 @@ export default function Workflows() {
   const [statusDialog, setStatusDialog] = useState({ open: false, workflow: null });
   const [notice, setNotice] = useState(null);
   const [editEmail, setEditEmail] = useState({ id: null, value: '' });
+  const [linkDialog, setLinkDialog] = useState({ open: false, email: '', url: '' });
 
   useEffect(() => {
     loadWorkflows();
@@ -119,6 +122,25 @@ export default function Workflows() {
       await loadWorkflows({ silent: true });
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update email');
+    }
+  };
+
+  const showSigningLink = async (workflowId, participant) => {
+    try {
+      const resp = await workflowsAPI.participants.link(workflowId, participant.id);
+      setLinkDialog({ open: true, email: resp.data.email || participant.email, url: resp.data.url || '' });
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to get signing link');
+    }
+  };
+
+  const copyLink = async (url) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice('Signing link copied to clipboard');
+    } catch {
+      setNotice('Select the link and copy it manually');
     }
   };
 
@@ -466,8 +488,13 @@ export default function Workflows() {
                                   </IconButton>
                                 )}
                                 {!done && w?.envelope_id && (
-                                  <IconButton size="small" color="primary" title="Resend signing link" onClick={() => resendParticipant(w.id, p)}>
+                                  <IconButton size="small" color="primary" title="Resend signing link by email" onClick={() => resendParticipant(w.id, p)}>
                                     <SendIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                {!done && w?.envelope_id && (
+                                  <IconButton size="small" title="Get signing link to share" onClick={() => showSigningLink(w.id, p)}>
+                                    <LinkIcon fontSize="small" />
                                   </IconButton>
                                 )}
                               </Box>
@@ -498,6 +525,27 @@ export default function Workflows() {
             </>
           );
         })()}
+      </Dialog>
+
+      {/* Share signing link dialog */}
+      <Dialog open={linkDialog.open} onClose={() => setLinkDialog({ open: false, email: '', url: '' })} maxWidth="sm" fullWidth>
+        <DialogTitle>Signing link for {linkDialog.email}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            If email isn&apos;t reaching them, share this link directly (text, chat, etc.).
+            It opens this recipient&apos;s personal signing page.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <TextField fullWidth size="small" value={linkDialog.url} InputProps={{ readOnly: true }}
+              onFocus={(e) => e.target.select()} />
+            <Button variant="contained" startIcon={<CopyIcon />} onClick={() => copyLink(linkDialog.url)} sx={{ flexShrink: 0 }}>
+              Copy
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLinkDialog({ open: false, email: '', url: '' })}>Close</Button>
+        </DialogActions>
       </Dialog>
 
       {/* Confirmation Dialog */}

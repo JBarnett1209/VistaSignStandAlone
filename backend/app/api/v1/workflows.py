@@ -504,6 +504,52 @@ async def resend_workflow_participant(
         raise HTTPException(status_code=500, detail="Failed to resend signing link")
 
 
+@router.get("/{workflow_id}/participants/{participant_id}/link")
+async def get_participant_signing_link(
+    workflow_id: str,
+    participant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Return a recipient's signing-link URL so the operator can share it manually
+    (e.g. paste into a text message if email isn't reaching them)."""
+    try:
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+        if not workflow.envelope_id:
+            raise HTTPException(status_code=400, detail="Workflow has not been sent yet")
+
+        from app.models.envelope import Recipient, SignLink
+        from app.core.config import settings
+        participant = await db.get(WorkflowParticipant, uuid.UUID(participant_id))
+        if not participant or str(participant.workflow_id) != str(workflow_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
+        recipient = (await db.execute(
+            select(Recipient).where(Recipient.workflow_participant_id == participant.id)
+        )).scalar_one_or_none()
+        if not recipient:
+            raise HTTPException(status_code=404, detail="Recipient not found for this participant")
+        link = (await db.execute(
+            select(SignLink).where(SignLink.recipient_id == recipient.id)
+        )).scalar_one_or_none()
+        if not link:
+            raise HTTPException(status_code=404, detail="No signing link found for this recipient")
+
+        base = (settings.FRONTEND_URL or "").rstrip("/")
+        return {"email": recipient.email, "url": f"{base}/sign/{link.token_jti}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get participant link error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get signing link")
+
+
 @router.delete("/{workflow_id}/participants/{participant_id}")
 async def remove_workflow_participant(
     workflow_id: str,
