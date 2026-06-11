@@ -77,7 +77,7 @@ export default function Workflows() {
 
   const handleResendWorkflow = async (workflowId) => {
     try {
-      await workflowsAPI.send(workflowId);
+      await workflowsAPI.remind(workflowId);
       await loadWorkflows();
       setError(null);
     } catch (err) {
