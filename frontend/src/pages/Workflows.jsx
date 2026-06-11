@@ -164,6 +164,19 @@ export default function Workflows() {
     }
   };
 
+  const handleViewDocument = async (workflow) => {
+    try {
+      const resp = await workflowsAPI.preview(workflow.id);
+      const blob = new Blob([resp.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setError(null);
+    } catch (err) {
+      setError('Failed to load document preview');
+      console.error('Error loading preview:', err);
+    }
+  };
+
   const handleDownloadSigned = async (workflow) => {
     if (!workflow.envelope_id) return;
     try {
@@ -510,6 +523,11 @@ export default function Workflows() {
                 </Typography>
               </DialogContent>
               <DialogActions>
+                {w?.envelope_id && (
+                  <Button startIcon={<ViewIcon />} onClick={() => handleViewDocument(w)}>
+                    View document
+                  </Button>
+                )}
                 {w?.status === 'active' && pendingCount(w) > 0 && (
                   <Button startIcon={<RemindIcon />} onClick={() => handleRemind(w)}>
                     Remind pending

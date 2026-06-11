@@ -550,6 +550,59 @@ async def get_participant_signing_link(
         raise HTTPException(status_code=500, detail="Failed to get signing link")
 
 
+@router.get("/{workflow_id}/preview")
+async def preview_signed_document(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Return the document flattened with whatever signatures/values have been
+    collected SO FAR (in-progress preview for the owner), without finalizing."""
+    try:
+        from fastapi.responses import Response
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+        document = await db.get(Document, workflow.document_id)
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        import os
+        # Not sent yet: no signatures, just return the document's PDF rendition.
+        if not workflow.envelope_id:
+            if document.mime_type == "application/pdf" and os.path.exists(document.file_path):
+                with open(document.file_path, "rb") as f:
+                    return Response(content=f.read(), media_type="application/pdf")
+            import tempfile
+            from app.core.document_converter import DocumentConverter
+            tmp = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.pdf")
+            ok = await DocumentConverter.convert_to_pdf(document.file_path, tmp, document.mime_type, document.title or document.filename)
+            data = b""
+            if ok and os.path.exists(tmp):
+                with open(tmp, "rb") as f:
+                    data = f.read()
+                os.remove(tmp)
+            return Response(content=data, media_type="application/pdf")
+
+        from app.models.envelope import Envelope, Field, FieldValue
+        from app.services.pdf_flattener import pdf_flattener
+        envelope = await db.get(Envelope, workflow.envelope_id)
+        fields = (await db.execute(select(Field).where(Field.envelope_id == envelope.id))).scalars().all()
+        field_values = (await db.execute(select(FieldValue).where(FieldValue.envelope_id == envelope.id))).scalars().all()
+        pdf_bytes = await pdf_flattener.flatten_envelope(envelope, document, fields, field_values)
+        return Response(content=pdf_bytes, media_type="application/pdf")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Preview document error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to render document preview")
+
+
 @router.delete("/{workflow_id}/participants/{participant_id}")
 async def remove_workflow_participant(
     workflow_id: str,
