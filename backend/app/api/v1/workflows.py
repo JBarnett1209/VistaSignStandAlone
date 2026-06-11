@@ -20,7 +20,7 @@ from app.models.document import Document
 from app.schemas.workflow import (
     WorkflowCreate, WorkflowResponse, WorkflowListResponse,
     WorkflowStepCreate, WorkflowStepResponse,
-    WorkflowParticipantCreate, WorkflowParticipantResponse
+    WorkflowParticipantCreate, WorkflowParticipantResponse, WorkflowParticipantUpdate
 )
 
 router = APIRouter()
@@ -384,6 +384,125 @@ async def add_workflow_participant(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add workflow participant"
         )
+
+@router.put("/{workflow_id}/participants/{participant_id}", response_model=WorkflowParticipantResponse)
+async def update_workflow_participant(
+    workflow_id: str,
+    participant_id: str,
+    payload: WorkflowParticipantUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a participant (e.g. change their email) and sync the envelope recipient."""
+    try:
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+
+        participant = await db.get(WorkflowParticipant, uuid.UUID(participant_id))
+        if not participant or str(participant.workflow_id) != str(workflow_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
+
+        # Keep the envelope recipient (which owns the sign link) in sync.
+        from app.models.envelope import Recipient
+        recipient = (await db.execute(
+            select(Recipient).where(Recipient.workflow_participant_id == participant.id)
+        )).scalar_one_or_none()
+
+        if payload.email is not None:
+            new_email = payload.email.strip()
+            if not new_email:
+                raise HTTPException(status_code=400, detail="Email cannot be empty")
+            participant.email = new_email
+            if recipient:
+                recipient.email = new_email
+                recipient.name = new_email.split("@")[0]
+            try:
+                from app.api.v1.contacts import upsert_contact
+                await upsert_contact(db, uuid.UUID(current_user["user_id"]), new_email)
+            except Exception as e:
+                logger.warning(f"Failed to auto-save contact: {e}")
+        if payload.signingOrder is not None:
+            participant.signingOrder = payload.signingOrder
+            if recipient:
+                recipient.routing_order = payload.signingOrder
+        if payload.role is not None:
+            participant.role = payload.role
+
+        await db.commit()
+        await db.refresh(participant)
+        return WorkflowParticipantResponse(
+            id=str(participant.id),
+            workflow_id=str(participant.workflow_id),
+            email=participant.email,
+            signingOrder=participant.signingOrder,
+            role=participant.role,
+            user_id=str(participant.user_id) if participant.user_id else None,
+            permissions=participant.permissions,
+            status=participant.status,
+            signed_at=participant.signed_at,
+            signature_data=participant.signature_data,
+            ip_address=participant.ip_address,
+            user_agent=participant.user_agent,
+            created_at=participant.created_at,
+            updated_at=participant.updated_at,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update workflow participant error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to update participant")
+
+
+@router.post("/{workflow_id}/participants/{participant_id}/resend")
+async def resend_workflow_participant(
+    workflow_id: str,
+    participant_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Re-email the signing link to one participant (e.g. after changing their email)."""
+    try:
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+        if not workflow.envelope_id:
+            raise HTTPException(status_code=400, detail="Workflow has not been sent yet")
+
+        from app.models.envelope import Envelope, Recipient, RecipientStatus
+        participant = await db.get(WorkflowParticipant, uuid.UUID(participant_id))
+        if not participant or str(participant.workflow_id) != str(workflow_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Participant not found")
+        recipient = (await db.execute(
+            select(Recipient).where(Recipient.workflow_participant_id == participant.id)
+        )).scalar_one_or_none()
+        if not recipient:
+            raise HTTPException(status_code=404, detail="Recipient not found for this participant")
+        if recipient.status in (RecipientStatus.COMPLETED, RecipientStatus.DECLINED):
+            raise HTTPException(status_code=400, detail="This recipient has already finished signing")
+
+        envelope = await db.get(Envelope, workflow.envelope_id)
+        document = await db.get(Document, envelope.document_id)
+        from app.services.envelope_dispatch import dispatch_envelope
+        await dispatch_envelope(db, envelope, [recipient], document)
+        await db.commit()
+        return {"message": f"Signing link sent to {recipient.email}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Resend participant error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to resend signing link")
+
 
 @router.delete("/{workflow_id}/participants/{participant_id}")
 async def remove_workflow_participant(

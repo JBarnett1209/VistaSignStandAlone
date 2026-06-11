@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
-  TableHead, TableRow, Paper, Chip, IconButton, Dialog, DialogTitle, 
-  DialogContent, DialogActions, Alert, CircularProgress
+  TableHead, TableRow, Paper, Chip, IconButton, Dialog, DialogTitle,
+  DialogContent, DialogActions, Alert, CircularProgress, Snackbar, TextField
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -26,6 +26,7 @@ export default function Workflows() {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
   const [statusDialog, setStatusDialog] = useState({ open: false, workflow: null });
   const [notice, setNotice] = useState(null);
+  const [editEmail, setEditEmail] = useState({ id: null, value: '' });
 
   useEffect(() => {
     loadWorkflows();
@@ -77,9 +78,10 @@ export default function Workflows() {
 
   const handleResendWorkflow = async (workflowId) => {
     try {
-      await workflowsAPI.remind(workflowId);
+      const response = await workflowsAPI.remind(workflowId);
       await loadWorkflows();
       setError(null);
+      setNotice(response?.data?.message || 'Signing emails re-sent');
     } catch (err) {
       setError('Failed to re-send workflow emails');
       console.error('Error re-sending workflow:', err);
@@ -105,6 +107,30 @@ export default function Workflows() {
     (workflow.participants || []).filter(
       (p) => !['completed', 'declined'].includes((p.status || '').toLowerCase())
     ).length;
+
+  const saveParticipantEmail = async (workflowId, participant) => {
+    const value = (editEmail.value || '').trim();
+    if (!value) return;
+    try {
+      await workflowsAPI.participants.update(workflowId, participant.id, { email: value });
+      setEditEmail({ id: null, value: '' });
+      setNotice('Recipient email updated. Use Resend to send the link to the new address.');
+      setError(null);
+      await loadWorkflows({ silent: true });
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update email');
+    }
+  };
+
+  const resendParticipant = async (workflowId, participant) => {
+    try {
+      const resp = await workflowsAPI.participants.resend(workflowId, participant.id);
+      setNotice(resp.data?.message || `Signing link sent to ${participant.email}`);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to resend signing link');
+    }
+  };
 
   const handleRemind = async (workflow) => {
     try {
@@ -208,11 +234,16 @@ export default function Workflows() {
           {error}
         </Alert>
       )}
-      {notice && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice(null)}>
+      <Snackbar
+        open={Boolean(notice)}
+        autoHideDuration={4000}
+        onClose={() => setNotice(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="success" variant="filled" sx={{ width: '100%' }} onClose={() => setNotice(null)}>
           {notice}
         </Alert>
-      )}
+      </Snackbar>
       
       <TableContainer component={Paper} elevation={0} square className="full-width-table" sx={{ maxWidth: 'none' }}>
         <Table stickyHeader sx={{ width: '100%', tableLayout: 'fixed', minWidth: 0 }}>
@@ -394,27 +425,62 @@ export default function Workflows() {
                   <TableHead>
                     <TableRow>
                       <TableCell>Recipient</TableCell>
-                      <TableCell>Recipient #</TableCell>
+                      <TableCell>#</TableCell>
                       <TableCell>Status</TableCell>
                       <TableCell>Signed</TableCell>
+                      <TableCell align="right">Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(w?.participants || [])
                       .slice()
                       .sort((a, b) => (a.signingOrder || 0) - (b.signingOrder || 0))
-                      .map((p) => (
+                      .map((p) => {
+                        const done = ['completed', 'declined'].includes((p.status || '').toLowerCase());
+                        const editing = editEmail.id === p.id;
+                        return (
                         <TableRow key={p.id || p.email}>
-                          <TableCell>{p.email}</TableCell>
+                          <TableCell sx={{ maxWidth: 240 }}>
+                            {editing ? (
+                              <TextField size="small" fullWidth type="email" value={editEmail.value} autoFocus
+                                onChange={(e) => setEditEmail({ id: p.id, value: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === 'Enter') saveParticipantEmail(w.id, p); }} />
+                            ) : p.email}
+                          </TableCell>
                           <TableCell>{p.signingOrder}</TableCell>
                           <TableCell>
                             <Chip size="small" label={p.status || 'pending'} color={recipientStatusColor(p.status)} />
                           </TableCell>
                           <TableCell>{p.signed_at ? formatDate(p.signed_at) : '—'}</TableCell>
+                          <TableCell align="right">
+                            {editing ? (
+                              <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                <Button size="small" variant="contained" onClick={() => saveParticipantEmail(w.id, p)}>Save</Button>
+                                <Button size="small" color="inherit" onClick={() => setEditEmail({ id: null, value: '' })}>Cancel</Button>
+                              </Box>
+                            ) : (
+                              <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                                {!done && (
+                                  <IconButton size="small" title="Change email" onClick={() => setEditEmail({ id: p.id, value: p.email })}>
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                {!done && w?.envelope_id && (
+                                  <IconButton size="small" color="primary" title="Resend signing link" onClick={() => resendParticipant(w.id, p)}>
+                                    <SendIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            )}
+                          </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                   </TableBody>
                 </Table>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Wrong address? Click the pencil to change a recipient's email, Save, then the paper-plane to resend their signing link to the new address.
+                </Typography>
               </DialogContent>
               <DialogActions>
                 {w?.status === 'active' && pendingCount(w) > 0 && (

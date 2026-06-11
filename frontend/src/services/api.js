@@ -172,7 +172,8 @@ export const workflowsAPI = {
     list: (workflowId) => api.get(`/api/v1/workflows/${workflowId}/participants`),
     add: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
     update: (workflowId, participantId, data) => api.put(`/api/v1/workflows/${workflowId}/participants/${participantId}`, data),
-    delete: (workflowId, participantId) => api.delete(`/api/v1/workflows/${workflowId}/participants/${participantId}`)
+    delete: (workflowId, participantId) => api.delete(`/api/v1/workflows/${workflowId}/participants/${participantId}`),
+    resend: (workflowId, participantId) => api.post(`/api/v1/workflows/${workflowId}/participants/${participantId}/resend`)
   }
 };
 

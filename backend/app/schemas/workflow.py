@@ -20,6 +20,12 @@ class WorkflowParticipantCreate(BaseModel):
     role: str = "signer"
     permissions: Optional[Dict[str, Any]] = None
 
+class WorkflowParticipantUpdate(BaseModel):
+    """Partial update for a participant (e.g. change their email)."""
+    email: Optional[str] = None
+    signingOrder: Optional[int] = None
+    role: Optional[str] = None
+
 class WorkflowParticipantResponse(BaseModel):
     """Workflow participant response schema"""
     id: str
