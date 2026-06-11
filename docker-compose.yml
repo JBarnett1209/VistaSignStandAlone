@@ -2,6 +2,7 @@
 services:
   # Nginx Reverse Proxy (serves frontend build and proxies API)
   nginx:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: nginx.Dockerfile
@@ -36,6 +37,7 @@ services:
 
   # PostgreSQL Database
   db:
+    restart: unless-stopped
     image: postgres:15
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-vistasign}
@@ -57,6 +59,7 @@ services:
 
   # Redis Cache
   redis:
+    restart: unless-stopped
     image: redis:7-alpine
     # Bound to localhost only — reached internally as host 'redis'.
     ports:
@@ -73,6 +76,7 @@ services:
 
   # VistaSign Backend
   backend:
+    restart: unless-stopped
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -131,6 +135,7 @@ services:
   # Listens on the 'finalize' queue. Document ingest is done inline at upload, so
   # there is no separate ingest job/queue.
   worker:
+    restart: unless-stopped
     build:
       context: ./backend
       dockerfile: Dockerfile
