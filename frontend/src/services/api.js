@@ -169,6 +169,7 @@ export const workflowsAPI = {
   send: (id) => api.post(`/api/v1/workflows/${id}/send`),
   remind: (id) => api.post(`/api/v1/workflows/${id}/remind`),
   preview: (id) => api.get(`/api/v1/workflows/${id}/preview`, { responseType: 'arraybuffer' }),
+  complete: (id) => api.post(`/api/v1/workflows/${id}/complete`),
   participants: {
     list: (workflowId) => api.get(`/api/v1/workflows/${workflowId}/participants`),
     add: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),

@@ -9,7 +9,7 @@ from typing import List, Optional
 import logging
 import uuid
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.core.database import get_db
 from app.core.security.auth import get_current_user
@@ -548,6 +548,57 @@ async def get_participant_signing_link(
     except Exception as e:
         logger.error(f"Get participant link error: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to get signing link")
+
+
+@router.post("/{workflow_id}/complete")
+async def force_complete_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Finalize the workflow NOW using whatever signatures have been collected,
+    without waiting for the remaining recipients."""
+    try:
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+        if not workflow.envelope_id:
+            raise HTTPException(status_code=400, detail="Workflow has not been sent yet")
+
+        from app.models.envelope import Envelope, EnvelopeStatus, AuditEvent, ActorType
+        from app.workers.queue import enqueue_finalize
+        envelope = await db.get(Envelope, workflow.envelope_id)
+        if not envelope:
+            raise HTTPException(status_code=404, detail="Envelope not found")
+        if envelope.status == EnvelopeStatus.COMPLETED:
+            return {"message": "Workflow is already completed"}
+        if envelope.status != EnvelopeStatus.SENT:
+            raise HTTPException(status_code=400, detail="This workflow cannot be completed in its current state")
+
+        workflow.status = WorkflowStatus.COMPLETED
+        workflow.completed_at = datetime.now(timezone.utc)
+        db.add(AuditEvent(
+            envelope_id=envelope.id, actor_type=ActorType.SYSTEM,
+            event="envelope.force_completed",
+            event_metadata={"by": current_user.get("email")},
+        ))
+        await db.commit()
+        try:
+            enqueue_finalize(str(envelope.id))
+        except Exception as e:
+            logger.error(f"Failed to enqueue finalize for {envelope.id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to start finalization")
+        return {"message": "Completing the workflow with current signatures. The signed copy will be emailed shortly."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Force complete workflow error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to complete workflow")
 
 
 @router.get("/{workflow_id}/preview")

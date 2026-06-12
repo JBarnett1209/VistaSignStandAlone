@@ -12,8 +12,7 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon,
   NotificationsActive as RemindIcon,
-  Link as LinkIcon,
-  ContentCopy as CopyIcon
+  CheckCircle as CompleteIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI, evidenceAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -29,7 +28,6 @@ export default function Workflows() {
   const [statusDialog, setStatusDialog] = useState({ open: false, workflow: null });
   const [notice, setNotice] = useState(null);
   const [editEmail, setEditEmail] = useState({ id: null, value: '' });
-  const [linkDialog, setLinkDialog] = useState({ open: false, email: '', url: '' });
 
   useEffect(() => {
     loadWorkflows();
@@ -125,23 +123,28 @@ export default function Workflows() {
     }
   };
 
-  const showSigningLink = async (workflowId, participant) => {
-    try {
-      const resp = await workflowsAPI.participants.link(workflowId, participant.id);
-      setLinkDialog({ open: true, email: resp.data.email || participant.email, url: resp.data.url || '' });
-      setError(null);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to get signing link');
-    }
-  };
-
-  const copyLink = async (url) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setNotice('Signing link copied to clipboard');
-    } catch {
-      setNotice('Select the link and copy it manually');
-    }
+  const handleCompleteNow = (workflow) => {
+    const { done, total } = signedSummary(workflow);
+    const remaining = total - done;
+    setConfirmDialog({
+      open: true,
+      title: 'Complete workflow now',
+      message: remaining > 0
+        ? `Finalize this document using the ${done} signature(s) collected so far? ${remaining} recipient(s) have not signed and will no longer be able to. The signed copy will be emailed to everyone.`
+        : 'Finalize this document and email the signed copy to everyone?',
+      onConfirm: async () => {
+        try {
+          const resp = await workflowsAPI.complete(workflow.id);
+          setNotice(resp.data?.message || 'Completing workflow with current signatures.');
+          setError(null);
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+          await loadWorkflows({ silent: true });
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Failed to complete workflow');
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
   };
 
   const resendParticipant = async (workflowId, participant) => {
@@ -505,11 +508,6 @@ export default function Workflows() {
                                     <SendIcon fontSize="small" />
                                   </IconButton>
                                 )}
-                                {!done && w?.envelope_id && (
-                                  <IconButton size="small" title="Get signing link to share" onClick={() => showSigningLink(w.id, p)}>
-                                    <LinkIcon fontSize="small" />
-                                  </IconButton>
-                                )}
                               </Box>
                             )}
                           </TableCell>
@@ -533,6 +531,11 @@ export default function Workflows() {
                     Remind pending
                   </Button>
                 )}
+                {w?.status === 'active' && (
+                  <Button color="success" startIcon={<CompleteIcon />} onClick={() => handleCompleteNow(w)}>
+                    Complete Workflow
+                  </Button>
+                )}
                 {w?.status === 'completed' && w?.envelope_id && (
                   <Button startIcon={<DownloadIcon />} variant="contained" onClick={() => handleDownloadSigned(w)}>
                     Download Signed PDF
@@ -543,27 +546,6 @@ export default function Workflows() {
             </>
           );
         })()}
-      </Dialog>
-
-      {/* Share signing link dialog */}
-      <Dialog open={linkDialog.open} onClose={() => setLinkDialog({ open: false, email: '', url: '' })} maxWidth="sm" fullWidth>
-        <DialogTitle>Signing link for {linkDialog.email}</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            If email isn&apos;t reaching them, share this link directly (text, chat, etc.).
-            It opens this recipient&apos;s personal signing page.
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-            <TextField fullWidth size="small" value={linkDialog.url} InputProps={{ readOnly: true }}
-              onFocus={(e) => e.target.select()} />
-            <Button variant="contained" startIcon={<CopyIcon />} onClick={() => copyLink(linkDialog.url)} sx={{ flexShrink: 0 }}>
-              Copy
-            </Button>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setLinkDialog({ open: false, email: '', url: '' })}>Close</Button>
-        </DialogActions>
       </Dialog>
 
       {/* Confirmation Dialog */}
