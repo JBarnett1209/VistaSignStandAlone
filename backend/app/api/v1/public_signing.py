@@ -127,7 +127,7 @@ async def get_signing_page(token: str, db: AsyncSession = Depends(get_db)):
         "recipient": {"id": str(recipient.id), "name": recipient.name,
                       "email": recipient.email, "status": recipient.status},
         "document": document_payload,
-        "already_signed": recipient.status == RecipientStatus.COMPLETED,
+        "already_signed": recipient.status == RecipientStatus.COMPLETED or envelope.status != EnvelopeStatus.SENT,
         "fields": [
             {"id": str(f.id), "type": f.type, "page_index": f.page_index,
              "rect_pts": f.rect_pts, "required": f.required, "value": value_map.get(str(f.id))}
@@ -141,6 +141,8 @@ async def submit_field_value(token: str, field_id: str, payload: dict, request: 
                              db: AsyncSession = Depends(get_db)):
     """Save (upsert) a value for one of this recipient's fields."""
     link, envelope, recipient = await _resolve(token, db)
+    if envelope.status != EnvelopeStatus.SENT:
+        raise HTTPException(status_code=400, detail="This document is no longer open for signing")
     if recipient.status == RecipientStatus.COMPLETED:
         raise HTTPException(status_code=400, detail="You have already completed signing")
     try:
@@ -186,6 +188,8 @@ async def complete_signing(token: str, request: Request, db: AsyncSession = Depe
     link, envelope, recipient = await _resolve(token, db)
     if recipient.status == RecipientStatus.COMPLETED:
         return {"message": "Already completed"}
+    if envelope.status != EnvelopeStatus.SENT:
+        raise HTTPException(status_code=400, detail="This document is no longer open for signing")
 
     # All required fields for this recipient must have a value.
     required = [f for f in await _recipient_fields(db, envelope.id, recipient.id) if f.required]
