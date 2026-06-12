@@ -105,7 +105,17 @@ async def finalize_envelope(envelope_id: str) -> Dict[str, Any]:
             envelope.storage_key_evidence_json = evidence_json_key
             envelope.status = EnvelopeStatus.COMPLETED
             envelope.completed_at = datetime.now(timezone.utc)
-            
+
+            # The completed copy is emailed to everyone below, so the signing
+            # links are no longer needed — expire them so an old link can't be
+            # reopened after completion.
+            from app.models.envelope import SignLink
+            sign_links = (await db.execute(
+                select(SignLink).where(SignLink.envelope_id == envelope.id)
+            )).scalars().all()
+            for sl in sign_links:
+                sl.expires_at = datetime.now(timezone.utc)
+
             await db.commit()
 
             # 8. Email the finished, signed copy to everyone (all signers + owner),
