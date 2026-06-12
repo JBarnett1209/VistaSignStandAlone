@@ -12,7 +12,8 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon,
   NotificationsActive as RemindIcon,
-  CheckCircle as CompleteIcon
+  CheckCircle as CompleteIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { workflowsAPI, documentsAPI, evidenceAPI } from '../services/api';
 import WorkflowEditor from '../components/WorkflowEditor';
@@ -141,6 +142,27 @@ export default function Workflows() {
           await loadWorkflows({ silent: true });
         } catch (err) {
           setError(err.response?.data?.detail || 'Failed to complete workflow');
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+        }
+      }
+    });
+  };
+
+  const handleCancelWorkflow = (workflow) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Cancel workflow',
+      message: 'Cancel this workflow and invalidate all signing links? Recipients will no longer be able to open or sign the document. This cannot be undone.',
+      onConfirm: async () => {
+        try {
+          const resp = await workflowsAPI.cancel(workflow.id);
+          setNotice(resp.data?.message || 'Workflow cancelled. All signing links are now invalid.');
+          setError(null);
+          setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
+          setStatusDialog({ open: false, workflowId: null });
+          await loadWorkflows({ silent: true });
+        } catch (err) {
+          setError(err.response?.data?.detail || 'Failed to cancel workflow');
           setConfirmDialog({ open: false, title: '', message: '', onConfirm: null });
         }
       }
@@ -534,6 +556,11 @@ export default function Workflows() {
                 {w?.status === 'active' && (
                   <Button color="success" startIcon={<CompleteIcon />} onClick={() => handleCompleteNow(w)}>
                     Complete Workflow
+                  </Button>
+                )}
+                {(w?.status === 'active' || w?.status === 'draft') && (
+                  <Button color="error" startIcon={<CancelIcon />} onClick={() => handleCancelWorkflow(w)}>
+                    Cancel Workflow
                   </Button>
                 )}
                 {w?.status === 'completed' && w?.envelope_id && (

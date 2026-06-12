@@ -601,6 +601,52 @@ async def force_complete_workflow(
         raise HTTPException(status_code=500, detail="Failed to complete workflow")
 
 
+@router.post("/{workflow_id}/cancel")
+async def cancel_workflow(
+    workflow_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Cancel the workflow and invalidate ALL signing links so no one can sign."""
+    try:
+        workflow = (await db.execute(
+            select(Workflow).where(and_(
+                Workflow.id == workflow_id,
+                Workflow.created_by == uuid.UUID(current_user["user_id"]),
+            ))
+        )).scalar_one_or_none()
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
+
+        now = datetime.now(timezone.utc)
+        from app.models.envelope import Envelope, EnvelopeStatus, SignLink, AuditEvent, ActorType
+        if workflow.envelope_id:
+            envelope = await db.get(Envelope, workflow.envelope_id)
+            if envelope and envelope.status == EnvelopeStatus.COMPLETED:
+                raise HTTPException(status_code=400, detail="Workflow is already completed and cannot be cancelled")
+            if envelope:
+                envelope.status = EnvelopeStatus.VOIDED
+                # Expire every signing link so opening one shows an expired/closed page.
+                links = (await db.execute(
+                    select(SignLink).where(SignLink.envelope_id == envelope.id)
+                )).scalars().all()
+                for l in links:
+                    l.expires_at = now
+                db.add(AuditEvent(
+                    envelope_id=envelope.id, actor_type=ActorType.SYSTEM,
+                    event="envelope.cancelled",
+                    event_metadata={"by": current_user.get("email")},
+                ))
+        workflow.status = WorkflowStatus.CANCELLED
+        await db.commit()
+        return {"message": "Workflow cancelled. All signing links are now invalid."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Cancel workflow error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to cancel workflow")
+
+
 @router.get("/{workflow_id}/preview")
 async def preview_signed_document(
     workflow_id: str,

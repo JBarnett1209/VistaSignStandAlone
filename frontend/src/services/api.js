@@ -170,6 +170,7 @@ export const workflowsAPI = {
   remind: (id) => api.post(`/api/v1/workflows/${id}/remind`),
   preview: (id) => api.get(`/api/v1/workflows/${id}/preview`, { responseType: 'arraybuffer' }),
   complete: (id) => api.post(`/api/v1/workflows/${id}/complete`),
+  cancel: (id) => api.post(`/api/v1/workflows/${id}/cancel`),
   participants: {
     list: (workflowId) => api.get(`/api/v1/workflows/${workflowId}/participants`),
     add: (workflowId, data) => api.post(`/api/v1/workflows/${workflowId}/participants`, data),
