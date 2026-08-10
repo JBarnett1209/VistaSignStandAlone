@@ -46,3 +46,15 @@ docker-compose.override.yml
 
 # Generated frontend build output (rebuilt at deploy time by entrypoint.sh)
 frontend/build/
+# --- added when publishing to GitHub ---
+!.env.example
+!.env.sample
+*.key
+*.pfx
+*.keystore
+*.ppk
+target/
+.next/
+.nuxt/
+*.zip
+*.7z
